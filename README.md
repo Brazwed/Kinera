@@ -517,6 +517,22 @@ D = caracteres + features + sílabas causais
 As sílabas usadas em C/D são somente as sílabas já completamente observadas.
 O runner registra média e desvio entre seeds, além da contagem de parâmetros.
 
+Para a Fase 5.1 expandida:
+
+```bash
+python run_comparison.py \
+  --vocabulary data/processed/vocabulary.json \
+  --syllable-vocabulary data/processed/syllable_vocabulary.json \
+  --train data/processed/autoregressive_train.jsonl \
+  --validation data/processed/autoregressive_validation.jsonl \
+  --seeds 7 42 123 --epochs 2 --learning-rate 0.05 \
+  --max-examples 1000
+```
+
+Além das métricas, o relatório registra duração por seed e o uso efetivo do
+canal silábico: posições não-`<UNK_SYL>` e quantidade de IDs silábicos únicos
+presentes em treino e validação.
+
 Smoke comparison registrada em `experiments/phase5_controlled_comparison.json`
 com 50 exemplos, 2 épocas e 3 seeds:
 
@@ -531,3 +547,29 @@ D       3.6880            11,33%
 B e D foram melhores neste smoke test, mas a diferença ainda não é evidência
 definitiva de que sílabas causais ajudam. A comparação maior deve usar a mesma
 configuração e mais exemplos antes de concluir.
+
+### Fase 5.1 expandida
+
+A execução expandida foi concluída com 1.000 exemplos de treino, 1.000 de
+validação, 2 épocas e as seeds `7`, `42` e `123`. Cada variante manteve
+139.432 parâmetros treináveis.
+
+```text
+        char_loss médio ± desvio    char_accuracy médio ± desvio
+A       2.521841 ± 0.001549         30,900% ± 0,000%
+B       2.507925 ± 0.002448         31,167% ± 0,189%
+C       2.396040 ± 0.010389         32,167% ± 0,205%
+D       2.352711 ± 0.002371         31,500% ± 0,082%
+```
+
+C e D usaram efetivamente o canal silábico causal: 3.593 posições não-`<UNK_SYL>`
+e 99 IDs únicos no treino; 3.883 posições e 95 IDs únicos na validação.
+
+Resultado: C teve a maior acurácia de caractere, enquanto D teve a menor
+`char_loss`. Em relação a A, D reduziu a `char_loss` em aproximadamente 0,1691
+e aumentou a acurácia em 0,6 ponto percentual. Em relação a B, D reduziu a
+`char_loss` em aproximadamente 0,1552, mas a acurácia aumentou apenas 0,33
+ponto percentual. O resultado é positivo, mas ainda deve ser interpretado com
+cautela porque a avaliação usou apenas 1.000 exemplos e 2 épocas.
+
+Relatório completo: `experiments/phase5_1_expanded_comparison.json`.

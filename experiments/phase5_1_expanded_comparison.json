@@ -1,0 +1,1205 @@
+{
+  "aggregates": {
+    "A": {
+      "mean": {
+        "boundary_accuracy": 0.547,
+        "boundary_f1": 0.7071751777634129,
+        "boundary_loss": 0.6980616891869073,
+        "boundary_precision": 0.547,
+        "boundary_recall": 1.0,
+        "char_accuracy": 0.309,
+        "char_loss": 2.5218414130266735,
+        "syllable_accuracy_all": 0.19899999999999998,
+        "syllable_accuracy_known": 0.11396648044692738,
+        "syllable_loss": 5.26121165244943,
+        "total_loss": 6.414108076497364
+      },
+      "std": {
+        "boundary_accuracy": 0.0,
+        "boundary_f1": 1.1102230246251565e-16,
+        "boundary_loss": 0.00034632831063285545,
+        "boundary_precision": 0.0,
+        "boundary_recall": 0.0,
+        "char_accuracy": 0.0,
+        "char_loss": 0.0015493012019488202,
+        "syllable_accuracy_all": 2.7755575615628914e-17,
+        "syllable_accuracy_known": 0.0,
+        "syllable_loss": 0.01487630385403885,
+        "total_loss": 0.009717009568590274
+      }
+    },
+    "B": {
+      "mean": {
+        "boundary_accuracy": 0.547,
+        "boundary_f1": 0.7071751777634129,
+        "boundary_loss": 0.6982072289903828,
+        "boundary_precision": 0.547,
+        "boundary_recall": 1.0,
+        "char_accuracy": 0.3116666666666667,
+        "char_loss": 2.507924915949608,
+        "syllable_accuracy_all": 0.19899999999999998,
+        "syllable_accuracy_known": 0.11396648044692738,
+        "syllable_loss": 5.2304681003459175,
+        "total_loss": 6.378714754888862
+      },
+      "std": {
+        "boundary_accuracy": 0.0,
+        "boundary_f1": 1.1102230246251565e-16,
+        "boundary_loss": 0.00028512614665731376,
+        "boundary_precision": 0.0,
+        "boundary_recall": 0.0,
+        "char_accuracy": 0.0018856180831641283,
+        "char_loss": 0.0024481759115593336,
+        "syllable_accuracy_all": 2.7755575615628914e-17,
+        "syllable_accuracy_known": 0.0,
+        "syllable_loss": 0.014480413917269208,
+        "total_loss": 0.00860232779849035
+      }
+    },
+    "C": {
+      "mean": {
+        "boundary_accuracy": 0.5473333333333333,
+        "boundary_f1": 0.7068207296922969,
+        "boundary_loss": 0.6678541377599311,
+        "boundary_precision": 0.5473104608139926,
+        "boundary_recall": 0.9975624619134674,
+        "char_accuracy": 0.3216666666666667,
+        "char_loss": 2.3960402870419606,
+        "syllable_accuracy_all": 0.19899999999999998,
+        "syllable_accuracy_known": 0.11396648044692738,
+        "syllable_loss": 5.86004519725057,
+        "total_loss": 6.698428166445339
+      },
+      "std": {
+        "boundary_accuracy": 0.00047140452079103207,
+        "boundary_f1": 0.0005012652693292173,
+        "boundary_loss": 0.0007019331847692581,
+        "boundary_precision": 0.00043905789373371076,
+        "boundary_recall": 0.003447199420775384,
+        "char_accuracy": 0.0020548046676563273,
+        "char_loss": 0.010388564640397916,
+        "syllable_accuracy_all": 2.7755575615628914e-17,
+        "syllable_accuracy_known": 0.0,
+        "syllable_loss": 0.03379052152202389,
+        "total_loss": 0.01716308676423124
+      }
+    },
+    "D": {
+      "mean": {
+        "boundary_accuracy": 0.547,
+        "boundary_f1": 0.7071751777634129,
+        "boundary_loss": 0.664179964056101,
+        "boundary_precision": 0.547,
+        "boundary_recall": 1.0,
+        "char_accuracy": 0.315,
+        "char_loss": 2.3527114757789547,
+        "syllable_accuracy_all": 0.19899999999999998,
+        "syllable_accuracy_known": 0.11396648044692738,
+        "syllable_loss": 5.601215879869084,
+        "total_loss": 6.472816580904147
+      },
+      "std": {
+        "boundary_accuracy": 0.0,
+        "boundary_f1": 1.1102230246251565e-16,
+        "boundary_loss": 0.0024712073596267685,
+        "boundary_precision": 0.0,
+        "boundary_recall": 0.0,
+        "char_accuracy": 0.0008164965809277268,
+        "char_loss": 0.00237066815314843,
+        "syllable_accuracy_all": 2.7755575615628914e-17,
+        "syllable_accuracy_known": 0.0,
+        "syllable_loss": 0.011578312823291878,
+        "total_loss": 0.0072255126012864
+      }
+    }
+  },
+  "epochs": 2,
+  "input_usage": {
+    "A": {
+      "train_context_positions": 8000,
+      "train_non_unk_context_positions": 0,
+      "train_unique_syllable_ids": 0,
+      "validation_context_positions": 8000,
+      "validation_non_unk_context_positions": 0,
+      "validation_unique_syllable_ids": 0
+    },
+    "B": {
+      "train_context_positions": 8000,
+      "train_non_unk_context_positions": 0,
+      "train_unique_syllable_ids": 0,
+      "validation_context_positions": 8000,
+      "validation_non_unk_context_positions": 0,
+      "validation_unique_syllable_ids": 0
+    },
+    "C": {
+      "train_context_positions": 8000,
+      "train_non_unk_context_positions": 3593,
+      "train_unique_syllable_ids": 99,
+      "validation_context_positions": 8000,
+      "validation_non_unk_context_positions": 3883,
+      "validation_unique_syllable_ids": 95
+    },
+    "D": {
+      "train_context_positions": 8000,
+      "train_non_unk_context_positions": 3593,
+      "train_unique_syllable_ids": 99,
+      "validation_context_positions": 8000,
+      "validation_non_unk_context_positions": 3883,
+      "validation_unique_syllable_ids": 95
+    }
+  },
+  "learning_rate": 0.05,
+  "loss_weights": {
+    "boundary": 0.3,
+    "char": 1.0,
+    "syllable": 0.7
+  },
+  "max_examples": 1000,
+  "parameter_counts": {
+    "A": 139432,
+    "B": 139432,
+    "C": 139432,
+    "D": 139432
+  },
+  "runs": {
+    "A": [
+      {
+        "duration_seconds": 193.63993830396794,
+        "final_validation": {
+          "boundary_accuracy": 0.547,
+          "boundary_f1": 0.707175177763413,
+          "boundary_loss": 0.6975966653775326,
+          "boundary_precision": 0.547,
+          "boundary_recall": 1.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.309,
+          "char_loss": 2.5197993185969385,
+          "examples": 1000,
+          "syllable_accuracy": 0.199,
+          "syllable_accuracy_all": 0.199,
+          "syllable_accuracy_known": 0.11396648044692738,
+          "syllable_loss": 5.265040886942085,
+          "total_loss": 6.414606939069661
+        },
+        "initial_validation": {
+          "boundary_accuracy": 0.453,
+          "boundary_f1": 0.0,
+          "boundary_loss": 0.6981955347645433,
+          "boundary_precision": 0.0,
+          "boundary_recall": 0.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.0,
+          "char_loss": 3.9383255551289276,
+          "examples": 1000,
+          "syllable_accuracy": 0.0,
+          "syllable_accuracy_all": 0.0,
+          "syllable_accuracy_known": 0.0,
+          "syllable_loss": 8.283497651604192,
+          "total_loss": 9.946232571681225
+        },
+        "parameter_count": 139432,
+        "seed": 7,
+        "training": {
+          "epochs": 2,
+          "examples": 1000,
+          "history": [
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6792176335578004,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.317,
+              "char_loss": 2.5657562937918956,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.337714092056159,
+              "total_loss": 5.80592144829855
+            },
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6796503248813794,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.318,
+              "char_loss": 2.572475945541098,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 3.9172645381689413,
+              "total_loss": 5.518456219723783
+            }
+          ]
+        }
+      },
+      {
+        "duration_seconds": 195.58106881310232,
+        "final_validation": {
+          "boundary_accuracy": 0.547,
+          "boundary_f1": 0.707175177763413,
+          "boundary_loss": 0.6981610485825883,
+          "boundary_precision": 0.547,
+          "boundary_recall": 1.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.309,
+          "char_loss": 2.523550129549111,
+          "examples": 1000,
+          "syllable_accuracy": 0.199,
+          "syllable_accuracy_all": 0.199,
+          "syllable_accuracy_known": 0.11396648044692738,
+          "syllable_loss": 5.24138169688822,
+          "total_loss": 6.401965631945664
+        },
+        "initial_validation": {
+          "boundary_accuracy": 0.453,
+          "boundary_f1": 0.0,
+          "boundary_loss": 0.6973124013617447,
+          "boundary_precision": 0.0,
+          "boundary_recall": 0.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.0,
+          "char_loss": 3.909330303989633,
+          "examples": 1000,
+          "syllable_accuracy": 0.0,
+          "syllable_accuracy_all": 0.0,
+          "syllable_accuracy_known": 0.0,
+          "syllable_loss": 8.26653653605107,
+          "total_loss": 9.905099599633873
+        },
+        "parameter_count": 139432,
+        "seed": 42,
+        "training": {
+          "epochs": 2,
+          "examples": 1000,
+          "history": [
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6796329923341553,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.317,
+              "char_loss": 2.5644272706025677,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.370993599133064,
+              "total_loss": 5.8280126876959475
+            },
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6799665682659642,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.318,
+              "char_loss": 2.575558770819651,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 3.924812807487436,
+              "total_loss": 5.526917706540643
+            }
+          ]
+        }
+      },
+      {
+        "duration_seconds": 194.7402194479946,
+        "final_validation": {
+          "boundary_accuracy": 0.547,
+          "boundary_f1": 0.707175177763413,
+          "boundary_loss": 0.698427353600601,
+          "boundary_precision": 0.547,
+          "boundary_recall": 1.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.309,
+          "char_loss": 2.522174790933971,
+          "examples": 1000,
+          "syllable_accuracy": 0.199,
+          "syllable_accuracy_all": 0.199,
+          "syllable_accuracy_known": 0.11396648044692738,
+          "syllable_loss": 5.277212373517987,
+          "total_loss": 6.425751658476767
+        },
+        "initial_validation": {
+          "boundary_accuracy": 0.453,
+          "boundary_f1": 0.0,
+          "boundary_loss": 0.695796986570703,
+          "boundary_precision": 0.0,
+          "boundary_recall": 0.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.0,
+          "char_loss": 3.90357007643424,
+          "examples": 1000,
+          "syllable_accuracy": 0.0,
+          "syllable_accuracy_all": 0.0,
+          "syllable_accuracy_known": 0.0,
+          "syllable_loss": 8.2845765695833,
+          "total_loss": 9.911512771113784
+        },
+        "parameter_count": 139432,
+        "seed": 123,
+        "training": {
+          "epochs": 2,
+          "examples": 1000,
+          "history": [
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6799154536573337,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.317,
+              "char_loss": 2.5708509126917467,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.342416605469323,
+              "total_loss": 5.814517172617474
+            },
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6800339179753316,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.318,
+              "char_loss": 2.573934221916694,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 3.9167964744046424,
+              "total_loss": 5.519701929392568
+            }
+          ]
+        }
+      }
+    ],
+    "B": [
+      {
+        "duration_seconds": 203.1300795741845,
+        "final_validation": {
+          "boundary_accuracy": 0.547,
+          "boundary_f1": 0.707175177763413,
+          "boundary_loss": 0.6979317807291034,
+          "boundary_precision": 0.547,
+          "boundary_recall": 1.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.313,
+          "char_loss": 2.5051871863444317,
+          "examples": 1000,
+          "syllable_accuracy": 0.199,
+          "syllable_accuracy_all": 0.199,
+          "syllable_accuracy_known": 0.11396648044692738,
+          "syllable_loss": 5.232311326294225,
+          "total_loss": 6.377184648969126
+        },
+        "initial_validation": {
+          "boundary_accuracy": 0.561,
+          "boundary_f1": 0.47044632086851634,
+          "boundary_loss": 0.6930522553972913,
+          "boundary_precision": 0.6914893617021277,
+          "boundary_recall": 0.35648994515539306,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.012,
+          "char_loss": 3.9256129863629443,
+          "examples": 1000,
+          "syllable_accuracy": 0.0,
+          "syllable_accuracy_all": 0.0,
+          "syllable_accuracy_known": 0.0,
+          "syllable_loss": 8.270568116516593,
+          "total_loss": 9.922926344543786
+        },
+        "parameter_count": 139432,
+        "seed": 7,
+        "training": {
+          "epochs": 2,
+          "examples": 1000,
+          "history": [
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6772601341152128,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.317,
+              "char_loss": 2.536573934148247,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.308230130512315,
+              "total_loss": 5.755513065741483
+            },
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6745420630976775,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.326,
+              "char_loss": 2.539640180974437,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 3.8918905186483896,
+              "total_loss": 5.466326162957607
+            }
+          ]
+        }
+      },
+      {
+        "duration_seconds": 204.0926508239936,
+        "final_validation": {
+          "boundary_accuracy": 0.547,
+          "boundary_f1": 0.707175177763413,
+          "boundary_loss": 0.6985999856106785,
+          "boundary_precision": 0.547,
+          "boundary_recall": 1.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.309,
+          "char_loss": 2.511129257637808,
+          "examples": 1000,
+          "syllable_accuracy": 0.199,
+          "syllable_accuracy_all": 0.199,
+          "syllable_accuracy_known": 0.11396648044692738,
+          "syllable_loss": 5.211883660038612,
+          "total_loss": 6.369027815348025
+        },
+        "initial_validation": {
+          "boundary_accuracy": 0.473,
+          "boundary_f1": 0.11428571428571428,
+          "boundary_loss": 0.6938267881976118,
+          "boundary_precision": 0.7083333333333334,
+          "boundary_recall": 0.062157221206581355,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.066,
+          "char_loss": 3.8978049390119645,
+          "examples": 1000,
+          "syllable_accuracy": 0.0,
+          "syllable_accuracy_all": 0.0,
+          "syllable_accuracy_known": 0.0,
+          "syllable_loss": 8.27486779592697,
+          "total_loss": 9.898360432620144
+        },
+        "parameter_count": 139432,
+        "seed": 42,
+        "training": {
+          "epochs": 2,
+          "examples": 1000,
+          "history": [
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.678207035178571,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.317,
+              "char_loss": 2.5373627033807127,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.345793409596084,
+              "total_loss": 5.782880200651551
+            },
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.675419718310695,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.319,
+              "char_loss": 2.54491526658579,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 3.900651702330859,
+              "total_loss": 5.477997373710613
+            }
+          ]
+        }
+      },
+      {
+        "duration_seconds": 210.34608599497005,
+        "final_validation": {
+          "boundary_accuracy": 0.547,
+          "boundary_f1": 0.707175177763413,
+          "boundary_loss": 0.6980899206313668,
+          "boundary_precision": 0.547,
+          "boundary_recall": 1.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.313,
+          "char_loss": 2.5074583038665845,
+          "examples": 1000,
+          "syllable_accuracy": 0.199,
+          "syllable_accuracy_all": 0.199,
+          "syllable_accuracy_known": 0.11396648044692738,
+          "syllable_loss": 5.247209314704918,
+          "total_loss": 6.389931800349436
+        },
+        "initial_validation": {
+          "boundary_accuracy": 0.549,
+          "boundary_f1": 0.6641846612062547,
+          "boundary_loss": 0.6864115316611895,
+          "boundary_precision": 0.5603015075376885,
+          "boundary_recall": 0.8153564899451554,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.01,
+          "char_loss": 3.9031098711530494,
+          "examples": 1000,
+          "syllable_accuracy": 0.0,
+          "syllable_accuracy_all": 0.0,
+          "syllable_accuracy_known": 0.0,
+          "syllable_loss": 8.289450471963134,
+          "total_loss": 9.911648661025588
+        },
+        "parameter_count": 139432,
+        "seed": 123,
+        "training": {
+          "epochs": 2,
+          "examples": 1000,
+          "history": [
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.677202777402954,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.317,
+              "char_loss": 2.5435473168287626,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.319880560657014,
+              "total_loss": 5.77062454250954
+            },
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6741488840092217,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.326,
+              "char_loss": 2.541989323990515,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 3.892934164040391,
+              "total_loss": 5.469287904021601
+            }
+          ]
+        }
+      }
+    ],
+    "C": [
+      {
+        "duration_seconds": 216.4557205149904,
+        "final_validation": {
+          "boundary_accuracy": 0.548,
+          "boundary_f1": 0.706111833550065,
+          "boundary_loss": 0.6677172053075714,
+          "boundary_precision": 0.5479313824419778,
+          "boundary_recall": 0.9926873857404022,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.319,
+          "char_loss": 2.410633882444918,
+          "examples": 1000,
+          "syllable_accuracy": 0.199,
+          "syllable_accuracy_all": 0.199,
+          "syllable_accuracy_known": 0.11396648044692738,
+          "syllable_loss": 5.826855680263239,
+          "total_loss": 6.6897480202214545
+        },
+        "initial_validation": {
+          "boundary_accuracy": 0.453,
+          "boundary_f1": 0.0,
+          "boundary_loss": 0.6982712436349401,
+          "boundary_precision": 0.0,
+          "boundary_recall": 0.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.008,
+          "char_loss": 3.9377739022431903,
+          "examples": 1000,
+          "syllable_accuracy": 0.0,
+          "syllable_accuracy_all": 0.0,
+          "syllable_accuracy_known": 0.0,
+          "syllable_loss": 8.284227415945969,
+          "total_loss": 9.946214466495846
+        },
+        "parameter_count": 139432,
+        "seed": 7,
+        "training": {
+          "epochs": 2,
+          "examples": 1000,
+          "history": [
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6738752649035146,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.34,
+              "char_loss": 2.5569415540595957,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 5.201945699777386,
+              "total_loss": 6.400466123374828
+            },
+            {
+              "boundary_accuracy": 0.575,
+              "boundary_f1": 0.7287811104020422,
+              "boundary_loss": 0.6569756035318904,
+              "boundary_precision": 0.579107505070994,
+              "boundary_recall": 0.9827882960413081,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.326,
+              "char_loss": 2.49823826267031,
+              "syllable_accuracy": 0.24,
+              "syllable_accuracy_all": 0.24,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.396559303256271,
+              "total_loss": 5.7729224560092485
+            }
+          ]
+        }
+      },
+      {
+        "duration_seconds": 211.03952002502047,
+        "final_validation": {
+          "boundary_accuracy": 0.547,
+          "boundary_f1": 0.707175177763413,
+          "boundary_loss": 0.6670711332458982,
+          "boundary_precision": 0.547,
+          "boundary_recall": 1.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.324,
+          "char_loss": 2.390211018843652,
+          "examples": 1000,
+          "syllable_accuracy": 0.199,
+          "syllable_accuracy_all": 0.199,
+          "syllable_accuracy_known": 0.11396648044692738,
+          "syllable_loss": 5.846865117563209,
+          "total_loss": 6.68313794111167
+        },
+        "initial_validation": {
+          "boundary_accuracy": 0.453,
+          "boundary_f1": 0.0,
+          "boundary_loss": 0.6974672944531667,
+          "boundary_precision": 0.0,
+          "boundary_recall": 0.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.017,
+          "char_loss": 3.9099660757799484,
+          "examples": 1000,
+          "syllable_accuracy": 0.0,
+          "syllable_accuracy_all": 0.0,
+          "syllable_accuracy_known": 0.0,
+          "syllable_loss": 8.26628929206073,
+          "total_loss": 9.905608768558405
+        },
+        "parameter_count": 139432,
+        "seed": 42,
+        "training": {
+          "epochs": 2,
+          "examples": 1000,
+          "history": [
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6733708668463413,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.34,
+              "char_loss": 2.5570299739200735,
+              "syllable_accuracy": 0.241,
+              "syllable_accuracy_all": 0.241,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 5.285674364428213,
+              "total_loss": 6.459013289073735
+            },
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6544808876806599,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.334,
+              "char_loss": 2.470073009915041,
+              "syllable_accuracy": 0.24,
+              "syllable_accuracy_all": 0.24,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.467293512688278,
+              "total_loss": 5.793522735101033
+            }
+          ]
+        }
+      },
+      {
+        "duration_seconds": 214.79518317081966,
+        "final_validation": {
+          "boundary_accuracy": 0.547,
+          "boundary_f1": 0.707175177763413,
+          "boundary_loss": 0.6687740747263238,
+          "boundary_precision": 0.547,
+          "boundary_recall": 1.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.322,
+          "char_loss": 2.3872759598373117,
+          "examples": 1000,
+          "syllable_accuracy": 0.199,
+          "syllable_accuracy_all": 0.199,
+          "syllable_accuracy_known": 0.11396648044692738,
+          "syllable_loss": 5.906414793925261,
+          "total_loss": 6.722398538002893
+        },
+        "initial_validation": {
+          "boundary_accuracy": 0.453,
+          "boundary_f1": 0.0,
+          "boundary_loss": 0.6951872755950766,
+          "boundary_precision": 0.0,
+          "boundary_recall": 0.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.021,
+          "char_loss": 3.902561850345424,
+          "examples": 1000,
+          "syllable_accuracy": 0.0,
+          "syllable_accuracy_all": 0.0,
+          "syllable_accuracy_known": 0.0,
+          "syllable_loss": 8.284551948032973,
+          "total_loss": 9.910304396647032
+        },
+        "parameter_count": 139432,
+        "seed": 123,
+        "training": {
+          "epochs": 2,
+          "examples": 1000,
+          "history": [
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6735510741695925,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.34,
+              "char_loss": 2.5574586150296805,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 5.225990187530012,
+              "total_loss": 6.417717068551602
+            },
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6568631589290851,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.334,
+              "char_loss": 2.46652821813305,
+              "syllable_accuracy": 0.24,
+              "syllable_accuracy_all": 0.24,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.46963326226316,
+              "total_loss": 5.792330449396022
+            }
+          ]
+        }
+      }
+    ],
+    "D": [
+      {
+        "duration_seconds": 223.17657946795225,
+        "final_validation": {
+          "boundary_accuracy": 0.547,
+          "boundary_f1": 0.707175177763413,
+          "boundary_loss": 0.6607474240079533,
+          "boundary_precision": 0.547,
+          "boundary_recall": 1.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.314,
+          "char_loss": 2.3515410347974344,
+          "examples": 1000,
+          "syllable_accuracy": 0.199,
+          "syllable_accuracy_all": 0.199,
+          "syllable_accuracy_known": 0.11396648044692738,
+          "syllable_loss": 5.594418159874668,
+          "total_loss": 6.4658579739120805
+        },
+        "initial_validation": {
+          "boundary_accuracy": 0.552,
+          "boundary_f1": 0.4455445544554456,
+          "boundary_loss": 0.6931061239046192,
+          "boundary_precision": 0.6896551724137931,
+          "boundary_recall": 0.3290676416819013,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.0,
+          "char_loss": 3.9250538277474947,
+          "examples": 1000,
+          "syllable_accuracy": 0.0,
+          "syllable_accuracy_all": 0.0,
+          "syllable_accuracy_known": 0.0,
+          "syllable_loss": 8.271293601869802,
+          "total_loss": 9.92289118622772
+        },
+        "parameter_count": 139432,
+        "seed": 7,
+        "training": {
+          "epochs": 2,
+          "examples": 1000,
+          "history": [
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6659616283215016,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.327,
+              "char_loss": 2.462833662370699,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.836018948500853,
+              "total_loss": 6.047835414817754
+            },
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6441602884952541,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.334,
+              "char_loss": 2.4120954743622423,
+              "syllable_accuracy": 0.24,
+              "syllable_accuracy_all": 0.24,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.22025959733871,
+              "total_loss": 5.5595252790479215
+            }
+          ]
+        }
+      },
+      {
+        "duration_seconds": 223.14801572309807,
+        "final_validation": {
+          "boundary_accuracy": 0.547,
+          "boundary_f1": 0.707175177763413,
+          "boundary_loss": 0.6653274192290973,
+          "boundary_precision": 0.547,
+          "boundary_recall": 1.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.315,
+          "char_loss": 2.3560174778063527,
+          "examples": 1000,
+          "syllable_accuracy": 0.199,
+          "syllable_accuracy_all": 0.199,
+          "syllable_accuracy_known": 0.11396648044692738,
+          "syllable_loss": 5.591713993999903,
+          "total_loss": 6.469815499375005
+        },
+        "initial_validation": {
+          "boundary_accuracy": 0.462,
+          "boundary_f1": 0.07876712328767123,
+          "boundary_loss": 0.6939339851371612,
+          "boundary_precision": 0.6216216216216216,
+          "boundary_recall": 0.04204753199268738,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.066,
+          "char_loss": 3.89847539728189,
+          "examples": 1000,
+          "syllable_accuracy": 0.0,
+          "syllable_accuracy_all": 0.0,
+          "syllable_accuracy_known": 0.0,
+          "syllable_loss": 8.274609275039499,
+          "total_loss": 9.898882085350689
+        },
+        "parameter_count": 139432,
+        "seed": 42,
+        "training": {
+          "epochs": 2,
+          "examples": 1000,
+          "history": [
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6668223590895668,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.327,
+              "char_loss": 2.4697035389118254,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.919946637173874,
+              "total_loss": 6.113712892660424
+            },
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6472220585507744,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.335,
+              "char_loss": 2.4118323919706435,
+              "syllable_accuracy": 0.24,
+              "syllable_accuracy_all": 0.24,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.259896587191105,
+              "total_loss": 5.587926620569653
+            }
+          ]
+        }
+      },
+      {
+        "duration_seconds": 228.96330884099007,
+        "final_validation": {
+          "boundary_accuracy": 0.547,
+          "boundary_f1": 0.707175177763413,
+          "boundary_loss": 0.6664650489312526,
+          "boundary_precision": 0.547,
+          "boundary_recall": 1.0,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.316,
+          "char_loss": 2.350575914733076,
+          "examples": 1000,
+          "syllable_accuracy": 0.199,
+          "syllable_accuracy_all": 0.199,
+          "syllable_accuracy_known": 0.11396648044692738,
+          "syllable_loss": 5.617515485732681,
+          "total_loss": 6.4827762694253535
+        },
+        "initial_validation": {
+          "boundary_accuracy": 0.544,
+          "boundary_f1": 0.6617210682492581,
+          "boundary_loss": 0.6863702530698997,
+          "boundary_precision": 0.5568039950062422,
+          "boundary_recall": 0.8153564899451554,
+          "boundary_target_distribution": {
+            "0": 453,
+            "1": 547
+          },
+          "char_accuracy": 0.006,
+          "char_loss": 3.902175565571549,
+          "examples": 1000,
+          "syllable_accuracy": 0.0,
+          "syllable_accuracy_all": 0.0,
+          "syllable_accuracy_known": 0.0,
+          "syllable_loss": 8.289418548650765,
+          "total_loss": 9.910679625548076
+        },
+        "parameter_count": 139432,
+        "seed": 123,
+        "training": {
+          "epochs": 2,
+          "examples": 1000,
+          "history": [
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6671063182395232,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.327,
+              "char_loss": 2.4645365298825768,
+              "syllable_accuracy": 0.242,
+              "syllable_accuracy_all": 0.242,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.855608749414433,
+              "total_loss": 6.063594549944476
+            },
+            {
+              "boundary_accuracy": 0.581,
+              "boundary_f1": 0.734977862112587,
+              "boundary_loss": 0.6488014028425068,
+              "boundary_precision": 0.581,
+              "boundary_recall": 1.0,
+              "boundary_target_distribution": {
+                "0": 419,
+                "1": 581
+              },
+              "char_accuracy": 0.335,
+              "char_loss": 2.40690598009012,
+              "syllable_accuracy": 0.24,
+              "syllable_accuracy_all": 0.24,
+              "syllable_accuracy_known": 0.15862068965517243,
+              "syllable_loss": 4.243833382558325,
+              "total_loss": 5.572229768733737
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "seeds": [
+    7,
+    42,
+    123
+  ],
+  "variants": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ]
+}
