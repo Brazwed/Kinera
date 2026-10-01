@@ -1,0 +1,866 @@
+{
+  "completed_runs": 1,
+  "epochs": 1,
+  "learning_rate": 0.05,
+  "max_examples": 50,
+  "phase": "5.3_syllable_gain_analysis",
+  "runs": [
+    {
+      "buckets": {
+        "boundary_proximity": {
+          "A_vs_C": {
+            "unavailable": {
+              "accuracy_delta": 0.0,
+              "examples": 50,
+              "improved_loss_fraction": 0.48,
+              "mean_delta_loss": -0.003236477438125407,
+              "regressed_loss_fraction": 0.52
+            }
+          },
+          "B_vs_D": {
+            "unavailable": {
+              "accuracy_delta": 0.0,
+              "examples": 50,
+              "improved_loss_fraction": 0.48,
+              "mean_delta_loss": -0.002526389229212409,
+              "regressed_loss_fraction": 0.52
+            }
+          }
+        },
+        "syllable_frequency": {
+          "A_vs_C": {
+            "frequent": {
+              "accuracy_delta": 0.0,
+              "examples": 2,
+              "improved_loss_fraction": 0.0,
+              "mean_delta_loss": -0.00894612803682282,
+              "regressed_loss_fraction": 1.0
+            },
+            "rare": {
+              "accuracy_delta": 0.0,
+              "examples": 1,
+              "improved_loss_fraction": 1.0,
+              "mean_delta_loss": 0.011964286759521325,
+              "regressed_loss_fraction": 0.0
+            },
+            "unknown_target": {
+              "accuracy_delta": 0.0,
+              "examples": 7,
+              "improved_loss_fraction": 0.0,
+              "mean_delta_loss": -0.02991760658989825,
+              "regressed_loss_fraction": 1.0
+            },
+            "unseen_in_train": {
+              "accuracy_delta": 0.0,
+              "examples": 40,
+              "improved_loss_fraction": 0.575,
+              "mean_delta_loss": 0.001338183588428543,
+              "regressed_loss_fraction": 0.425
+            }
+          },
+          "B_vs_D": {
+            "frequent": {
+              "accuracy_delta": 0.0,
+              "examples": 2,
+              "improved_loss_fraction": 0.0,
+              "mean_delta_loss": -0.008388407594205338,
+              "regressed_loss_fraction": 1.0
+            },
+            "rare": {
+              "accuracy_delta": 0.0,
+              "examples": 1,
+              "improved_loss_fraction": 1.0,
+              "mean_delta_loss": 0.012068252074542318,
+              "regressed_loss_fraction": 0.0
+            },
+            "unknown_target": {
+              "accuracy_delta": 0.0,
+              "examples": 7,
+              "improved_loss_fraction": 0.0,
+              "mean_delta_loss": -0.027914281007045565,
+              "regressed_loss_fraction": 1.0
+            },
+            "unseen_in_train": {
+              "accuracy_delta": 0.0,
+              "examples": 40,
+              "improved_loss_fraction": 0.575,
+              "mean_delta_loss": 0.0018447267175641714,
+              "regressed_loss_fraction": 0.425
+            }
+          }
+        },
+        "word_position": {
+          "A_vs_C": {
+            "end": {
+              "accuracy_delta": 0.0,
+              "examples": 8,
+              "improved_loss_fraction": 0.25,
+              "mean_delta_loss": -0.023418845759547724,
+              "regressed_loss_fraction": 0.75
+            },
+            "middle": {
+              "accuracy_delta": 0.0,
+              "examples": 39,
+              "improved_loss_fraction": 0.5384615384615384,
+              "mean_delta_loss": 0.0007123469076544549,
+              "regressed_loss_fraction": 0.46153846153846156
+            },
+            "start": {
+              "accuracy_delta": 0.0,
+              "examples": 3,
+              "improved_loss_fraction": 0.3333333333333333,
+              "mean_delta_loss": -0.0007515450761374313,
+              "regressed_loss_fraction": 0.6666666666666666
+            }
+          },
+          "B_vs_D": {
+            "end": {
+              "accuracy_delta": 0.0,
+              "examples": 8,
+              "improved_loss_fraction": 0.25,
+              "mean_delta_loss": -0.021514826862351177,
+              "regressed_loss_fraction": 0.75
+            },
+            "middle": {
+              "accuracy_delta": 0.0,
+              "examples": 39,
+              "improved_loss_fraction": 0.5384615384615384,
+              "mean_delta_loss": 0.0012058498694752478,
+              "regressed_loss_fraction": 0.46153846153846156
+            },
+            "start": {
+              "accuracy_delta": 0.0,
+              "examples": 3,
+              "improved_loss_fraction": 0.3333333333333333,
+              "mean_delta_loss": -0.0004096638237818991,
+              "regressed_loss_fraction": 0.6666666666666666
+            }
+          }
+        }
+      },
+      "coverage": {
+        "active": 42,
+        "active_fraction": 0.84,
+        "examples": 50,
+        "unavailable": 8
+      },
+      "duration_seconds": 16.72479342110455,
+      "examples": {
+        "A_vs_C": {
+          "gain": [
+            {
+              "augmented_correct": false,
+              "augmented_loss": 4.040216544428542,
+              "augmented_prob_correct": 0.017593662193571422,
+              "base_correct": false,
+              "base_loss": 4.054124752014283,
+              "base_prob_correct": 0.017350659669516436,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": 0.013908207585740406,
+              "index": 43,
+              "syllable_frequency": "unseen_in_train",
+              "syllable_info": "unavailable",
+              "target_char": "r",
+              "word_key": "aarónico",
+              "word_position": "middle"
+            },
+            {
+              "augmented_correct": false,
+              "augmented_loss": 3.941061753802006,
+              "augmented_prob_correct": 0.01942757648775032,
+              "base_correct": false,
+              "base_loss": 3.954762040365057,
+              "base_prob_correct": 0.019163228081888355,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": 0.013700286563051112,
+              "index": 15,
+              "syllable_frequency": "unseen_in_train",
+              "syllable_info": "unavailable",
+              "target_char": "n",
+              "word_key": "aaleniense",
+              "word_position": "middle"
+            },
+            {
+              "augmented_correct": false,
+              "augmented_loss": 3.941061753802006,
+              "augmented_prob_correct": 0.01942757648775032,
+              "base_correct": false,
+              "base_loss": 3.954762040365057,
+              "base_prob_correct": 0.019163228081888355,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": 0.013700286563051112,
+              "index": 26,
+              "syllable_frequency": "unseen_in_train",
+              "syllable_info": "unavailable",
+              "target_char": "n",
+              "word_key": "aaleniense",
+              "word_position": "middle"
+            },
+            {
+              "augmented_correct": false,
+              "augmented_loss": 3.941061753802006,
+              "augmented_prob_correct": 0.01942757648775032,
+              "base_correct": false,
+              "base_loss": 3.954762040365057,
+              "base_prob_correct": 0.019163228081888355,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": 0.013700286563051112,
+              "index": 37,
+              "syllable_frequency": "unseen_in_train",
+              "syllable_info": "unavailable",
+              "target_char": "n",
+              "word_key": "aaleniense",
+              "word_position": "middle"
+            },
+            {
+              "augmented_correct": false,
+              "augmented_loss": 3.84052925278637,
+              "augmented_prob_correct": 0.021482228806428243,
+              "base_correct": false,
+              "base_loss": 3.8534150239741822,
+              "base_prob_correct": 0.021207189573423157,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": 0.01288577118781209,
+              "index": 46,
+              "syllable_frequency": "unseen_in_train",
+              "syllable_info": "unavailable",
+              "target_char": "i",
+              "word_key": "aarónico",
+              "word_position": "middle"
+            }
+          ],
+          "regression": [
+            {
+              "augmented_correct": false,
+              "augmented_loss": 3.7974297368506256,
+              "augmented_prob_correct": 0.022428344583525335,
+              "base_correct": false,
+              "base_loss": 3.755245088951493,
+              "base_prob_correct": 0.02339471612006546,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": -0.04218464789913279,
+              "index": 48,
+              "syllable_frequency": "unseen_in_train",
+              "syllable_info": "unavailable",
+              "target_char": "o",
+              "word_key": "aarónico",
+              "word_position": "end"
+            },
+            {
+              "augmented_correct": false,
+              "augmented_loss": 3.6466263056575556,
+              "augmented_prob_correct": 0.026078962982438635,
+              "base_correct": false,
+              "base_loss": 3.6072342353104987,
+              "base_prob_correct": 0.027126769470586034,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": -0.03939207034705694,
+              "index": 7,
+              "syllable_frequency": "unknown_target",
+              "syllable_info": "unavailable",
+              "target_char": "<END>",
+              "word_key": "á-bê-cê",
+              "word_position": "end"
+            },
+            {
+              "augmented_correct": false,
+              "augmented_loss": 3.64627723711001,
+              "augmented_prob_correct": 0.026088067917199132,
+              "base_correct": false,
+              "base_loss": 3.609366009465294,
+              "base_prob_correct": 0.027069002919022856,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": -0.03691122764471588,
+              "index": 49,
+              "syllable_frequency": "unknown_target",
+              "syllable_info": "unavailable",
+              "target_char": "<END>",
+              "word_key": "aarónico",
+              "word_position": "end"
+            },
+            {
+              "augmented_correct": true,
+              "augmented_loss": 3.564531200896095,
+              "augmented_prob_correct": 0.028310254195562046,
+              "base_correct": true,
+              "base_loss": 3.531554890444014,
+              "base_prob_correct": 0.02925938534006032,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": -0.03297631045208105,
+              "index": 4,
+              "syllable_frequency": "unknown_target",
+              "syllable_info": "unavailable",
+              "target_char": "-",
+              "word_key": "á-bê-cê",
+              "word_position": "middle"
+            },
+            {
+              "augmented_correct": false,
+              "augmented_loss": 3.63400645101012,
+              "augmented_prob_correct": 0.026410161145410827,
+              "base_correct": false,
+              "base_loss": 3.6067449331850785,
+              "base_prob_correct": 0.02714004590437252,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": -0.027261517825041715,
+              "index": 18,
+              "syllable_frequency": "unknown_target",
+              "syllable_info": "unavailable",
+              "target_char": "<END>",
+              "word_key": "aaleniense",
+              "word_position": "end"
+            }
+          ]
+        },
+        "B_vs_D": {
+          "gain": [
+            {
+              "augmented_correct": false,
+              "augmented_loss": 4.002134412396191,
+              "augmented_prob_correct": 0.01827658745280598,
+              "base_correct": false,
+              "base_loss": 4.0163360112259765,
+              "base_prob_correct": 0.018018865056421213,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": 0.014201598829785667,
+              "index": 15,
+              "syllable_frequency": "unseen_in_train",
+              "syllable_info": "unavailable",
+              "target_char": "n",
+              "word_key": "aaleniense",
+              "word_position": "middle"
+            },
+            {
+              "augmented_correct": false,
+              "augmented_loss": 4.002134412396191,
+              "augmented_prob_correct": 0.01827658745280598,
+              "base_correct": false,
+              "base_loss": 4.0163360112259765,
+              "base_prob_correct": 0.018018865056421213,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": 0.014201598829785667,
+              "index": 26,
+              "syllable_frequency": "unseen_in_train",
+              "syllable_info": "unavailable",
+              "target_char": "n",
+              "word_key": "aaleniense",
+              "word_position": "middle"
+            },
+            {
+              "augmented_correct": false,
+              "augmented_loss": 4.002134412396191,
+              "augmented_prob_correct": 0.01827658745280598,
+              "base_correct": false,
+              "base_loss": 4.0163360112259765,
+              "base_prob_correct": 0.018018865056421213,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": 0.014201598829785667,
+              "index": 37,
+              "syllable_frequency": "unseen_in_train",
+              "syllable_info": "unavailable",
+              "target_char": "n",
+              "word_key": "aaleniense",
+              "word_position": "middle"
+            },
+            {
+              "augmented_correct": false,
+              "augmented_loss": 3.675894299473789,
+              "augmented_prob_correct": 0.02532674569655064,
+              "base_correct": false,
+              "base_loss": 3.6897126183552613,
+              "base_prob_correct": 0.02497917956859074,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": 0.013818318881472447,
+              "index": 46,
+              "syllable_frequency": "unseen_in_train",
+              "syllable_info": "unavailable",
+              "target_char": "i",
+              "word_key": "aarónico",
+              "word_position": "middle"
+            },
+            {
+              "augmented_correct": false,
+              "augmented_loss": 4.058624234967959,
+              "augmented_prob_correct": 0.017272766044033685,
+              "base_correct": false,
+              "base_loss": 4.072418157562686,
+              "base_prob_correct": 0.017036142580987776,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": 0.013793922594727448,
+              "index": 43,
+              "syllable_frequency": "unseen_in_train",
+              "syllable_info": "unavailable",
+              "target_char": "r",
+              "word_key": "aarónico",
+              "word_position": "middle"
+            }
+          ],
+          "regression": [
+            {
+              "augmented_correct": false,
+              "augmented_loss": 3.5776219680480694,
+              "augmented_prob_correct": 0.027942066437933673,
+              "base_correct": false,
+              "base_loss": 3.537732773069343,
+              "base_prob_correct": 0.02907918150395565,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": -0.03988919497872656,
+              "index": 48,
+              "syllable_frequency": "unseen_in_train",
+              "syllable_info": "unavailable",
+              "target_char": "o",
+              "word_key": "aarónico",
+              "word_position": "end"
+            },
+            {
+              "augmented_correct": true,
+              "augmented_loss": 3.37167176194821,
+              "augmented_prob_correct": 0.034332194085454106,
+              "base_correct": true,
+              "base_loss": 3.3341563955080105,
+              "base_prob_correct": 0.035644643512734775,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": -0.03751536644019948,
+              "index": 7,
+              "syllable_frequency": "unknown_target",
+              "syllable_info": "unavailable",
+              "target_char": "<END>",
+              "word_key": "á-bê-cê",
+              "word_position": "end"
+            },
+            {
+              "augmented_correct": true,
+              "augmented_loss": 3.2222606645123726,
+              "augmented_prob_correct": 0.0398648352987029,
+              "base_correct": true,
+              "base_loss": 3.188004784343923,
+              "base_prob_correct": 0.041254099705337666,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": -0.034255880168449604,
+              "index": 49,
+              "syllable_frequency": "unknown_target",
+              "syllable_info": "unavailable",
+              "target_char": "<END>",
+              "word_key": "aarónico",
+              "word_position": "end"
+            },
+            {
+              "augmented_correct": false,
+              "augmented_loss": 3.505223010543577,
+              "augmented_prob_correct": 0.030040073344030024,
+              "base_correct": false,
+              "base_loss": 3.4737550657243084,
+              "base_prob_correct": 0.031000403274576194,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": -0.031467944819268734,
+              "index": 4,
+              "syllable_frequency": "unknown_target",
+              "syllable_info": "unavailable",
+              "target_char": "-",
+              "word_key": "á-bê-cê",
+              "word_position": "middle"
+            },
+            {
+              "augmented_correct": true,
+              "augmented_loss": 3.2113836523881747,
+              "augmented_prob_correct": 0.04030081236113302,
+              "base_correct": true,
+              "base_loss": 3.186536927711788,
+              "base_prob_correct": 0.04131469927405164,
+              "boundary_proximity": "unavailable",
+              "delta_accuracy": 0,
+              "delta_loss": -0.0248467246763866,
+              "index": 18,
+              "syllable_frequency": "unknown_target",
+              "syllable_info": "unavailable",
+              "target_char": "<END>",
+              "word_key": "aaleniense",
+              "word_position": "end"
+            }
+          ]
+        }
+      },
+      "pair_deltas": {
+        "A_vs_C": {
+          "by_syllable_info": {
+            "unavailable": {
+              "accuracy_delta": 0.0,
+              "examples": 50,
+              "improved_loss_fraction": 0.48,
+              "mean_delta_loss": -0.003236477438125407,
+              "regressed_loss_fraction": 0.52
+            }
+          },
+          "overall": {
+            "accuracy_delta": 0.0,
+            "examples": 50,
+            "improved_loss_fraction": 0.48,
+            "mean_delta_loss": -0.003236477438125407,
+            "regressed_loss_fraction": 0.52
+          }
+        },
+        "B_vs_D": {
+          "by_syllable_info": {
+            "unavailable": {
+              "accuracy_delta": 0.0,
+              "examples": 50,
+              "improved_loss_fraction": 0.48,
+              "mean_delta_loss": -0.002526389229212409,
+              "regressed_loss_fraction": 0.52
+            }
+          },
+          "overall": {
+            "accuracy_delta": 0.0,
+            "examples": 50,
+            "improved_loss_fraction": 0.48,
+            "mean_delta_loss": -0.002526389229212409,
+            "regressed_loss_fraction": 0.52
+          }
+        }
+      },
+      "seed": 7,
+      "status": "completed",
+      "target_char_effects": {
+        "A_vs_C": {
+          "most_helped": [
+            {
+              "examples": 1,
+              "mean_delta_loss": 0.013908207585740406,
+              "target_char": "r"
+            },
+            {
+              "examples": 1,
+              "mean_delta_loss": 0.011964286759521325,
+              "target_char": "á"
+            },
+            {
+              "examples": 3,
+              "mean_delta_loss": 0.011641256489366647,
+              "target_char": "l"
+            },
+            {
+              "examples": 7,
+              "mean_delta_loss": 0.010356618708695642,
+              "target_char": "n"
+            },
+            {
+              "examples": 4,
+              "mean_delta_loss": 0.009348846477218342,
+              "target_char": "i"
+            },
+            {
+              "examples": 2,
+              "mean_delta_loss": 0.008749559071335122,
+              "target_char": "ê"
+            },
+            {
+              "examples": 1,
+              "mean_delta_loss": 0.006710147580809789,
+              "target_char": "b"
+            },
+            {
+              "examples": 2,
+              "mean_delta_loss": 0.005657408984431456,
+              "target_char": "c"
+            },
+            {
+              "examples": 1,
+              "mean_delta_loss": -0.0010542615313662296,
+              "target_char": "ó"
+            },
+            {
+              "examples": 9,
+              "mean_delta_loss": -0.001589766801945706,
+              "target_char": "e"
+            }
+          ],
+          "most_hurt": [
+            {
+              "examples": 1,
+              "mean_delta_loss": -0.04218464789913279,
+              "target_char": "o"
+            },
+            {
+              "examples": 5,
+              "mean_delta_loss": -0.031617570293379596,
+              "target_char": "<END>"
+            },
+            {
+              "examples": 2,
+              "mean_delta_loss": -0.025667697331194894,
+              "target_char": "-"
+            },
+            {
+              "examples": 3,
+              "mean_delta_loss": -0.013505378476548202,
+              "target_char": "s"
+            },
+            {
+              "examples": 8,
+              "mean_delta_loss": -0.007568718009346886,
+              "target_char": "a"
+            },
+            {
+              "examples": 9,
+              "mean_delta_loss": -0.001589766801945706,
+              "target_char": "e"
+            },
+            {
+              "examples": 1,
+              "mean_delta_loss": -0.0010542615313662296,
+              "target_char": "ó"
+            },
+            {
+              "examples": 2,
+              "mean_delta_loss": 0.005657408984431456,
+              "target_char": "c"
+            },
+            {
+              "examples": 1,
+              "mean_delta_loss": 0.006710147580809789,
+              "target_char": "b"
+            },
+            {
+              "examples": 2,
+              "mean_delta_loss": 0.008749559071335122,
+              "target_char": "ê"
+            }
+          ]
+        },
+        "B_vs_D": {
+          "most_helped": [
+            {
+              "examples": 1,
+              "mean_delta_loss": 0.013793922594727448,
+              "target_char": "r"
+            },
+            {
+              "examples": 1,
+              "mean_delta_loss": 0.012068252074542318,
+              "target_char": "á"
+            },
+            {
+              "examples": 3,
+              "mean_delta_loss": 0.011430166007770914,
+              "target_char": "l"
+            },
+            {
+              "examples": 7,
+              "mean_delta_loss": 0.010609439030732304,
+              "target_char": "n"
+            },
+            {
+              "examples": 4,
+              "mean_delta_loss": 0.010212703855527305,
+              "target_char": "i"
+            },
+            {
+              "examples": 2,
+              "mean_delta_loss": 0.008919749328010873,
+              "target_char": "ê"
+            },
+            {
+              "examples": 1,
+              "mean_delta_loss": 0.00663284217619875,
+              "target_char": "b"
+            },
+            {
+              "examples": 2,
+              "mean_delta_loss": 0.006461643434993114,
+              "target_char": "c"
+            },
+            {
+              "examples": 1,
+              "mean_delta_loss": -0.0009364333243744305,
+              "target_char": "ó"
+            },
+            {
+              "examples": 9,
+              "mean_delta_loss": -0.0011635230782869321,
+              "target_char": "e"
+            }
+          ],
+          "most_hurt": [
+            {
+              "examples": 1,
+              "mean_delta_loss": -0.03988919497872656,
+              "target_char": "o"
+            },
+            {
+              "examples": 5,
+              "mean_delta_loss": -0.029262284127561777,
+              "target_char": "<END>"
+            },
+            {
+              "examples": 2,
+              "mean_delta_loss": -0.02454427320575503,
+              "target_char": "-"
+            },
+            {
+              "examples": 3,
+              "mean_delta_loss": -0.012036731596781536,
+              "target_char": "s"
+            },
+            {
+              "examples": 8,
+              "mean_delta_loss": -0.007022144080662263,
+              "target_char": "a"
+            },
+            {
+              "examples": 9,
+              "mean_delta_loss": -0.0011635230782869321,
+              "target_char": "e"
+            },
+            {
+              "examples": 1,
+              "mean_delta_loss": -0.0009364333243744305,
+              "target_char": "ó"
+            },
+            {
+              "examples": 2,
+              "mean_delta_loss": 0.006461643434993114,
+              "target_char": "c"
+            },
+            {
+              "examples": 1,
+              "mean_delta_loss": 0.00663284217619875,
+              "target_char": "b"
+            },
+            {
+              "examples": 2,
+              "mean_delta_loss": 0.008919749328010873,
+              "target_char": "ê"
+            }
+          ]
+        }
+      },
+      "training": {
+        "A": {
+          "epochs": 1,
+          "examples": 50,
+          "history": [
+            {
+              "boundary_accuracy": 0.44,
+              "boundary_f1": 0.5333333333333333,
+              "boundary_loss": 0.6931595038201017,
+              "boundary_precision": 0.5333333333333333,
+              "boundary_recall": 0.5333333333333333,
+              "boundary_target_distribution": {
+                "0": 20,
+                "1": 30
+              },
+              "char_accuracy": 0.16,
+              "char_loss": 3.7355371552995877,
+              "syllable_accuracy": 0.3,
+              "syllable_accuracy_all": 0.3,
+              "syllable_accuracy_known": 0.0,
+              "syllable_loss": 8.023121680802673,
+              "total_loss": 9.559670183007489
+            }
+          ]
+        },
+        "B": {
+          "epochs": 1,
+          "examples": 50,
+          "history": [
+            {
+              "boundary_accuracy": 0.44,
+              "boundary_f1": 0.611111111111111,
+              "boundary_loss": 0.685100564937546,
+              "boundary_precision": 0.5238095238095238,
+              "boundary_recall": 0.7333333333333333,
+              "boundary_target_distribution": {
+                "0": 20,
+                "1": 30
+              },
+              "char_accuracy": 0.24,
+              "char_loss": 3.662253255509691,
+              "syllable_accuracy": 0.3,
+              "syllable_accuracy_all": 0.3,
+              "syllable_accuracy_known": 0.0,
+              "syllable_loss": 7.920150272758244,
+              "total_loss": 9.411888615921729
+            }
+          ]
+        },
+        "C": {
+          "epochs": 1,
+          "examples": 50,
+          "history": [
+            {
+              "boundary_accuracy": 0.48,
+              "boundary_f1": 0.5517241379310344,
+              "boundary_loss": 0.6932751069001196,
+              "boundary_precision": 0.5714285714285714,
+              "boundary_recall": 0.5333333333333333,
+              "boundary_target_distribution": {
+                "0": 20,
+                "1": 30
+              },
+              "char_accuracy": 0.16,
+              "char_loss": 3.749388157720464,
+              "syllable_accuracy": 0.3,
+              "syllable_accuracy_all": 0.3,
+              "syllable_accuracy_known": 0.0,
+              "syllable_loss": 8.043096397018836,
+              "total_loss": 9.587538167703682
+            }
+          ]
+        },
+        "D": {
+          "epochs": 1,
+          "examples": 50,
+          "history": [
+            {
+              "boundary_accuracy": 0.44,
+              "boundary_f1": 0.611111111111111,
+              "boundary_loss": 0.6850981601108408,
+              "boundary_precision": 0.5238095238095238,
+              "boundary_recall": 0.7333333333333333,
+              "boundary_target_distribution": {
+                "0": 20,
+                "1": 30
+              },
+              "char_accuracy": 0.24,
+              "char_loss": 3.675280121325687,
+              "syllable_accuracy": 0.3,
+              "syllable_accuracy_all": 0.3,
+              "syllable_accuracy_known": 0.0,
+              "syllable_loss": 7.9400569540621655,
+              "total_loss": 9.43884943720245
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "seeds": [
+    7
+  ],
+  "syllable_unknown_id": 0,
+  "variants": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ]
+}

@@ -613,3 +613,33 @@ ponto percentual. O resultado é positivo, mas ainda deve ser interpretado com
 cautela porque a avaliação usou apenas 1.000 exemplos e 2 épocas.
 
 Relatório completo: `experiments/phase5_1_expanded_comparison.json`.
+
+### Fase 5.3 — Análise do ganho silábico
+
+O runner `run_syllable_analysis.py` diagnostica o efeito do canal silábico sem
+alterar a arquitetura. Ele compara A/C e B/D por exemplo, separando posições
+com informação silábica causal ativa das posições que permanecem em
+`<UNK_SYL>`.
+
+Também registra buckets por posição na palavra, proximidade de fronteira,
+frequência do target silábico, efeitos por caractere e exemplos
+representativos de ganho/regressão. A forma do exemplo continua baseada apenas
+no prefixo causal persistido no dataset.
+
+Execução de smoke registrada em
+`experiments/phase5_3_syllable_gain_analysis.json`:
+
+```bash
+python run_syllable_analysis.py \
+  --vocabulary data/processed/vocabulary.json \
+  --syllable-vocabulary data/processed/syllable_vocabulary.json \
+  --train data/processed/autoregressive_train.jsonl \
+  --validation data/processed/autoregressive_validation.jsonl \
+  --seeds 7 --epochs 1 --learning-rate 0.05 \
+  --max-examples 50 --output experiments/phase5_3_syllable_gain_analysis.json
+```
+
+No smoke test, 42/50 posições tinham informação silábica causal ativa. A/C e
+B/D foram avaliados por deltas de loss, acurácia e probabilidade do caractere
+correto. A execução com 1.000 exemplos e 3 seeds ainda deve ser feita antes de
+concluir que o ganho é amplo ou generalizado.
