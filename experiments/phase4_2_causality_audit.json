@@ -1,0 +1,40 @@
+{
+  "phase": "4.2_causality_and_leakage_audit",
+  "commit": "0d61c5f870254ec90b6d97e2e46c98a1d12464f8",
+  "date": "2026-10-01",
+  "policy": {
+    "current_partial_syllable": "<UNK_SYL>",
+    "last_completed_syllable_exposed": true,
+    "future_characters_used": false,
+    "partial_syllable_embedding": "deferred"
+  },
+  "checks": {
+    "incomplete_syllable_not_exposed": true,
+    "completed_previous_syllable_exposed": true,
+    "end_of_word_exposes_completed_syllable": true,
+    "accent_and_separator_cases_covered": true,
+    "micro_overfit_preserves_shared_embedding_updates": true,
+    "all_tests_passed": 189,
+    "full_streaming_dataset_regenerated": true
+  },
+  "smoke_validation_after_causal_fix": {
+    "train_examples": 100,
+    "validation_examples": 100,
+    "epochs": 2,
+    "learning_rate": 0.05,
+    "seed": 7,
+    "initial_total_loss": 9.946266934848525,
+    "final_total_loss": 8.813483071867019,
+    "char_accuracy": 0.27,
+    "syllable_accuracy_all": 0.15,
+    "syllable_accuracy_known": 0.0,
+    "boundary_accuracy": 0.52,
+    "boundary_precision": 0.52,
+    "boundary_recall": 1.0,
+    "boundary_f1": 0.6842105263157895
+  },
+  "notes": [
+    "The generated JSONL artifacts are local and ignored because of their size.",
+    "Experiments using the previous non-causal syllable context must not be compared as valid C/D results."
+  ]
+}
