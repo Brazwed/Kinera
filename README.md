@@ -460,3 +460,11 @@ A geração atual do dataset persiste `context_syllable_ids` e
 `context_feature_vectors` alinhados aos oito caracteres do contexto. Exemplos
 antigos continuam compatíveis: quando esses campos não existem, o adaptador
 usa `<UNK_SYL>` como fallback.
+
+Quando um vocabulário silábico é informado ao builder, cada exemplo também
+persiste `target_syllable_id`. O token `<END>` e caracteres sem alinhamento
+silábico usam o ID de `<UNK_SYL>`.
+
+O builder processa o JSONL em streaming: ele faz duas passagens pelo arquivo
+de anotações e escreve os exemplos diretamente nos arquivos de saída, sem
+carregar o corpus completo na memória.

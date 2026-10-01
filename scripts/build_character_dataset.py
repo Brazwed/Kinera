@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from language.dataset import build_autoregressive_examples, load_jsonl, write_jsonl
-from language.vocabulary import CharacterVocabulary, SyllableVocabulary
+from language.dataset import build_autoregressive_examples, iter_jsonl
+from language.vocabulary import CharacterVocabulary, SPECIAL_TOKENS, SyllableVocabulary
 
 
 def build_character_dataset(
@@ -22,19 +22,25 @@ def build_character_dataset(
     context_size: int = 8,
     syllable_vocabulary_path: str | Path | None = None,
 ) -> dict[str, Any]:
-    records = load_jsonl(annotated_path)
-    train_groups = load_jsonl(train_groups_path)
-    validation_groups = load_jsonl(validation_groups_path)
-    train_keys = {group["word_key"] for group in train_groups}
-    validation_keys = {group["word_key"] for group in validation_groups}
+    train_keys = {group["word_key"] for group in iter_jsonl(train_groups_path)}
+    validation_keys = {group["word_key"] for group in iter_jsonl(validation_groups_path)}
     if train_keys & validation_keys:
         raise ValueError("treino e validação compartilham palavras")
 
-    train_records = [record for record in records if record.get("word_key") in train_keys]
-    validation_records = [
-        record for record in records if record.get("word_key") in validation_keys
-    ]
-    vocabulary = CharacterVocabulary.from_records(train_records)
+    character_tokens: set[str] = set()
+    train_records = 0
+    validation_records = 0
+    for record in iter_jsonl(annotated_path):
+        word_key = record.get("word_key")
+        if word_key in train_keys:
+            train_records += 1
+            word = record.get("word_normalized", record.get("word_raw", ""))
+            if isinstance(word, str):
+                character_tokens.update(word)
+        elif word_key in validation_keys:
+            validation_records += 1
+
+    vocabulary = CharacterVocabulary([*SPECIAL_TOKENS, *sorted(character_tokens)])
     syllable_vocabulary = None
     if syllable_vocabulary_path is not None:
         syllable_vocabulary = SyllableVocabulary.from_dict(
@@ -47,29 +53,56 @@ def build_character_dataset(
         encoding="utf-8",
     )
 
-    train_examples = build_autoregressive_examples(
-        train_records,
-        vocabulary,
-        context_size=context_size,
-        syllable_vocabulary=syllable_vocabulary,
-    )
-    validation_examples = build_autoregressive_examples(
-        validation_records,
-        vocabulary,
-        context_size=context_size,
-        syllable_vocabulary=syllable_vocabulary,
-    )
-    write_jsonl(train_output, train_examples)
-    write_jsonl(validation_output, validation_examples)
+    train_example_count = 0
+    validation_example_count = 0
+    unknown_validation_targets = 0
+    unknown_train_syllable_targets = None
+    unknown_validation_syllable_targets = None
+    if syllable_vocabulary is not None:
+        unknown_train_syllable_targets = 0
+        unknown_validation_syllable_targets = 0
 
-    unknown_validation_targets = sum(
-        example["target_char_id"] == vocabulary.unk_id
-        for example in validation_examples
-    )
+    train_destination = Path(train_output)
+    validation_destination = Path(validation_output)
+    train_destination.parent.mkdir(parents=True, exist_ok=True)
+    validation_destination.parent.mkdir(parents=True, exist_ok=True)
+    with (
+        train_destination.open("w", encoding="utf-8", newline="\n") as train_handle,
+        validation_destination.open("w", encoding="utf-8", newline="\n") as validation_handle,
+    ):
+        for record in iter_jsonl(annotated_path):
+            word_key = record.get("word_key")
+            if word_key not in train_keys and word_key not in validation_keys:
+                continue
+            examples = build_autoregressive_examples(
+                [record],
+                vocabulary,
+                context_size=context_size,
+                syllable_vocabulary=syllable_vocabulary,
+            )
+            handle = train_handle if word_key in train_keys else validation_handle
+            for example in examples:
+                handle.write(json.dumps(example, ensure_ascii=False, sort_keys=True))
+                handle.write("\n")
+                if word_key in train_keys:
+                    train_example_count += 1
+                    if syllable_vocabulary is not None:
+                        unknown_train_syllable_targets += (
+                            example["target_syllable_id"] == syllable_vocabulary.unk_id
+                        )
+                else:
+                    validation_example_count += 1
+                    unknown_validation_targets += (
+                        example["target_char_id"] == vocabulary.unk_id
+                    )
+                    if syllable_vocabulary is not None:
+                        unknown_validation_syllable_targets += (
+                            example["target_syllable_id"] == syllable_vocabulary.unk_id
+                        )
     report = {
         "annotated_input": str(annotated_path),
-        "train_records": len(train_records),
-        "validation_records": len(validation_records),
+        "train_records": train_records,
+        "validation_records": validation_records,
         "train_words": len(train_keys),
         "validation_words": len(validation_keys),
         "vocabulary_size": len(vocabulary),
@@ -77,8 +110,11 @@ def build_character_dataset(
         "syllable_vocabulary": (
             None if syllable_vocabulary_path is None else str(syllable_vocabulary_path)
         ),
-        "train_examples": len(train_examples),
-        "validation_examples": len(validation_examples),
+        "syllable_targets_persisted": syllable_vocabulary is not None,
+        "unknown_train_syllable_targets": unknown_train_syllable_targets,
+        "unknown_validation_syllable_targets": unknown_validation_syllable_targets,
+        "train_examples": train_example_count,
+        "validation_examples": validation_example_count,
         "unknown_validation_targets": unknown_validation_targets,
         "outputs": {
             "vocabulary": str(vocabulary_path),

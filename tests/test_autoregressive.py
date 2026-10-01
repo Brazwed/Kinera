@@ -81,6 +81,73 @@ class AutoregressiveDatasetTests(unittest.TestCase):
         self.assertEqual(len(first["context_feature_vectors"]), 2)
         self.assertEqual(len(first["context_feature_vectors"][0]), 10)
 
+    def test_examples_include_syllable_targets_and_unknown_end_target(self) -> None:
+        syllable_vocabulary = SyllableVocabulary(["<UNK_SYL>", "ca", "sa"])
+
+        examples = build_autoregressive_examples(
+            self.records,
+            self.vocabulary,
+            syllable_vocabulary=syllable_vocabulary,
+            context_size=2,
+        )
+
+        first_character = examples[0]
+        end_example = examples[-1]
+        self.assertEqual(first_character["target_syllable_id"], 1)
+        self.assertEqual(end_example["target_char"], "<END>")
+        self.assertEqual(end_example["target_syllable_id"], 0)
+
+    def test_invalid_syllable_index_uses_unknown_target(self) -> None:
+        records = [
+            {
+                "word_key": "x",
+                "characters": [
+                    {"char": "x", "syllable_index": 99, "is_syllable_end": True}
+                ],
+                "syllables": ["x"],
+            }
+        ]
+        vocabulary = CharacterVocabulary.from_records(records)
+        syllable_vocabulary = SyllableVocabulary(["<UNK_SYL>", "x"])
+
+        examples = build_autoregressive_examples(
+            records,
+            vocabulary,
+            syllable_vocabulary=syllable_vocabulary,
+            context_size=1,
+        )
+
+        self.assertEqual(examples[0]["target_syllable_id"], 0)
+
+    def test_syllable_targets_handle_accent_and_separator(self) -> None:
+        records = [
+            {
+                "word_key": "á-bê",
+                "word_normalized": "á-bê",
+                "characters": [
+                    {"char": "á", "syllable_index": 0, "is_syllable_end": True},
+                    {"char": "-", "syllable_index": None, "is_syllable_end": False},
+                    {"char": "b", "syllable_index": 1, "is_syllable_end": False},
+                    {"char": "ê", "syllable_index": 1, "is_syllable_end": True},
+                ],
+                "syllables": ["á", "bê"],
+            }
+        ]
+        vocabulary = CharacterVocabulary.from_records(records)
+        syllable_vocabulary = SyllableVocabulary(["<UNK_SYL>", "bê", "á"])
+
+        examples = build_autoregressive_examples(
+            records,
+            vocabulary,
+            syllable_vocabulary=syllable_vocabulary,
+            context_size=1,
+        )
+
+        accent_target = next(item for item in examples if item["target_char"] == "á")
+        separator_target = next(item for item in examples if item["target_char"] == "-")
+        self.assertEqual(accent_target["target_syllable_id"], 2)
+        self.assertEqual(separator_target["target_syllable_id"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

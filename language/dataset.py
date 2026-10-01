@@ -12,17 +12,9 @@ from language.features import features_to_vector
 from language.vocabulary import CharacterVocabulary, SyllableVocabulary
 
 
-def load_jsonl(
-    path: str | Path,
-    *,
-    max_records: int | None = None,
-) -> list[dict[str, Any]]:
+def iter_jsonl(path: str | Path) -> Iterable[dict[str, Any]]:
+    """Itera objetos JSONL sem manter o arquivo inteiro na memória."""
     source = Path(path)
-    if max_records is not None and (
-        isinstance(max_records, bool) or not isinstance(max_records, int) or max_records <= 0
-    ):
-        raise ValueError("max_records deve ser inteiro positivo ou None")
-    records = []
     with source.open("r", encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
             if not line.strip():
@@ -30,9 +22,24 @@ def load_jsonl(
             value = json.loads(line)
             if not isinstance(value, dict):
                 raise ValueError(f"linha JSONL {line_number} não é objeto")
-            records.append(value)
-            if max_records is not None and len(records) >= max_records:
-                break
+            yield value
+
+
+def load_jsonl(
+    path: str | Path,
+    *,
+    max_records: int | None = None,
+) -> list[dict[str, Any]]:
+    """Carrega JSONL; use ``max_records`` para limitar a leitura."""
+    if max_records is not None and (
+        isinstance(max_records, bool) or not isinstance(max_records, int) or max_records <= 0
+    ):
+        raise ValueError("max_records deve ser inteiro positivo ou None")
+    records = []
+    for value in iter_jsonl(path):
+        records.append(value)
+        if max_records is not None and len(records) >= max_records:
+            break
     return records
 
 
@@ -189,5 +196,20 @@ def build_autoregressive_examples(
                 ]
                 example["context_syllable_ids"] = context_syllable_ids
                 example["context_feature_vectors"] = context_feature_vectors
+                if target_item is None:
+                    example["target_syllable_id"] = syllable_vocabulary.unk_id
+                else:
+                    target_syllable_index = target_item.get("syllable_index")
+                    syllables = record.get("syllables", [])
+                    if (
+                        isinstance(target_syllable_index, bool)
+                        or not isinstance(target_syllable_index, int)
+                        or not 0 <= target_syllable_index < len(syllables)
+                    ):
+                        example["target_syllable_id"] = syllable_vocabulary.unk_id
+                    else:
+                        example["target_syllable_id"] = syllable_vocabulary.encode(
+                            syllables[target_syllable_index]
+                        )
             examples.append(example)
     return examples

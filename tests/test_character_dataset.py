@@ -76,9 +76,11 @@ class CharacterDatasetBuilderTests(unittest.TestCase):
         self.assertGreater(len(validation_examples), 0)
         self.assertEqual(vocabulary["version"], 1)
         self.assertEqual(report["syllable_vocabulary"], str(syllable_vocabulary))
+        self.assertTrue(report["syllable_targets_persisted"])
         first_example = json.loads(train_examples[1])
         self.assertIn("context_syllable_ids", first_example)
         self.assertIn("context_feature_vectors", first_example)
+        self.assertIn("target_syllable_id", first_example)
 
 
 if __name__ == "__main__":
