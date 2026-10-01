@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.log
+
+# Generated datasets and local training artifacts
+data/processed/*.jsonl
+data/processed/splits/
+data/raw/
+
+# Local experiment outputs
+checkpoints/*.json
+!.gitkeep

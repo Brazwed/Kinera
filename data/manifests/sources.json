@@ -1,0 +1,35 @@
+{
+  "sources": [
+    {
+      "name": "silabas-pt",
+      "kind": "lexical_syllabification",
+      "repository": "polvoazul/silabas-pt",
+      "original_source": "Portal da Língua Portuguesa",
+      "raw_file": "data/raw/silabas_pt/syls.csv",
+      "retrieved_at": "2026-10-01",
+      "sha256": "b5d0e22db3ae43e6e83aeba3ae73e9c15b464061519ec66ff789ebea7e2e9d14",
+      "rows": 181560,
+      "fields": [
+        "word",
+        "category",
+        "syl",
+        "syl_positions",
+        "syl_strong"
+      ],
+      "license_status": "unknown",
+      "redistribution": "restricted_until_verified",
+      "usage": "internal_research_and_development",
+      "importer": "scripts.import_silabas_pt"
+    },
+    {
+      "name": "portal_lingua_export",
+      "kind": "optional_enrichment_export",
+      "tool": "pyportaldalingua",
+      "raw_file": "data/raw/portal_lingua/export.jsonl",
+      "license_status": "to_be_verified",
+      "redistribution": "restricted_until_verified",
+      "usage": "internal_research_and_development",
+      "importer": "scripts.import_portal_lingua"
+    }
+  ]
+}
