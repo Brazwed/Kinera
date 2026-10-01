@@ -435,3 +435,26 @@ python -m scripts.build_syllable_vocabulary \
 ## Restrições deste marco
 
 O código usa somente a biblioteca padrão do Python. Nenhuma etapa deste diretório deve importar NumPy, PyTorch, TensorFlow, Keras, JAX, scikit-learn ou uma implementação pronta de redes neurais.
+
+## Primeiro modelo autoregressivo
+
+O módulo `training.autoregressive` conecta a representação híbrida a uma
+cabeça de logits. O modelo usa média dos vetores do contexto como agregador
+intencionalmente simples antes da futura implementação de atenção.
+
+O executor treina uma amostra limitada, mede validação sem atualizar pesos e
+faz geração gulosa:
+
+```bash
+python run_autoregressive.py \
+    --vocabulary data/processed/vocabulary.json \
+    --train data/processed/autoregressive_train.jsonl \
+    --validation data/processed/autoregressive_validation.jsonl \
+    --epochs 3 \
+    --max-examples 1000
+```
+
+Esta primeira versão usa `<UNK_SYL>` para as posições do contexto porque os
+artefatos autoregressivos antigos carregam apenas IDs de caracteres. As
+features ortográficas continuam sendo usadas; o próximo refinamento do
+dataset deve persistir os IDs silábicos por posição.
