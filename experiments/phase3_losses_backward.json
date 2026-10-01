@@ -1,0 +1,26 @@
+{
+  "phase": "3_losses_and_backward",
+  "commit": "649bb2b3de9dec2ddfd45ccc8e3206b6e7c67620",
+  "date": "2026-10-01",
+  "loss_weights": {
+    "char": 1.0,
+    "syllable": 0.7,
+    "boundary": 0.3
+  },
+  "implemented": {
+    "stable_binary_cross_entropy_with_logits": true,
+    "weighted_multitask_loss": true,
+    "manual_backward_all_heads": true,
+    "shared_representation_gradient_accumulation": true,
+    "multitask_train_step": true
+  },
+  "checks": {
+    "gradient_check_char_head": true,
+    "gradient_check_syllable_head": true,
+    "gradient_check_boundary_head": true,
+    "invalid_targets_rejected": true,
+    "nonfinite_values_rejected": true,
+    "all_tests_passed": 182
+  },
+  "scope_note": "Training and validation metrics over the full dataset belong to phase 4."
+}
