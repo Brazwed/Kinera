@@ -667,3 +667,19 @@ python run_phase5_3_expanded.py \
 Cada seed é um job independente e o checkpoint é atualizado quando cada job
 termina. A execução usa a mesma arquitetura A/B/C/D da Fase 5.1; somente a
 análise e a escala dos dados mudam.
+
+A execução ampliada foi concluída com 1.000 exemplos por split, 2 épocas e as
+três seeds. A cobertura foi idêntica nas seeds: 894/1.000 posições (`89,4%`)
+com informação silábica causal ativa e 106/1.000 sem essa informação.
+
+```text
+comparação   delta médio de loss    delta médio de accuracy
+A vs C        +0,125801              +1,27 p.p.
+B vs D        +0,155213              +0,33 p.p.
+```
+
+O delta de loss é `loss_base - loss_aumentada`; portanto, positivo favorece a
+variante com canal silábico. C/D melhoraram a loss média nos três seeds. C
+teve o ganho médio de acurácia mais forte. O relatório completo, incluindo
+resultados por seed, buckets e exemplos, está em
+`experiments/phase5_3_expanded_analysis.json`.
