@@ -6,8 +6,8 @@ import math
 from typing import Any
 
 from nn.embedding import Embedding
+from nn.heads import MultiTaskHeads
 from nn.hybrid import HybridRepresentation
-from nn.linear import Linear
 from nn.probability import cross_entropy, cross_entropy_gradient
 from language.features import character_features, features_to_vector
 from language.vocabulary import CharacterVocabulary
@@ -31,11 +31,13 @@ class AutoregressiveModel:
             Embedding(syllable_vocab_size, syllable_embedding_dim, seed=None if seed is None else seed + 1),
             feature_dim=feature_dim,
         )
-        self.output_layer = Linear(
+        self.heads = MultiTaskHeads(
             self.representation.output_dim,
             char_vocab_size,
+            syllable_vocab_size,
             seed=None if seed is None else seed + 2,
         )
+        self.output_layer = self.heads.char
         self.last_logits: list[float] | None = None
         self.last_pooled: list[float] | None = None
         self.last_context_size: int | None = None
@@ -48,6 +50,33 @@ class AutoregressiveModel:
     ) -> list[float]:
         """Calcula logits para o próximo caractere."""
         self._validate_context(char_ids, syllable_ids, feature_vectors)
+        pooled = self._forward_representation(
+            char_ids, syllable_ids, feature_vectors
+        )
+        self.last_logits = self.output_layer.forward(pooled)
+        return self.last_logits.copy()
+
+    def forward_heads(
+        self,
+        char_ids: list[int],
+        syllable_ids: list[int],
+        feature_vectors: list[list[float]],
+    ) -> dict[str, list[float]]:
+        """Calcula logits das cabeças de caractere, sílaba e fronteira."""
+        self._validate_context(char_ids, syllable_ids, feature_vectors)
+        pooled = self._forward_representation(
+            char_ids, syllable_ids, feature_vectors
+        )
+        outputs = self.heads.forward(pooled)
+        self.last_logits = outputs["char"].copy()
+        return {name: values.copy() for name, values in outputs.items()}
+
+    def _forward_representation(
+        self,
+        char_ids: list[int],
+        syllable_ids: list[int],
+        feature_vectors: list[list[float]],
+    ) -> list[float]:
         vectors = self.representation.forward(
             char_ids,
             syllable_ids,
@@ -60,8 +89,7 @@ class AutoregressiveModel:
         ]
         self.last_pooled = pooled.copy()
         self.last_context_size = context_size
-        self.last_logits = self.output_layer.forward(pooled)
-        return self.last_logits.copy()
+        return pooled
 
     def loss(
         self,
