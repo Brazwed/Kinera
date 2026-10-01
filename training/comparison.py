@@ -7,6 +7,7 @@ import concurrent.futures
 import json
 import math
 import os
+import resource
 import time
 import traceback
 from pathlib import Path
@@ -20,6 +21,14 @@ from training.autoregressive import (
 )
 
 VARIANTS = ("A", "B", "C", "D")
+
+
+def _max_rss_kb() -> int:
+    """Retorna o pico de RSS do processo em KiB no Linux/macOS."""
+    value = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    if os.uname().sysname == "Darwin":
+        return int(value / 1024)
+    return int(value)
 
 
 def prepare_variant_examples(
@@ -243,6 +252,7 @@ def run_controlled_experiments(
                     "seed": seed,
                     "status": "completed",
                     "pid": os.getpid(),
+                    "max_rss_kb": _max_rss_kb(),
                     "initial_validation": initial,
                     "training": training,
                     "final_validation": final,
@@ -256,6 +266,7 @@ def run_controlled_experiments(
                     "seed": seed,
                     "status": "failed",
                     "pid": os.getpid(),
+                    "max_rss_kb": _max_rss_kb(),
                     "error": "experiment failed",
                     "traceback": traceback.format_exc(),
                     "duration_seconds": time.perf_counter() - started,
@@ -331,6 +342,7 @@ def _execute_single_experiment(
             "seed": seed,
             "status": "completed",
             "pid": os.getpid(),
+            "max_rss_kb": _max_rss_kb(),
             "initial_validation": initial,
             "training": training,
             "final_validation": final,
@@ -342,6 +354,7 @@ def _execute_single_experiment(
             "seed": seed,
             "status": "failed",
             "pid": os.getpid(),
+            "max_rss_kb": _max_rss_kb(),
             "error": "experiment failed",
             "traceback": traceback.format_exc(),
             "duration_seconds": time.perf_counter() - started,
@@ -423,6 +436,7 @@ def _run_parallel_experiments(
                     "seed": seed,
                     "status": "failed",
                     "pid": None,
+                    "max_rss_kb": None,
                     "error": "worker process failed",
                     "traceback": traceback.format_exc(),
                 }

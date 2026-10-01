@@ -3,35 +3,38 @@
     "1": {
       "completed_runs": 4,
       "failed_runs": 0,
-      "job_duration_seconds": 20.125737311085686,
+      "job_duration_seconds": 21.04489940102212,
       "speedup_vs_workers_1": 1.0,
-      "wall_time_seconds": 20.138379878131673,
+      "wall_time_seconds": 21.056726158829406,
+      "worker_peak_rss_kb": 37960,
       "worker_pids": [
-        2820603
+        2822197
       ]
     },
     "2": {
       "completed_runs": 4,
       "failed_runs": 0,
-      "job_duration_seconds": 19.739527886966243,
-      "speedup_vs_workers_1": 2.017037012350933,
-      "wall_time_seconds": 9.984139980981126,
+      "job_duration_seconds": 20.47900655027479,
+      "speedup_vs_workers_1": 2.012561039997635,
+      "wall_time_seconds": 10.462652183137834,
+      "worker_peak_rss_kb": 36868,
       "worker_pids": [
-        2820628,
-        2820631
+        2822221,
+        2822224
       ]
     },
     "4": {
       "completed_runs": 4,
       "failed_runs": 0,
-      "job_duration_seconds": 20.28746247990057,
-      "speedup_vs_workers_1": 3.9277292182781776,
-      "wall_time_seconds": 5.127232240047306,
+      "job_duration_seconds": 21.412142586894333,
+      "speedup_vs_workers_1": 3.8308220483849453,
+      "wall_time_seconds": 5.496659957803786,
+      "worker_peak_rss_kb": 36840,
       "worker_pids": [
-        2820644,
-        2820647,
-        2820648,
-        2820649
+        2822245,
+        2822248,
+        2822249,
+        2822250
       ]
     }
   },

@@ -563,10 +563,10 @@ Benchmark registrado em `experiments/phase5_2_parallel_benchmark.json`, com 50
 exemplos por split, 1 seed, 1 época e 4 vCPUs:
 
 ```text
-workers    tempo       speedup    resultados iguais ao workers=1
-1          20,14 s     1,00x      referência
-2           9,98 s     2,02x      sim
-4           5,13 s     3,93x      sim
+workers    tempo       speedup    pico RSS/worker    resultados iguais
+1          21,06 s     1,00x      37,1 MB           referência
+2          10,46 s     2,01x      36,0 MB           sim
+4           5,50 s     3,83x      36,0 MB           sim
 ```
 
 Smoke comparison registrada em `experiments/phase5_controlled_comparison.json`

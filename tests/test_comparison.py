@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from language.vocabulary import CharacterVocabulary
+from training import comparison
 from training.comparison import (
     VARIANTS,
     count_trainable_parameters,
@@ -160,6 +161,8 @@ class ControlledComparisonTests(unittest.TestCase):
             self.assertEqual(run["status"], "completed")
             self.assertIsInstance(run["pid"], int)
             self.assertGreater(run["pid"], 0)
+            self.assertIsInstance(run["max_rss_kb"], int)
+            self.assertGreater(run["max_rss_kb"], 0)
 
     def test_workers_must_be_positive(self) -> None:
         with self.assertRaises(ValueError):
@@ -192,6 +195,53 @@ class ControlledComparisonTests(unittest.TestCase):
                 sequential["aggregates"][variant]["mean"],
                 parallel["aggregates"][variant]["mean"],
             )
+
+    def test_parallel_worker_failure_does_not_discard_other_jobs(self) -> None:
+        class FakeFuture:
+            def __init__(self, result=None, error=None):
+                self._result = result
+                self._error = error
+
+            def result(self):
+                if self._error is not None:
+                    raise self._error
+                return self._result
+
+        class FakeExecutor:
+            def __init__(self, max_workers):
+                self.max_workers = max_workers
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def submit(self, function, variant, seed, *args):
+                if seed == 7:
+                    return FakeFuture(error=RuntimeError("worker seven failed"))
+                return FakeFuture(result=function(variant, seed, *args))
+
+        with patch.object(comparison.concurrent.futures, "ProcessPoolExecutor", FakeExecutor), patch.object(
+            comparison.concurrent.futures, "as_completed", side_effect=lambda futures: futures
+        ):
+            report = run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                seeds=[7, 8],
+                epochs=1,
+                learning_rate=0.05,
+                max_examples=1,
+                workers=2,
+            )
+
+        self.assertEqual(report["failed_runs"], 4)
+        self.assertEqual(report["completed_runs"], 4)
+        for variant in VARIANTS:
+            statuses = [run["status"] for run in report["runs"][variant]]
+            self.assertEqual(statuses, ["failed", "completed"])
 
 
 if __name__ == "__main__":
