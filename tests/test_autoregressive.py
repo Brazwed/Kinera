@@ -77,9 +77,30 @@ class AutoregressiveDatasetTests(unittest.TestCase):
 
         first = examples[1]
         self.assertEqual(first["context_ids"], [0, 4])
-        self.assertEqual(first["context_syllable_ids"], [0, 1])
+        self.assertEqual(first["context_syllable_ids"], [0, 0])
         self.assertEqual(len(first["context_feature_vectors"]), 2)
         self.assertEqual(len(first["context_feature_vectors"][0]), 10)
+
+    def test_context_syllable_ids_never_reveal_an_incomplete_syllable(self) -> None:
+        syllable_vocabulary = SyllableVocabulary(["<UNK_SYL>", "ca", "sa"])
+
+        examples = build_autoregressive_examples(
+            self.records,
+            self.vocabulary,
+            syllable_vocabulary=syllable_vocabulary,
+            context_size=2,
+        )
+
+        # Predicting the first character of "casa": no syllable is complete.
+        self.assertEqual(examples[0]["context_syllable_ids"], [0, 0])
+        # Predicting "a" after only observing "c": "ca" is still incomplete.
+        self.assertEqual(examples[1]["context_syllable_ids"], [0, 0])
+        # Predicting "s": "ca" is now fully observed and may be exposed.
+        self.assertEqual(examples[2]["context_syllable_ids"], [1, 1])
+        # Predicting the final "a": "sa" is incomplete, so only "ca" is known.
+        self.assertEqual(examples[3]["context_syllable_ids"], [1, 0])
+        # At <END>, the complete final syllable is observable.
+        self.assertEqual(examples[4]["context_syllable_ids"], [2, 2])
 
     def test_examples_include_syllable_targets_and_unknown_end_target(self) -> None:
         syllable_vocabulary = SyllableVocabulary(["<UNK_SYL>", "ca", "sa"])

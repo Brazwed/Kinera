@@ -465,6 +465,12 @@ Quando um vocabulário silábico é informado ao builder, cada exemplo também
 persiste `target_syllable_id`. O token `<END>` e caracteres sem alinhamento
 silábico usam o ID de `<UNK_SYL>`.
 
+Os IDs silábicos do contexto são causais: uma sílaba só recebe seu embedding
+depois que uma posição observada possui `is_syllable_end=true`. Enquanto a
+sílaba atual está parcial, suas posições usam `<UNK_SYL>`. Isso impede que o
+próximo caractere receba a forma completa de uma sílaba que ainda contém
+caracteres futuros.
+
 O builder processa o JSONL em streaming: ele faz duas passagens pelo arquivo
 de anotações e escreve os exemplos diretamente nos arquivos de saída, sem
 carregar o corpus completo na memória.

@@ -137,27 +137,9 @@ def build_autoregressive_examples(
         if syllable_vocabulary is not None:
             if not isinstance(syllable_vocabulary, SyllableVocabulary):
                 raise TypeError("syllable_vocabulary inválido")
-            char_syllable_ids = []
             char_feature_vectors = []
             for item in characters:
-                syllable_index = item.get("syllable_index")
-                syllables = record.get("syllables", [])
-                if (
-                    isinstance(syllable_index, bool)
-                    or not isinstance(syllable_index, int)
-                    or not 0 <= syllable_index < len(syllables)
-                ):
-                    char_syllable_ids.append(syllable_vocabulary.unk_id)
-                else:
-                    char_syllable_ids.append(
-                        syllable_vocabulary.encode(syllables[syllable_index])
-                    )
                 char_feature_vectors.append(features_to_vector(item))
-            syllable_sequence = (
-                [syllable_vocabulary.unk_id] * context_size
-                + char_syllable_ids
-                + [syllable_vocabulary.unk_id]
-            )
             feature_sequence = (
                 [[0.0] * 10 for _ in range(context_size)]
                 + char_feature_vectors
@@ -188,6 +170,37 @@ def build_autoregressive_examples(
                     ),
                 }
             if syllable_vocabulary is not None:
+                observed_count = len(characters) if is_end else char_index
+                completed_syllables = {
+                    item.get("syllable_index")
+                    for item in characters[:observed_count]
+                    if (
+                        isinstance(item, dict)
+                        and bool(item.get("is_syllable_end", False))
+                        and isinstance(item.get("syllable_index"), int)
+                        and not isinstance(item.get("syllable_index"), bool)
+                    )
+                }
+                causal_syllable_ids = []
+                syllables = record.get("syllables", [])
+                for item in characters:
+                    syllable_index = item.get("syllable_index")
+                    if (
+                        isinstance(syllable_index, bool)
+                        or not isinstance(syllable_index, int)
+                        or syllable_index not in completed_syllables
+                        or not 0 <= syllable_index < len(syllables)
+                    ):
+                        causal_syllable_ids.append(syllable_vocabulary.unk_id)
+                    else:
+                        causal_syllable_ids.append(
+                            syllable_vocabulary.encode(syllables[syllable_index])
+                        )
+                syllable_sequence = (
+                    [syllable_vocabulary.unk_id] * context_size
+                    + causal_syllable_ids
+                    + [syllable_vocabulary.unk_id]
+                )
                 context_syllable_ids = syllable_sequence[
                     target_position - context_size : target_position
                 ]
