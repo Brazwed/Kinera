@@ -8,6 +8,7 @@ from typing import Any
 from nn.embedding import Embedding
 from nn.heads import MultiTaskHeads
 from nn.hybrid import HybridRepresentation
+from nn.losses import MultiTaskLoss
 from nn.probability import cross_entropy, cross_entropy_gradient
 from language.features import character_features, features_to_vector
 from language.vocabulary import CharacterVocabulary
@@ -127,6 +128,35 @@ class AutoregressiveModel:
         self.output_layer.step(learning_rate)
         self.representation.step(learning_rate)
         return loss
+
+    def multitask_train_step(
+        self,
+        char_ids: list[int],
+        syllable_ids: list[int],
+        feature_vectors: list[list[float]],
+        *,
+        targets: dict[str, object],
+        learning_rate: float,
+        loss_function: MultiTaskLoss | None = None,
+    ) -> dict[str, float]:
+        """Executa forward/backward/step para as três cabeças."""
+        loss_function = MultiTaskLoss() if loss_function is None else loss_function
+        outputs = self.forward_heads(char_ids, syllable_ids, feature_vectors)
+        report = loss_function.forward(outputs, targets)
+        gradients = loss_function.backward(outputs, targets)
+        input_gradients = self.heads.backward(gradients)
+        assert self.last_context_size is not None
+        pooled_gradient = [
+            sum(input_gradients[name][index] for name in input_gradients)
+            / self.last_context_size
+            for index in range(self.representation.output_dim)
+        ]
+        self.representation.backward([
+            pooled_gradient.copy() for _ in range(self.last_context_size)
+        ])
+        self.heads.step(learning_rate)
+        self.representation.step(learning_rate)
+        return report
 
     def predict(
         self,

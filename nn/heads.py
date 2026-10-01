@@ -43,6 +43,29 @@ class MultiTaskHeads:
             "boundary": self.boundary.forward(representation),
         }
 
+    def backward(
+        self,
+        gradients: dict[str, list[float]],
+    ) -> dict[str, list[float]]:
+        """Propaga gradientes de cada head e devolve gradientes da entrada."""
+        if not isinstance(gradients, dict) or set(gradients) != {
+            "char",
+            "syllable",
+            "boundary",
+        }:
+            raise ValueError("gradients deve conter char, syllable e boundary")
+        return {
+            "char": self.char.backward(gradients["char"]),
+            "syllable": self.syllable.backward(gradients["syllable"]),
+            "boundary": self.boundary.backward(gradients["boundary"]),
+        }
+
+    def step(self, learning_rate: float) -> None:
+        """Atualiza os parâmetros das três cabeças."""
+        self.char.step(learning_rate)
+        self.syllable.step(learning_rate)
+        self.boundary.step(learning_rate)
+
     @staticmethod
     def _validate_dimension(value: object, name: str) -> None:
         if isinstance(value, bool) or not isinstance(value, int):
