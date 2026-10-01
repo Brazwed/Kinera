@@ -1,0 +1,32 @@
+{
+  "phase": "4.1_evaluation_sanity",
+  "commit": "e412e2e45e6dd6c4db14b257fb6a87dd4461930d",
+  "date": "2026-10-01",
+  "configuration": {
+    "seed": 7,
+    "epochs": 2,
+    "learning_rate": 0.05,
+    "train_examples": 100,
+    "validation_examples": 100,
+    "loss_weights": {"char": 1.0, "syllable": 0.7, "boundary": 0.3}
+  },
+  "final_validation": {
+    "char_accuracy": 0.26,
+    "syllable_accuracy_all": 0.15,
+    "syllable_accuracy_known": 0.0,
+    "boundary_accuracy": 0.52,
+    "boundary_precision": 0.52,
+    "boundary_recall": 1.0,
+    "boundary_f1": 0.6842105263157895,
+    "boundary_target_distribution": {"0": 48, "1": 52}
+  },
+  "checks": {
+    "unknown_syllable_metric_separated": true,
+    "boundary_distribution_recorded": true,
+    "boundary_precision_recall_f1_recorded": true,
+    "loss_weights_unchanged": true,
+    "micro_overfit_updates_shared_embeddings": true,
+    "all_tests_passed": 188
+  },
+  "interpretation": "The known-syllable metric is intentionally zero in this 100-example smoke validation because the selected validation slice contains no correctly predicted non-UNK syllable targets. This prevents unknown-target frequency from hiding the issue."
+}
