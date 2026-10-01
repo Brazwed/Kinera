@@ -683,3 +683,36 @@ variante com canal silábico. C/D melhoraram a loss média nos três seeds. C
 teve o ganho médio de acurácia mais forte. O relatório completo, incluindo
 resultados por seed, buckets e exemplos, está em
 `experiments/phase5_3_expanded_analysis.json`.
+
+### Fase 5.4 — Sílaba parcial causal
+
+A Fase 5.4 adiciona duas variantes sem substituir A/B/C/D:
+
+```text
+E = caracteres + sílaba parcial causal
+F = caracteres + features + sílaba parcial causal
+```
+
+A sílaba parcial é construída somente com os caracteres observados desde a
+última sílaba concluída. IDs de sílabas concluídas são preservados; prefixos
+parciais usam buckets determinísticos dentro da mesma tabela de embeddings,
+mantendo a contagem de parâmetros controlada.
+
+Smoke test registrado em `experiments/phase5_4_partial_syllable_smoke.json`.
+O runner ampliado e retomável é:
+
+```bash
+python run_phase5_4_expanded.py \
+  --vocabulary data/processed/vocabulary.json \
+  --syllable-vocabulary data/processed/syllable_vocabulary.json \
+  --train data/processed/autoregressive_train.jsonl \
+  --validation data/processed/autoregressive_validation.jsonl \
+  --seeds 7 42 123 --epochs 2 --learning-rate 0.05 \
+  --max-examples 1000 --workers 3 \
+  --checkpoint experiments/phase5_4_expanded_analysis.json \
+  --resume
+```
+
+Os testes garantem que a representação parcial não usa caracteres futuros,
+muda apenas quando novos caracteres observáveis entram e mantém o mesmo
+número de parâmetros de A/B/C/D.
