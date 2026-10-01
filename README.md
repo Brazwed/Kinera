@@ -500,3 +500,19 @@ validation = load_jsonl(
     max_records=1000,
 )
 ```
+
+## Comparação controlada A/B/C/D
+
+O runner `run_comparison.py` mantém a mesma dimensão interna, heads, loss,
+split, seeds e configuração de treino. Ele apenas mascara os canais de
+entrada:
+
+```text
+A = caracteres
+B = caracteres + features ortográficas
+C = caracteres + sílabas causais
+D = caracteres + features + sílabas causais
+```
+
+As sílabas usadas em C/D são somente as sílabas já completamente observadas.
+O runner registra média e desvio entre seeds, além da contagem de parâmetros.
