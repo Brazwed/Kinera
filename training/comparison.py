@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import concurrent.futures
 import json
 import math
 import os
@@ -84,12 +85,15 @@ def run_controlled_experiments(
     syllable_unknown_id: int = 0,
     checkpoint_path: str | Path | None = None,
     resume: bool = False,
+    workers: int = 1,
 ) -> dict[str, Any]:
     """Executa A/B/C/D, com checkpoint opcional por variante/seed."""
     if not seeds:
         raise ValueError("seeds não pode ser vazio")
     if any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds):
         raise TypeError("seeds deve conter inteiros")
+    if isinstance(workers, bool) or not isinstance(workers, int) or workers < 1:
+        raise ValueError("workers deve ser um inteiro positivo")
     metric_names = (
         "char_loss",
         "syllable_loss",
@@ -112,6 +116,7 @@ def run_controlled_experiments(
         "max_examples": max_examples,
         "syllable_vocab_size": syllable_vocab_size,
         "syllable_unknown_id": syllable_unknown_id,
+        "workers": workers,
         "loss_weights": {"char": 1.0, "syllable": 0.7, "boundary": 0.3},
     }
     if resume:
@@ -119,11 +124,11 @@ def run_controlled_experiments(
             raise ValueError("resume exige checkpoint_path existente")
         persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
         persisted_configuration = {
-            key: persisted.get(key) for key in configuration if key != "seeds"
+            key: persisted.get(key) for key in configuration if key not in {"seeds", "workers"}
         }
         persisted_seeds = set(persisted.get("seeds", []))
         current_configuration = {
-            key: configuration[key] for key in configuration if key != "seeds"
+            key: configuration[key] for key in configuration if key not in {"seeds", "workers"}
         }
         current_seeds = set(configuration["seeds"])
         if persisted_configuration != current_configuration or not persisted_seeds <= current_seeds:
@@ -150,6 +155,7 @@ def run_controlled_experiments(
             ),
         )
 
+    prepared_variants: dict[str, tuple[list[dict[str, Any]], list[dict[str, Any]]]] = {}
     for variant in VARIANTS:
         prepared_train = prepare_variant_examples(
             train_examples,
@@ -171,6 +177,30 @@ def run_controlled_experiments(
             prepared_validation,
             syllable_unknown_id,
         )
+        prepared_variants[variant] = (prepared_train, prepared_validation)
+
+    if workers > 1:
+        return _run_parallel_experiments(
+            prepared_variants,
+            vocabulary,
+            syllable_vocab_size,
+            seeds,
+            epochs,
+            learning_rate,
+            syllable_unknown_id,
+            checkpoint,
+            resume,
+            configuration,
+            reports,
+            aggregates,
+            parameter_counts,
+            input_usage,
+            metric_names,
+            workers,
+        )
+
+    for variant in VARIANTS:
+        prepared_train, prepared_validation = prepared_variants[variant]
         reports.setdefault(variant, [])
         for seed in seeds:
             previous = next(
@@ -212,6 +242,7 @@ def run_controlled_experiments(
                 reports[variant].append({
                     "seed": seed,
                     "status": "completed",
+                    "pid": os.getpid(),
                     "initial_validation": initial,
                     "training": training,
                     "final_validation": final,
@@ -224,10 +255,181 @@ def run_controlled_experiments(
                 reports[variant].append({
                     "seed": seed,
                     "status": "failed",
+                    "pid": os.getpid(),
                     "error": "experiment failed",
                     "traceback": traceback.format_exc(),
                     "duration_seconds": time.perf_counter() - started,
                 })
+            aggregates = _build_aggregates(reports, metric_names)
+            if checkpoint is not None:
+                _persist_checkpoint(
+                    checkpoint,
+                    _checkpoint_report(
+                        configuration,
+                        reports,
+                        aggregates,
+                        parameter_counts,
+                        input_usage,
+                        metric_names,
+                    ),
+                )
+
+    aggregates = _build_aggregates(reports, metric_names)
+    result = _checkpoint_report(
+        configuration,
+        reports,
+        aggregates,
+        parameter_counts,
+        input_usage,
+        metric_names,
+    )
+    if checkpoint is not None:
+        _persist_checkpoint(checkpoint, result)
+    return result
+
+
+def _execute_single_experiment(
+    variant: str,
+    seed: int,
+    train_examples: list[dict[str, Any]],
+    validation_examples: list[dict[str, Any]],
+    vocabulary: CharacterVocabulary,
+    syllable_vocab_size: int,
+    epochs: int,
+    learning_rate: float,
+    syllable_unknown_id: int,
+) -> tuple[str, int, dict[str, Any]]:
+    started = time.perf_counter()
+    try:
+        model = AutoregressiveModel(
+            len(vocabulary),
+            syllable_vocab_size,
+            seed=seed,
+        )
+        parameter_count = count_trainable_parameters(model)
+        initial = evaluate_multitask_examples(
+            model,
+            validation_examples,
+            vocabulary,
+            syllable_unknown_id=syllable_unknown_id,
+        )
+        training = train_multitask_examples(
+            model,
+            train_examples,
+            vocabulary,
+            epochs=epochs,
+            learning_rate=learning_rate,
+            syllable_unknown_id=syllable_unknown_id,
+        )
+        final = evaluate_multitask_examples(
+            model,
+            validation_examples,
+            vocabulary,
+            syllable_unknown_id=syllable_unknown_id,
+        )
+        record = {
+            "seed": seed,
+            "status": "completed",
+            "pid": os.getpid(),
+            "initial_validation": initial,
+            "training": training,
+            "final_validation": final,
+            "parameter_count": parameter_count,
+            "duration_seconds": time.perf_counter() - started,
+        }
+    except Exception:
+        record = {
+            "seed": seed,
+            "status": "failed",
+            "pid": os.getpid(),
+            "error": "experiment failed",
+            "traceback": traceback.format_exc(),
+            "duration_seconds": time.perf_counter() - started,
+        }
+    return variant, seed, record
+
+
+def _run_parallel_experiments(
+    prepared_variants: dict[str, tuple[list[dict[str, Any]], list[dict[str, Any]]]],
+    vocabulary: CharacterVocabulary,
+    syllable_vocab_size: int,
+    seeds: list[int],
+    epochs: int,
+    learning_rate: float,
+    syllable_unknown_id: int,
+    checkpoint: Path | None,
+    resume: bool,
+    configuration: dict[str, Any],
+    reports: dict[str, list[dict[str, Any]]],
+    aggregates: dict[str, dict[str, dict[str, float]]],
+    parameter_counts: dict[str, int],
+    input_usage: dict[str, dict[str, int]],
+    metric_names: tuple[str, ...],
+    workers: int,
+) -> dict[str, Any]:
+    del resume
+    for variant in VARIANTS:
+        reports.setdefault(variant, [])
+
+    futures: dict[concurrent.futures.Future[tuple[str, int, dict[str, Any]]], tuple[str, int]] = {}
+    with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
+        for variant in VARIANTS:
+            train_examples, validation_examples = prepared_variants[variant]
+            for seed in seeds:
+                previous = next(
+                    (run for run in reports[variant] if run.get("seed") == seed),
+                    None,
+                )
+                if previous is not None and previous.get("status") == "completed":
+                    continue
+                if previous is not None:
+                    reports[variant].remove(previous)
+                reports[variant].append({
+                    "seed": seed,
+                    "status": "running",
+                    "pid": None,
+                })
+                future = executor.submit(
+                    _execute_single_experiment,
+                    variant,
+                    seed,
+                    train_examples,
+                    validation_examples,
+                    vocabulary,
+                    syllable_vocab_size,
+                    epochs,
+                    learning_rate,
+                    syllable_unknown_id,
+                )
+                futures[future] = (variant, seed)
+        if checkpoint is not None:
+            _persist_checkpoint(
+                checkpoint,
+                _checkpoint_report(
+                    configuration,
+                    reports,
+                    aggregates,
+                    parameter_counts,
+                    input_usage,
+                    metric_names,
+                ),
+            )
+        for future in concurrent.futures.as_completed(futures):
+            variant, seed = futures[future]
+            try:
+                _, _, record = future.result()
+            except Exception:
+                record = {
+                    "seed": seed,
+                    "status": "failed",
+                    "pid": None,
+                    "error": "worker process failed",
+                    "traceback": traceback.format_exc(),
+                }
+            existing = next(run for run in reports[variant] if run.get("seed") == seed)
+            reports[variant][reports[variant].index(existing)] = record
+            if record.get("status") == "completed":
+                parameter_counts[variant] = record["parameter_count"]
             aggregates = _build_aggregates(reports, metric_names)
             if checkpoint is not None:
                 _persist_checkpoint(

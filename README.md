@@ -527,7 +527,8 @@ python run_comparison.py \
   --validation data/processed/autoregressive_validation.jsonl \
   --seeds 7 42 123 --epochs 2 --learning-rate 0.05 \
   --max-examples 1000 \
-  --checkpoint experiments/phase5_1_checkpoint.json
+  --checkpoint experiments/phase5_1_checkpoint.json \
+  --workers 2
 ```
 
 Além das métricas, o relatório registra duração por seed e o uso efetivo do
@@ -547,11 +548,26 @@ python run_comparison.py \
   --seeds 7 42 123 --epochs 2 --learning-rate 0.05 \
   --max-examples 1000 \
   --checkpoint experiments/phase5_1_checkpoint.json \
+  --workers 2 \
   --resume
 ```
 
 Falhas individuais ficam registradas com traceback sem apagar os resultados
 anteriores. Os agregados consideram somente execuções concluídas.
+
+`--workers 1` mantém a execução sequencial de referência. Valores maiores
+executam combinações independentes `variante × seed` em processos separados;
+a escrita do checkpoint continua centralizada no processo principal.
+
+Benchmark registrado em `experiments/phase5_2_parallel_benchmark.json`, com 50
+exemplos por split, 1 seed, 1 época e 4 vCPUs:
+
+```text
+workers    tempo       speedup    resultados iguais ao workers=1
+1          20,14 s     1,00x      referência
+2           9,98 s     2,02x      sim
+4           5,13 s     3,93x      sim
+```
 
 Smoke comparison registrada em `experiments/phase5_controlled_comparison.json`
 com 50 exemplos, 2 épocas e 3 seeds:

@@ -140,6 +140,59 @@ class ControlledComparisonTests(unittest.TestCase):
             self.assertIn("synthetic training failure", report["runs"]["A"][0]["traceback"])
             self.assertTrue(checkpoint.exists())
 
+    def test_parallel_runner_records_worker_pid_and_completed_status(self) -> None:
+        report = run_controlled_experiments(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            syllable_vocab_size=5,
+            seeds=[7],
+            epochs=1,
+            learning_rate=0.05,
+            max_examples=1,
+            workers=2,
+        )
+
+        self.assertEqual(report["workers"], 2)
+        self.assertEqual(report["completed_runs"], 4)
+        for variant in VARIANTS:
+            run = report["runs"][variant][0]
+            self.assertEqual(run["status"], "completed")
+            self.assertIsInstance(run["pid"], int)
+            self.assertGreater(run["pid"], 0)
+
+    def test_workers_must_be_positive(self) -> None:
+        with self.assertRaises(ValueError):
+            run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                workers=0,
+            )
+
+    def test_parallel_and_sequential_results_match(self) -> None:
+        common = {
+            "train_examples": self.examples,
+            "validation_examples": self.examples,
+            "vocabulary": self.vocabulary,
+            "syllable_vocab_size": 5,
+            "seeds": [7],
+            "epochs": 1,
+            "learning_rate": 0.05,
+            "max_examples": 1,
+        }
+        sequential = run_controlled_experiments(**common, workers=1)
+        parallel = run_controlled_experiments(**common, workers=2)
+        for variant in VARIANTS:
+            self.assertEqual(
+                sequential["aggregates"][variant]["mean"],
+                parallel["aggregates"][variant]["mean"],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

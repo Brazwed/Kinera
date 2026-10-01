@@ -1,0 +1,47 @@
+{
+  "benchmarks": {
+    "1": {
+      "completed_runs": 4,
+      "failed_runs": 0,
+      "job_duration_seconds": 20.125737311085686,
+      "speedup_vs_workers_1": 1.0,
+      "wall_time_seconds": 20.138379878131673,
+      "worker_pids": [
+        2820603
+      ]
+    },
+    "2": {
+      "completed_runs": 4,
+      "failed_runs": 0,
+      "job_duration_seconds": 19.739527886966243,
+      "speedup_vs_workers_1": 2.017037012350933,
+      "wall_time_seconds": 9.984139980981126,
+      "worker_pids": [
+        2820628,
+        2820631
+      ]
+    },
+    "4": {
+      "completed_runs": 4,
+      "failed_runs": 0,
+      "job_duration_seconds": 20.28746247990057,
+      "speedup_vs_workers_1": 3.9277292182781776,
+      "wall_time_seconds": 5.127232240047306,
+      "worker_pids": [
+        2820644,
+        2820647,
+        2820648,
+        2820649
+      ]
+    }
+  },
+  "cpu_count": 4,
+  "epochs": 1,
+  "examples_per_split": 50,
+  "learning_rate": 0.05,
+  "phase": "5.2_parallel_benchmark",
+  "results_match_workers_1": true,
+  "seeds": [
+    7
+  ]
+}

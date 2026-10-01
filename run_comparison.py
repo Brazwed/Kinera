@@ -31,6 +31,12 @@ def main() -> None:
         action="store_true",
         help="retoma combinações concluídas a partir do checkpoint",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="quantidade de processos; 1 mantém execução sequencial",
+    )
     args = parser.parse_args()
 
     with args.vocabulary.open(encoding="utf-8") as handle:
@@ -51,6 +57,7 @@ def main() -> None:
         max_examples=args.max_examples,
         checkpoint_path=args.checkpoint,
         resume=args.resume,
+        workers=args.workers,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
 
