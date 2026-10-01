@@ -716,3 +716,24 @@ python run_phase5_4_expanded.py \
 Os testes garantem que a representação parcial não usa caracteres futuros,
 muda apenas quando novos caracteres observáveis entram e mantém o mesmo
 número de parâmetros de A/B/C/D.
+
+A execução ampliada da Fase 5.4 foi concluída com 1.000 exemplos por split,
+2 épocas e seeds `7`, `42`, `123`. Todas as variantes mantiveram 139.432
+parâmetros.
+
+```text
+variante   char_loss médio ± desvio    char_accuracy médio ± desvio
+C          2.396040 ± 0.010389         32,167% ± 0,205%
+D          2.352711 ± 0.002371         31,500% ± 0,082%
+E          2.430864 ± 0.000436         31,133% ± 0,047%
+F          2.394122 ± 0.002124         31,133% ± 0,047%
+```
+
+Conclusão desta rodada: a representação parcial causal não superou a
+representação de última sílaba concluída. E ficou 1,03 ponto percentual abaixo
+de C em acurácia e com `char_loss` 0,034824 maior. F ficou 0,37 ponto
+percentual abaixo de D e com `char_loss` 0,041410 maior. Portanto, a sílaba
+parcial está causalmente válida, mas não deve substituir o esquema atual com
+base neste experimento.
+
+Relatório: `experiments/phase5_4_expanded_analysis.json`.
