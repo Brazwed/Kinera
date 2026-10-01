@@ -473,7 +473,9 @@ carregar o corpus completo na memória.
 
 `training.autoregressive.train_multitask_examples` treina as três heads e
 registra `char_loss`, `syllable_loss`, `boundary_loss`, `total_loss` e as três
-acurácias. `evaluate_multitask_examples` executa somente forward e não altera
+acurácias. A avaliação também separa `syllable_accuracy_all` de
+`syllable_accuracy_known` e calcula precision, recall e F1 da fronteira
+silábica. `evaluate_multitask_examples` executa somente forward e não altera
 os parâmetros.
 
 O fluxo recomendado para experimentos usa uma amostra limitada do JSONL:

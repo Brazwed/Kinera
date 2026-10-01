@@ -69,6 +69,19 @@ class MultitaskTrainingWorkflowTests(unittest.TestCase):
         ):
             self.assertIn(name, metrics)
 
+    def test_evaluation_reports_known_syllable_accuracy_and_boundary_metrics(self) -> None:
+        report = evaluate_multitask_examples(
+            self._model(), self.examples, self.vocabulary, syllable_unknown_id=0
+        )
+
+        self.assertIn("syllable_accuracy_all", report)
+        self.assertIn("syllable_accuracy_known", report)
+        self.assertIn("boundary_target_distribution", report)
+        self.assertIn("boundary_precision", report)
+        self.assertIn("boundary_recall", report)
+        self.assertIn("boundary_f1", report)
+        self.assertEqual(report["boundary_target_distribution"], {"0": 0, "1": 3})
+
     def test_evaluation_does_not_update_any_parameters(self) -> None:
         model = self._model()
         before = {
@@ -109,6 +122,22 @@ class MultitaskTrainingWorkflowTests(unittest.TestCase):
 
         self.assertLess(final["total_loss"], initial["total_loss"])
         self.assertGreaterEqual(final["char_accuracy"], report["history"][0]["char_accuracy"])
+
+    def test_micro_overfit_updates_shared_embeddings(self) -> None:
+        model = self._model()
+        before_char = [row.copy() for row in model.representation.char_embedding.weights]
+        before_syllable = [row.copy() for row in model.representation.syllable_embedding.weights]
+
+        train_multitask_examples(
+            model,
+            self.examples[:1],
+            self.vocabulary,
+            epochs=10,
+            learning_rate=0.2,
+        )
+
+        self.assertNotEqual(before_char, model.representation.char_embedding.weights)
+        self.assertNotEqual(before_syllable, model.representation.syllable_embedding.weights)
 
 
 if __name__ == "__main__":

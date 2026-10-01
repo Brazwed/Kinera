@@ -410,7 +410,7 @@ def evaluate_multitask_examples(
     syllable_unknown_id: int = 0,
     max_examples: int | None = None,
     loss_function: MultiTaskLoss | None = None,
-) -> dict[str, float | int]:
+) -> dict[str, Any]:
     """Avalia as três heads sem executar backward ou step."""
     if not examples:
         raise ValueError("examples não pode ser vazio")
@@ -427,6 +427,12 @@ def evaluate_multitask_examples(
         "syllable_accuracy": 0.0,
         "boundary_accuracy": 0.0,
     }
+    syllable_known_total = 0
+    syllable_known_correct = 0
+    boundary_true_positive = 0
+    boundary_false_positive = 0
+    boundary_false_negative = 0
+    boundary_target_distribution = {"0": 0, "1": 0}
     for example in selected:
         inputs = example_to_inputs(
             example,
@@ -443,16 +449,48 @@ def evaluate_multitask_examples(
         totals["char_accuracy"] += max(
             range(len(outputs["char"])), key=outputs["char"].__getitem__
         ) == targets["char"]
-        totals["syllable_accuracy"] += max(
+        syllable_prediction = max(
             range(len(outputs["syllable"])), key=outputs["syllable"].__getitem__
-        ) == targets["syllable"]
-        totals["boundary_accuracy"] += (
-            (outputs["boundary"][0] >= 0.0) == (targets["boundary"] >= 0.5)
         )
+        syllable_correct = syllable_prediction == targets["syllable"]
+        totals["syllable_accuracy"] += syllable_correct
+        if targets["syllable"] != syllable_unknown_id:
+            syllable_known_total += 1
+            syllable_known_correct += syllable_correct
+        boundary_target = int(targets["boundary"] >= 0.5)
+        boundary_prediction = int(outputs["boundary"][0] >= 0.0)
+        boundary_target_distribution[str(boundary_target)] += 1
+        totals["boundary_accuracy"] += boundary_prediction == boundary_target
+        if boundary_prediction == 1 and boundary_target == 1:
+            boundary_true_positive += 1
+        elif boundary_prediction == 1:
+            boundary_false_positive += 1
+        elif boundary_target == 1:
+            boundary_false_negative += 1
     count = len(selected)
+    boundary_precision = _safe_ratio(
+        boundary_true_positive,
+        boundary_true_positive + boundary_false_positive,
+    )
+    boundary_recall = _safe_ratio(
+        boundary_true_positive,
+        boundary_true_positive + boundary_false_negative,
+    )
+    boundary_f1 = _safe_ratio(
+        2.0 * boundary_precision * boundary_recall,
+        boundary_precision + boundary_recall,
+    )
     return {
         "examples": count,
         **{name: value / count for name, value in totals.items()},
+        "syllable_accuracy_all": totals["syllable_accuracy"] / count,
+        "syllable_accuracy_known": _safe_ratio(
+            syllable_known_correct, syllable_known_total
+        ),
+        "boundary_target_distribution": boundary_target_distribution,
+        "boundary_precision": boundary_precision,
+        "boundary_recall": boundary_recall,
+        "boundary_f1": boundary_f1,
     }
 
 
@@ -473,6 +511,10 @@ def _multitask_targets(example: dict[str, Any]) -> dict[str, int | float]:
         "syllable": target_syllable,
         "boundary": float(target_boundary),
     }
+
+
+def _safe_ratio(numerator: float, denominator: float) -> float:
+    return 0.0 if denominator == 0.0 else numerator / denominator
 
 
 def generate_text(
