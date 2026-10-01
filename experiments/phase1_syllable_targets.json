@@ -1,0 +1,38 @@
+{
+  "phase": "1_targets_linguistic",
+  "commit": "bea4170",
+  "date": "2026-10-01",
+  "streaming": true,
+  "configuration": {
+    "context_size": 8,
+    "character_vocabulary_size": 51,
+    "syllable_vocabulary_size": 3932,
+    "unknown_syllable_token": "<UNK_SYL>",
+    "end_target_syllable_id": 0
+  },
+  "data": {
+    "train_records": 145287,
+    "validation_records": 36273,
+    "train_words": 124259,
+    "validation_words": 31064,
+    "train_examples": 1512240,
+    "validation_examples": 377894,
+    "unknown_train_syllable_targets": 151717,
+    "unknown_validation_syllable_targets": 37884,
+    "unknown_validation_character_targets": 0
+  },
+  "checks": {
+    "target_syllable_id_persisted": true,
+    "end_uses_unknown_syllable": true,
+    "unaligned_characters_use_unknown_syllable": true,
+    "accented_characters_tested": true,
+    "separators_tested": true,
+    "all_tests_passed": 171,
+    "full_rebuild_completed_without_loading_corpus": true
+  },
+  "notes": [
+    "The builder makes two streaming passes over the annotated JSONL.",
+    "The generated JSONL artifacts remain local because they are large and ignored by Git.",
+    "The target is available only when a syllable vocabulary is supplied; old datasets remain compatible."
+  ]
+}
