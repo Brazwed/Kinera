@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from language.dataset import build_autoregressive_examples, load_jsonl, write_jsonl
-from language.vocabulary import CharacterVocabulary
+from language.vocabulary import CharacterVocabulary, SyllableVocabulary
 
 
 def build_character_dataset(
@@ -20,6 +20,7 @@ def build_character_dataset(
     report_path: str | Path | None = None,
     *,
     context_size: int = 8,
+    syllable_vocabulary_path: str | Path | None = None,
 ) -> dict[str, Any]:
     records = load_jsonl(annotated_path)
     train_groups = load_jsonl(train_groups_path)
@@ -34,6 +35,11 @@ def build_character_dataset(
         record for record in records if record.get("word_key") in validation_keys
     ]
     vocabulary = CharacterVocabulary.from_records(train_records)
+    syllable_vocabulary = None
+    if syllable_vocabulary_path is not None:
+        syllable_vocabulary = SyllableVocabulary.from_dict(
+            json.loads(Path(syllable_vocabulary_path).read_text(encoding="utf-8"))
+        )
     Path(vocabulary_path).parent.mkdir(parents=True, exist_ok=True)
     Path(vocabulary_path).write_text(
         json.dumps(vocabulary.to_dict(), ensure_ascii=False, indent=2, sort_keys=True)
@@ -45,11 +51,13 @@ def build_character_dataset(
         train_records,
         vocabulary,
         context_size=context_size,
+        syllable_vocabulary=syllable_vocabulary,
     )
     validation_examples = build_autoregressive_examples(
         validation_records,
         vocabulary,
         context_size=context_size,
+        syllable_vocabulary=syllable_vocabulary,
     )
     write_jsonl(train_output, train_examples)
     write_jsonl(validation_output, validation_examples)
@@ -66,6 +74,9 @@ def build_character_dataset(
         "validation_words": len(validation_keys),
         "vocabulary_size": len(vocabulary),
         "context_size": context_size,
+        "syllable_vocabulary": (
+            None if syllable_vocabulary_path is None else str(syllable_vocabulary_path)
+        ),
         "train_examples": len(train_examples),
         "validation_examples": len(validation_examples),
         "unknown_validation_targets": unknown_validation_targets,
@@ -97,6 +108,7 @@ def main() -> None:
     parser.add_argument("--validation-output", type=Path, required=True)
     parser.add_argument("--report", type=Path)
     parser.add_argument("--context-size", type=int, default=8)
+    parser.add_argument("--syllable-vocabulary", type=Path)
     args = parser.parse_args()
     report = build_character_dataset(
         args.annotated,
@@ -107,6 +119,7 @@ def main() -> None:
         args.validation_output,
         args.report,
         context_size=args.context_size,
+        syllable_vocabulary_path=args.syllable_vocabulary,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
 

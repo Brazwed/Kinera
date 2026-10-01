@@ -8,11 +8,20 @@ import random
 from pathlib import Path
 from typing import Any, Iterable
 
-from language.vocabulary import CharacterVocabulary
+from language.features import features_to_vector
+from language.vocabulary import CharacterVocabulary, SyllableVocabulary
 
 
-def load_jsonl(path: str | Path) -> list[dict[str, Any]]:
+def load_jsonl(
+    path: str | Path,
+    *,
+    max_records: int | None = None,
+) -> list[dict[str, Any]]:
     source = Path(path)
+    if max_records is not None and (
+        isinstance(max_records, bool) or not isinstance(max_records, int) or max_records <= 0
+    ):
+        raise ValueError("max_records deve ser inteiro positivo ou None")
     records = []
     with source.open("r", encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
@@ -22,6 +31,8 @@ def load_jsonl(path: str | Path) -> list[dict[str, Any]]:
             if not isinstance(value, dict):
                 raise ValueError(f"linha JSONL {line_number} não é objeto")
             records.append(value)
+            if max_records is not None and len(records) >= max_records:
+                break
     return records
 
 
@@ -96,6 +107,7 @@ def build_autoregressive_examples(
     vocabulary: CharacterVocabulary,
     *,
     context_size: int,
+    syllable_vocabulary: SyllableVocabulary | None = None,
 ) -> list[dict[str, Any]]:
     """Converte anotações em exemplos de previsão do próximo caractere."""
     if isinstance(context_size, bool) or not isinstance(context_size, int):
@@ -113,14 +125,44 @@ def build_autoregressive_examples(
             raise ValueError("registro sem characters anotados")
 
         char_ids = [vocabulary.encode(item["char"])[0] for item in characters]
+        context_syllable_ids: list[int] | None = None
+        context_feature_vectors: list[list[float]] | None = None
+        if syllable_vocabulary is not None:
+            if not isinstance(syllable_vocabulary, SyllableVocabulary):
+                raise TypeError("syllable_vocabulary inválido")
+            char_syllable_ids = []
+            char_feature_vectors = []
+            for item in characters:
+                syllable_index = item.get("syllable_index")
+                syllables = record.get("syllables", [])
+                if (
+                    isinstance(syllable_index, bool)
+                    or not isinstance(syllable_index, int)
+                    or not 0 <= syllable_index < len(syllables)
+                ):
+                    char_syllable_ids.append(syllable_vocabulary.unk_id)
+                else:
+                    char_syllable_ids.append(
+                        syllable_vocabulary.encode(syllables[syllable_index])
+                    )
+                char_feature_vectors.append(features_to_vector(item))
+            syllable_sequence = (
+                [syllable_vocabulary.unk_id] * context_size
+                + char_syllable_ids
+                + [syllable_vocabulary.unk_id]
+            )
+            feature_sequence = (
+                [[0.0] * 10 for _ in range(context_size)]
+                + char_feature_vectors
+                + [[0.0] * 10]
+            )
         sequence = [vocabulary.start_id] * context_size + char_ids + [vocabulary.end_id]
         for target_position in range(context_size, len(sequence)):
             target_id = sequence[target_position]
             is_end = target_id == vocabulary.end_id
             char_index = target_position - context_size
             target_item = None if is_end else characters[char_index]
-            examples.append(
-                {
+            example = {
                     "word_key": word_key,
                     "context_ids": sequence[
                         target_position - context_size : target_position
@@ -138,5 +180,14 @@ def build_autoregressive_examples(
                         else bool(target_item.get("is_syllable_end", False))
                     ),
                 }
-            )
+            if syllable_vocabulary is not None:
+                context_syllable_ids = syllable_sequence[
+                    target_position - context_size : target_position
+                ]
+                context_feature_vectors = feature_sequence[
+                    target_position - context_size : target_position
+                ]
+                example["context_syllable_ids"] = context_syllable_ids
+                example["context_feature_vectors"] = context_feature_vectors
+            examples.append(example)
     return examples

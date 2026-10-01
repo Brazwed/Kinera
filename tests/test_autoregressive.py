@@ -1,7 +1,7 @@
 import unittest
 
 from language.dataset import build_autoregressive_examples
-from language.vocabulary import CharacterVocabulary
+from language.vocabulary import CharacterVocabulary, SyllableVocabulary
 
 
 class AutoregressiveDatasetTests(unittest.TestCase):
@@ -64,6 +64,22 @@ class AutoregressiveDatasetTests(unittest.TestCase):
     def test_invalid_context_size_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             build_autoregressive_examples(self.records, self.vocabulary, context_size=0)
+
+    def test_examples_include_aligned_syllable_context_when_requested(self) -> None:
+        syllable_vocabulary = SyllableVocabulary(["<UNK_SYL>", "ca", "sa"])
+
+        examples = build_autoregressive_examples(
+            self.records,
+            self.vocabulary,
+            syllable_vocabulary=syllable_vocabulary,
+            context_size=2,
+        )
+
+        first = examples[1]
+        self.assertEqual(first["context_ids"], [0, 4])
+        self.assertEqual(first["context_syllable_ids"], [0, 1])
+        self.assertEqual(len(first["context_feature_vectors"]), 2)
+        self.assertEqual(len(first["context_feature_vectors"][0]), 10)
 
 
 if __name__ == "__main__":

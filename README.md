@@ -332,6 +332,7 @@ python -m scripts.build_character_dataset \
     --train-groups data/processed/splits/train.jsonl \
     --validation-groups data/processed/splits/validation.jsonl \
     --vocabulary data/processed/vocabulary.json \
+    --syllable-vocabulary data/processed/syllable_vocabulary.json \
     --train-output data/processed/autoregressive_train.jsonl \
     --validation-output data/processed/autoregressive_validation.jsonl \
     --report data/processed/character_dataset_report.json \
@@ -450,11 +451,12 @@ python run_autoregressive.py \
     --vocabulary data/processed/vocabulary.json \
     --train data/processed/autoregressive_train.jsonl \
     --validation data/processed/autoregressive_validation.jsonl \
+    --syllable-vocabulary data/processed/syllable_vocabulary.json \
     --epochs 3 \
     --max-examples 1000
 ```
 
-Esta primeira versão usa `<UNK_SYL>` para as posições do contexto porque os
-artefatos autoregressivos antigos carregam apenas IDs de caracteres. As
-features ortográficas continuam sendo usadas; o próximo refinamento do
-dataset deve persistir os IDs silábicos por posição.
+A geração atual do dataset persiste `context_syllable_ids` e
+`context_feature_vectors` alinhados aos oito caracteres do contexto. Exemplos
+antigos continuam compatíveis: quando esses campos não existem, o adaptador
+usa `<UNK_SYL>` como fallback.

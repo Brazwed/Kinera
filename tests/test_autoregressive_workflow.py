@@ -39,6 +39,20 @@ class AutoregressiveWorkflowTests(unittest.TestCase):
         self.assertEqual(len(features[0]), 10)
         self.assertEqual(features[1][0], 1.0)
 
+    def test_example_adapter_prefers_persisted_syllable_context(self) -> None:
+        example = {
+            "context_ids": [0, 3],
+            "context_syllable_ids": [0, 4],
+            "context_feature_vectors": [[0.0] * 10, [0.0, 1.0] + [0.0] * 8],
+        }
+
+        _, syllable_ids, features = example_to_inputs(
+            example, self.vocabulary, syllable_unknown_id=0
+        )
+
+        self.assertEqual(syllable_ids, [0, 4])
+        self.assertEqual(features[1][1], 1.0)
+
     def test_training_reports_loss_and_accuracy(self) -> None:
         model = AutoregressiveModel(
             char_vocab_size=len(self.vocabulary),

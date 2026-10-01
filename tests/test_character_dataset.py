@@ -48,6 +48,11 @@ class CharacterDatasetBuilderTests(unittest.TestCase):
             train_output = root / "train.jsonl"
             validation_output = root / "validation.jsonl"
             report_path = root / "report.json"
+            syllable_vocabulary = root / "syllable_vocabulary.json"
+            syllable_vocabulary.write_text(
+                json.dumps({"version": 1, "tokens": ["<UNK_SYL>", "ca", "sa"]}),
+                encoding="utf-8",
+            )
 
             report = build_character_dataset(
                 annotated,
@@ -58,6 +63,7 @@ class CharacterDatasetBuilderTests(unittest.TestCase):
                 validation_output,
                 report_path,
                 context_size=2,
+                syllable_vocabulary_path=syllable_vocabulary,
             )
 
             train_examples = train_output.read_text(encoding="utf-8").splitlines()
@@ -69,6 +75,10 @@ class CharacterDatasetBuilderTests(unittest.TestCase):
         self.assertGreater(len(train_examples), 0)
         self.assertGreater(len(validation_examples), 0)
         self.assertEqual(vocabulary["version"], 1)
+        self.assertEqual(report["syllable_vocabulary"], str(syllable_vocabulary))
+        first_example = json.loads(train_examples[1])
+        self.assertIn("context_syllable_ids", first_example)
+        self.assertIn("context_feature_vectors", first_example)
 
 
 if __name__ == "__main__":
