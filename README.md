@@ -468,3 +468,27 @@ silábico usam o ID de `<UNK_SYL>`.
 O builder processa o JSONL em streaming: ele faz duas passagens pelo arquivo
 de anotações e escreve os exemplos diretamente nos arquivos de saída, sem
 carregar o corpus completo na memória.
+
+## Treino multiobjetivo
+
+`training.autoregressive.train_multitask_examples` treina as três heads e
+registra `char_loss`, `syllable_loss`, `boundary_loss`, `total_loss` e as três
+acurácias. `evaluate_multitask_examples` executa somente forward e não altera
+os parâmetros.
+
+O fluxo recomendado para experimentos usa uma amostra limitada do JSONL:
+
+```python
+from language.dataset import load_jsonl
+from training.autoregressive import (
+    AutoregressiveModel,
+    evaluate_multitask_examples,
+    train_multitask_examples,
+)
+
+train = load_jsonl("data/processed/autoregressive_train.jsonl", max_records=1000)
+validation = load_jsonl(
+    "data/processed/autoregressive_validation.jsonl",
+    max_records=1000,
+)
+```

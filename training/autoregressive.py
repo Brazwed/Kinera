@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import Any, Mapping
 
 from nn.embedding import Embedding
 from nn.heads import MultiTaskHeads
@@ -135,7 +135,7 @@ class AutoregressiveModel:
         syllable_ids: list[int],
         feature_vectors: list[list[float]],
         *,
-        targets: dict[str, object],
+        targets: Mapping[str, object],
         learning_rate: float,
         loss_function: MultiTaskLoss | None = None,
     ) -> dict[str, float]:
@@ -352,6 +352,126 @@ def evaluate_examples(
         "examples": len(selected),
         "loss": total_loss / len(selected),
         "accuracy": correct / len(selected),
+    }
+
+
+def train_multitask_examples(
+    model: AutoregressiveModel,
+    examples: list[dict[str, Any]],
+    vocabulary: CharacterVocabulary,
+    *,
+    epochs: int,
+    learning_rate: float,
+    syllable_unknown_id: int = 0,
+    max_examples: int | None = None,
+    loss_function: MultiTaskLoss | None = None,
+) -> dict[str, Any]:
+    """Treina as três heads e registra métricas por época."""
+    if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs <= 0:
+        raise ValueError("epochs deve ser inteiro positivo")
+    if not examples:
+        raise ValueError("examples não pode ser vazio")
+    selected = examples if max_examples is None else examples[:max_examples]
+    if not selected:
+        raise ValueError("max_examples deve selecionar ao menos um exemplo")
+
+    history: list[dict[str, float]] = []
+    for _ in range(epochs):
+        for example in selected:
+            inputs = example_to_inputs(
+                example,
+                vocabulary,
+                syllable_unknown_id=syllable_unknown_id,
+            )
+            model.multitask_train_step(
+                *inputs,
+                targets=_multitask_targets(example),
+                learning_rate=learning_rate,
+                loss_function=loss_function,
+            )
+        metrics = evaluate_multitask_examples(
+            model,
+            selected,
+            vocabulary,
+            syllable_unknown_id=syllable_unknown_id,
+            loss_function=loss_function,
+        )
+        history.append({
+            key: value for key, value in metrics.items() if key != "examples"
+        })
+    return {"epochs": epochs, "examples": len(selected), "history": history}
+
+
+def evaluate_multitask_examples(
+    model: AutoregressiveModel,
+    examples: list[dict[str, Any]],
+    vocabulary: CharacterVocabulary,
+    *,
+    syllable_unknown_id: int = 0,
+    max_examples: int | None = None,
+    loss_function: MultiTaskLoss | None = None,
+) -> dict[str, float | int]:
+    """Avalia as três heads sem executar backward ou step."""
+    if not examples:
+        raise ValueError("examples não pode ser vazio")
+    selected = examples if max_examples is None else examples[:max_examples]
+    if not selected:
+        raise ValueError("max_examples deve selecionar ao menos um exemplo")
+    loss_function = MultiTaskLoss() if loss_function is None else loss_function
+    totals = {
+        "char_loss": 0.0,
+        "syllable_loss": 0.0,
+        "boundary_loss": 0.0,
+        "total_loss": 0.0,
+        "char_accuracy": 0.0,
+        "syllable_accuracy": 0.0,
+        "boundary_accuracy": 0.0,
+    }
+    for example in selected:
+        inputs = example_to_inputs(
+            example,
+            vocabulary,
+            syllable_unknown_id=syllable_unknown_id,
+        )
+        targets = _multitask_targets(example)
+        outputs = model.forward_heads(*inputs)
+        losses = loss_function.forward(outputs, targets)
+        totals["char_loss"] += losses["char_loss"]
+        totals["syllable_loss"] += losses["syllable_loss"]
+        totals["boundary_loss"] += losses["boundary_loss"]
+        totals["total_loss"] += losses["total_loss"]
+        totals["char_accuracy"] += max(
+            range(len(outputs["char"])), key=outputs["char"].__getitem__
+        ) == targets["char"]
+        totals["syllable_accuracy"] += max(
+            range(len(outputs["syllable"])), key=outputs["syllable"].__getitem__
+        ) == targets["syllable"]
+        totals["boundary_accuracy"] += (
+            (outputs["boundary"][0] >= 0.0) == (targets["boundary"] >= 0.5)
+        )
+    count = len(selected)
+    return {
+        "examples": count,
+        **{name: value / count for name, value in totals.items()},
+    }
+
+
+def _multitask_targets(example: dict[str, Any]) -> dict[str, int | float]:
+    target_char = example.get("target_char_id")
+    target_syllable = example.get("target_syllable_id")
+    target_boundary = example.get("target_is_syllable_end")
+    if isinstance(target_char, bool) or not isinstance(target_char, int):
+        raise ValueError("target_char_id deve ser inteiro")
+    if isinstance(target_syllable, bool) or not isinstance(target_syllable, int):
+        raise ValueError("target_syllable_id deve ser inteiro")
+    if isinstance(target_boundary, bool):
+        target_boundary = float(target_boundary)
+    if not isinstance(target_boundary, (int, float)) or not math.isfinite(target_boundary):
+        raise ValueError("target_is_syllable_end deve ser numérico e finito")
+    return {
+        "char": target_char,
+        "syllable": target_syllable,
+        "boundary": float(target_boundary),
     }
 
 
