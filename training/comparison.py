@@ -385,6 +385,7 @@ def _run_parallel_experiments(
         reports.setdefault(variant, [])
 
     futures: dict[concurrent.futures.Future[tuple[str, int, dict[str, Any]]], tuple[str, int]] = {}
+    pending_jobs: list[tuple[str, int, list[dict[str, Any]], list[dict[str, Any]]]] = []
     with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
         for variant in VARIANTS:
             train_examples, validation_examples = prepared_variants[variant]
@@ -399,22 +400,38 @@ def _run_parallel_experiments(
                     reports[variant].remove(previous)
                 reports[variant].append({
                     "seed": seed,
-                    "status": "running",
+                    "status": "pending",
                     "pid": None,
                 })
-                future = executor.submit(
-                    _execute_single_experiment,
-                    variant,
-                    seed,
-                    train_examples,
-                    validation_examples,
-                    vocabulary,
-                    syllable_vocab_size,
-                    epochs,
-                    learning_rate,
-                    syllable_unknown_id,
-                )
-                futures[future] = (variant, seed)
+                pending_jobs.append((variant, seed, train_examples, validation_examples))
+        if checkpoint is not None:
+            _persist_checkpoint(
+                checkpoint,
+                _checkpoint_report(
+                    configuration,
+                    reports,
+                    aggregates,
+                    parameter_counts,
+                    input_usage,
+                    metric_names,
+                ),
+            )
+        for variant, seed, train_examples, validation_examples in pending_jobs:
+            pending = next(run for run in reports[variant] if run.get("seed") == seed)
+            pending["status"] = "running"
+            future = executor.submit(
+                _execute_single_experiment,
+                variant,
+                seed,
+                train_examples,
+                validation_examples,
+                vocabulary,
+                syllable_vocab_size,
+                epochs,
+                learning_rate,
+                syllable_unknown_id,
+            )
+            futures[future] = (variant, seed)
         if checkpoint is not None:
             _persist_checkpoint(
                 checkpoint,

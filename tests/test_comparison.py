@@ -243,6 +243,39 @@ class ControlledComparisonTests(unittest.TestCase):
             statuses = [run["status"] for run in report["runs"][variant]]
             self.assertEqual(statuses, ["failed", "completed"])
 
+    def test_parallel_checkpoint_exposes_pending_before_submission(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "phase5.json"
+            snapshots = []
+
+            def capture(path, report):
+                snapshots.append(json.loads(json.dumps(report)))
+
+            with patch("training.comparison._persist_checkpoint", side_effect=capture):
+                run_controlled_experiments(
+                    self.examples,
+                    self.examples,
+                    self.vocabulary,
+                    syllable_vocab_size=5,
+                    seeds=[7],
+                    epochs=1,
+                    learning_rate=0.05,
+                    max_examples=1,
+                    checkpoint_path=checkpoint,
+                    workers=2,
+                )
+
+            pending_snapshots = [
+                snapshot
+                for snapshot in snapshots
+                if any(
+                    run.get("status") == "pending"
+                    for runs in snapshot["runs"].values()
+                    for run in runs
+                )
+            ]
+            self.assertTrue(pending_snapshots)
+
 
 if __name__ == "__main__":
     unittest.main()

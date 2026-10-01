@@ -555,6 +555,10 @@ python run_comparison.py \
 Falhas individuais ficam registradas com traceback sem apagar os resultados
 anteriores. Os agregados consideram somente execuções concluídas.
 
+Cada job possui estado explícito no checkpoint: `pending` antes de ser enviado
+ao pool, `running` enquanto aguarda o worker, `completed` após sucesso e
+`failed` quando ocorre erro.
+
 `--workers 1` mantém a execução sequencial de referência. Valores maiores
 executam combinações independentes `variante × seed` em processos separados;
 a escrita do checkpoint continua centralizada no processo principal.
