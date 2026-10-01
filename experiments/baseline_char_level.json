@@ -1,0 +1,54 @@
+{
+  "experiment": "baseline_char_level",
+  "commit": "9a0e453628a3505daea4df2dd5a1f119c2f641f5",
+  "date": "2026-10-01",
+  "configuration": {
+    "epochs": 3,
+    "learning_rate": 0.05,
+    "max_examples": 1000,
+    "context_size": 8,
+    "max_tokens": 32,
+    "seed": 7,
+    "char_vocabulary_size": 51,
+    "syllable_vocabulary_size": 3932
+  },
+  "data": {
+    "train_examples_available": 1512240,
+    "validation_examples_available": 377894,
+    "train_words": 124259,
+    "validation_words": 31064,
+    "word_overlap": 0
+  },
+  "runs": [
+    {
+      "run": 1,
+      "elapsed_seconds": 30.568461,
+      "history": [
+        {"epoch": 1, "loss": 2.65321519537211, "accuracy": 0.315},
+        {"epoch": 2, "loss": 2.3429491366981923, "accuracy": 0.311},
+        {"epoch": 3, "loss": 2.297612459100836, "accuracy": 0.305}
+      ],
+      "validation_loss": 2.338425298235966,
+      "validation_accuracy": 0.311,
+      "generated_text": "aaaaaddddeeeeaddddeeeeaddddeeeea"
+    },
+    {
+      "run": 2,
+      "elapsed_seconds": 28.644826,
+      "history": [
+        {"epoch": 1, "loss": 2.65321519537211, "accuracy": 0.315},
+        {"epoch": 2, "loss": 2.3429491366981923, "accuracy": 0.311},
+        {"epoch": 3, "loss": 2.297612459100836, "accuracy": 0.305}
+      ],
+      "validation_loss": 2.338425298235966,
+      "validation_accuracy": 0.311,
+      "generated_text": "aaaaaddddeeeeaddddeeeeaddddeeeea"
+    }
+  ],
+  "reproducible": true,
+  "notes": [
+    "Baseline predicts next character with the current hybrid input representation.",
+    "The two runs used the same seed and produced identical reports.",
+    "This artifact is a comparison baseline, not a claim of production-quality generation."
+  ]
+}
