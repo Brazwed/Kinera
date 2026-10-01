@@ -1,0 +1,23 @@
+{
+  "phase": "2_output_heads",
+  "commit": "a2e634e7bc09b0e542dc5ab4b24af1c7334955c6",
+  "date": "2026-10-01",
+  "architecture": {
+    "shared_representation": "HybridRepresentation pooled by mean",
+    "shared_input_dim": 26,
+    "heads": {
+      "char": {"output_dim": 51, "activation": "linear"},
+      "syllable": {"output_dim": 3932, "activation": "linear"},
+      "boundary": {"output_dim": 1, "activation": "linear"}
+    }
+  },
+  "checks": {
+    "shared_input_dimension": true,
+    "seed_reproducibility": true,
+    "invalid_dimensions_rejected": true,
+    "nonfinite_shared_representation_rejected": true,
+    "all_heads_exposed_by_model": true,
+    "all_tests_passed": 176
+  },
+  "scope_note": "This phase adds forward-only output heads. Losses and backward for the syllable and boundary heads belong to phase 3."
+}
