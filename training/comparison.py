@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import math
+import time
 from typing import Any
 
 from language.vocabulary import CharacterVocabulary
@@ -86,6 +87,7 @@ def run_controlled_experiments(
     reports: dict[str, list[dict[str, Any]]] = {}
     aggregates: dict[str, dict[str, dict[str, float]]] = {}
     parameter_counts: dict[str, int] = {}
+    input_usage: dict[str, dict[str, int]] = {}
     metric_names = (
         "char_loss",
         "syllable_loss",
@@ -116,9 +118,15 @@ def run_controlled_experiments(
         if max_examples is not None:
             prepared_train = prepared_train[:max_examples]
             prepared_validation = prepared_validation[:max_examples]
+        input_usage[variant] = _input_usage(
+            prepared_train,
+            prepared_validation,
+            syllable_unknown_id,
+        )
         reports[variant] = []
         final_metrics: list[dict[str, float]] = []
         for seed in seeds:
+            started = time.perf_counter()
             model = AutoregressiveModel(
                 len(vocabulary),
                 syllable_vocab_size,
@@ -152,6 +160,7 @@ def run_controlled_experiments(
                 "training": training,
                 "final_validation": final,
                 "parameter_count": parameter_counts[variant],
+                "duration_seconds": time.perf_counter() - started,
             })
         aggregates[variant] = {"mean": {}, "std": {}}
         for name in metric_names:
@@ -171,4 +180,37 @@ def run_controlled_experiments(
         "runs": reports,
         "aggregates": aggregates,
         "parameter_counts": parameter_counts,
+        "input_usage": input_usage,
+    }
+
+
+def _input_usage(
+    train_examples: list[dict[str, Any]],
+    validation_examples: list[dict[str, Any]],
+    syllable_unknown_id: int,
+) -> dict[str, int]:
+    def measure(examples: list[dict[str, Any]]) -> tuple[int, int, int]:
+        positions = 0
+        non_unknown = 0
+        unique_ids: set[int] = set()
+        for example in examples:
+            ids = example.get("context_syllable_ids", [])
+            positions += len(ids)
+            for value in ids:
+                if value != syllable_unknown_id:
+                    non_unknown += 1
+                    unique_ids.add(value)
+        return positions, non_unknown, len(unique_ids)
+
+    train_positions, train_non_unknown, train_unique = measure(train_examples)
+    validation_positions, validation_non_unknown, validation_unique = measure(
+        validation_examples
+    )
+    return {
+        "train_context_positions": train_positions,
+        "train_non_unk_context_positions": train_non_unknown,
+        "train_unique_syllable_ids": train_unique,
+        "validation_context_positions": validation_positions,
+        "validation_non_unk_context_positions": validation_non_unknown,
+        "validation_unique_syllable_ids": validation_unique,
     }

@@ -70,6 +70,9 @@ class ControlledComparisonTests(unittest.TestCase):
         self.assertIn("mean", report["aggregates"]["A"])
         self.assertIn("char_accuracy", report["aggregates"]["A"]["mean"])
         self.assertEqual(report["parameter_counts"]["A"], report["parameter_counts"]["D"])
+        self.assertIn("duration_seconds", report["runs"]["A"][0])
+        self.assertEqual(report["input_usage"]["A"]["train_non_unk_context_positions"], 0)
+        self.assertGreater(report["input_usage"]["D"]["train_non_unk_context_positions"], 0)
 
 
 if __name__ == "__main__":
