@@ -9,21 +9,49 @@
       "buckets": {
         "boundary_proximity": {
           "A_vs_C": {
+            "after_completed_or_completed_context": {
+              "accuracy_delta": 0.0,
+              "examples": 23,
+              "improved_loss_fraction": 0.391304347826087,
+              "mean_delta_loss": -0.007884597355247288,
+              "regressed_loss_fraction": 0.6086956521739131
+            },
+            "inside_next_syllable": {
+              "accuracy_delta": 0.0,
+              "examples": 19,
+              "improved_loss_fraction": 0.7368421052631579,
+              "mean_delta_loss": 0.003017080499999591,
+              "regressed_loss_fraction": 0.2631578947368421
+            },
             "unavailable": {
               "accuracy_delta": 0.0,
-              "examples": 50,
-              "improved_loss_fraction": 0.48,
-              "mean_delta_loss": -0.003236477438125407,
-              "regressed_loss_fraction": 0.52
+              "examples": 8,
+              "improved_loss_fraction": 0.125,
+              "mean_delta_loss": -0.004725332779446867,
+              "regressed_loss_fraction": 0.875
             }
           },
           "B_vs_D": {
+            "after_completed_or_completed_context": {
+              "accuracy_delta": 0.0,
+              "examples": 23,
+              "improved_loss_fraction": 0.391304347826087,
+              "mean_delta_loss": -0.0069658284500296345,
+              "regressed_loss_fraction": 0.6086956521739131
+            },
+            "inside_next_syllable": {
+              "accuracy_delta": 0.0,
+              "examples": 19,
+              "improved_loss_fraction": 0.7368421052631579,
+              "mean_delta_loss": 0.003572384212913171,
+              "regressed_loss_fraction": 0.2631578947368421
+            },
             "unavailable": {
               "accuracy_delta": 0.0,
-              "examples": 50,
-              "improved_loss_fraction": 0.48,
-              "mean_delta_loss": -0.002526389229212409,
-              "regressed_loss_fraction": 0.52
+              "examples": 8,
+              "improved_loss_fraction": 0.125,
+              "mean_delta_loss": -0.004247588394411139,
+              "regressed_loss_fraction": 0.875
             }
           }
         },
@@ -144,7 +172,7 @@
         "examples": 50,
         "unavailable": 8
       },
-      "duration_seconds": 16.72479342110455,
+      "duration_seconds": 17.117309317924082,
       "examples": {
         "A_vs_C": {
           "gain": [
@@ -155,12 +183,12 @@
               "base_correct": false,
               "base_loss": 4.054124752014283,
               "base_prob_correct": 0.017350659669516436,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "after_completed_or_completed_context",
               "delta_accuracy": 0,
               "delta_loss": 0.013908207585740406,
               "index": 43,
               "syllable_frequency": "unseen_in_train",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "r",
               "word_key": "aarónico",
               "word_position": "middle"
@@ -172,12 +200,12 @@
               "base_correct": false,
               "base_loss": 3.954762040365057,
               "base_prob_correct": 0.019163228081888355,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "inside_next_syllable",
               "delta_accuracy": 0,
               "delta_loss": 0.013700286563051112,
               "index": 15,
               "syllable_frequency": "unseen_in_train",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "n",
               "word_key": "aaleniense",
               "word_position": "middle"
@@ -189,12 +217,12 @@
               "base_correct": false,
               "base_loss": 3.954762040365057,
               "base_prob_correct": 0.019163228081888355,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "inside_next_syllable",
               "delta_accuracy": 0,
               "delta_loss": 0.013700286563051112,
               "index": 26,
               "syllable_frequency": "unseen_in_train",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "n",
               "word_key": "aaleniense",
               "word_position": "middle"
@@ -206,12 +234,12 @@
               "base_correct": false,
               "base_loss": 3.954762040365057,
               "base_prob_correct": 0.019163228081888355,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "inside_next_syllable",
               "delta_accuracy": 0,
               "delta_loss": 0.013700286563051112,
               "index": 37,
               "syllable_frequency": "unseen_in_train",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "n",
               "word_key": "aaleniense",
               "word_position": "middle"
@@ -223,12 +251,12 @@
               "base_correct": false,
               "base_loss": 3.8534150239741822,
               "base_prob_correct": 0.021207189573423157,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "inside_next_syllable",
               "delta_accuracy": 0,
               "delta_loss": 0.01288577118781209,
               "index": 46,
               "syllable_frequency": "unseen_in_train",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "i",
               "word_key": "aarónico",
               "word_position": "middle"
@@ -242,12 +270,12 @@
               "base_correct": false,
               "base_loss": 3.755245088951493,
               "base_prob_correct": 0.02339471612006546,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "inside_next_syllable",
               "delta_accuracy": 0,
               "delta_loss": -0.04218464789913279,
               "index": 48,
               "syllable_frequency": "unseen_in_train",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "o",
               "word_key": "aarónico",
               "word_position": "end"
@@ -259,12 +287,12 @@
               "base_correct": false,
               "base_loss": 3.6072342353104987,
               "base_prob_correct": 0.027126769470586034,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "after_completed_or_completed_context",
               "delta_accuracy": 0,
               "delta_loss": -0.03939207034705694,
               "index": 7,
               "syllable_frequency": "unknown_target",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "<END>",
               "word_key": "á-bê-cê",
               "word_position": "end"
@@ -276,12 +304,12 @@
               "base_correct": false,
               "base_loss": 3.609366009465294,
               "base_prob_correct": 0.027069002919022856,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "after_completed_or_completed_context",
               "delta_accuracy": 0,
               "delta_loss": -0.03691122764471588,
               "index": 49,
               "syllable_frequency": "unknown_target",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "<END>",
               "word_key": "aarónico",
               "word_position": "end"
@@ -293,12 +321,12 @@
               "base_correct": true,
               "base_loss": 3.531554890444014,
               "base_prob_correct": 0.02925938534006032,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "after_completed_or_completed_context",
               "delta_accuracy": 0,
               "delta_loss": -0.03297631045208105,
               "index": 4,
               "syllable_frequency": "unknown_target",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "-",
               "word_key": "á-bê-cê",
               "word_position": "middle"
@@ -310,12 +338,12 @@
               "base_correct": false,
               "base_loss": 3.6067449331850785,
               "base_prob_correct": 0.02714004590437252,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "after_completed_or_completed_context",
               "delta_accuracy": 0,
               "delta_loss": -0.027261517825041715,
               "index": 18,
               "syllable_frequency": "unknown_target",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "<END>",
               "word_key": "aaleniense",
               "word_position": "end"
@@ -331,12 +359,12 @@
               "base_correct": false,
               "base_loss": 4.0163360112259765,
               "base_prob_correct": 0.018018865056421213,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "inside_next_syllable",
               "delta_accuracy": 0,
               "delta_loss": 0.014201598829785667,
               "index": 15,
               "syllable_frequency": "unseen_in_train",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "n",
               "word_key": "aaleniense",
               "word_position": "middle"
@@ -348,12 +376,12 @@
               "base_correct": false,
               "base_loss": 4.0163360112259765,
               "base_prob_correct": 0.018018865056421213,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "inside_next_syllable",
               "delta_accuracy": 0,
               "delta_loss": 0.014201598829785667,
               "index": 26,
               "syllable_frequency": "unseen_in_train",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "n",
               "word_key": "aaleniense",
               "word_position": "middle"
@@ -365,12 +393,12 @@
               "base_correct": false,
               "base_loss": 4.0163360112259765,
               "base_prob_correct": 0.018018865056421213,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "inside_next_syllable",
               "delta_accuracy": 0,
               "delta_loss": 0.014201598829785667,
               "index": 37,
               "syllable_frequency": "unseen_in_train",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "n",
               "word_key": "aaleniense",
               "word_position": "middle"
@@ -382,12 +410,12 @@
               "base_correct": false,
               "base_loss": 3.6897126183552613,
               "base_prob_correct": 0.02497917956859074,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "inside_next_syllable",
               "delta_accuracy": 0,
               "delta_loss": 0.013818318881472447,
               "index": 46,
               "syllable_frequency": "unseen_in_train",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "i",
               "word_key": "aarónico",
               "word_position": "middle"
@@ -399,12 +427,12 @@
               "base_correct": false,
               "base_loss": 4.072418157562686,
               "base_prob_correct": 0.017036142580987776,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "after_completed_or_completed_context",
               "delta_accuracy": 0,
               "delta_loss": 0.013793922594727448,
               "index": 43,
               "syllable_frequency": "unseen_in_train",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "r",
               "word_key": "aarónico",
               "word_position": "middle"
@@ -418,12 +446,12 @@
               "base_correct": false,
               "base_loss": 3.537732773069343,
               "base_prob_correct": 0.02907918150395565,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "inside_next_syllable",
               "delta_accuracy": 0,
               "delta_loss": -0.03988919497872656,
               "index": 48,
               "syllable_frequency": "unseen_in_train",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "o",
               "word_key": "aarónico",
               "word_position": "end"
@@ -435,12 +463,12 @@
               "base_correct": true,
               "base_loss": 3.3341563955080105,
               "base_prob_correct": 0.035644643512734775,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "after_completed_or_completed_context",
               "delta_accuracy": 0,
               "delta_loss": -0.03751536644019948,
               "index": 7,
               "syllable_frequency": "unknown_target",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "<END>",
               "word_key": "á-bê-cê",
               "word_position": "end"
@@ -452,12 +480,12 @@
               "base_correct": true,
               "base_loss": 3.188004784343923,
               "base_prob_correct": 0.041254099705337666,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "after_completed_or_completed_context",
               "delta_accuracy": 0,
               "delta_loss": -0.034255880168449604,
               "index": 49,
               "syllable_frequency": "unknown_target",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "<END>",
               "word_key": "aarónico",
               "word_position": "end"
@@ -469,12 +497,12 @@
               "base_correct": false,
               "base_loss": 3.4737550657243084,
               "base_prob_correct": 0.031000403274576194,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "after_completed_or_completed_context",
               "delta_accuracy": 0,
               "delta_loss": -0.031467944819268734,
               "index": 4,
               "syllable_frequency": "unknown_target",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "-",
               "word_key": "á-bê-cê",
               "word_position": "middle"
@@ -486,12 +514,12 @@
               "base_correct": true,
               "base_loss": 3.186536927711788,
               "base_prob_correct": 0.04131469927405164,
-              "boundary_proximity": "unavailable",
+              "boundary_proximity": "after_completed_or_completed_context",
               "delta_accuracy": 0,
               "delta_loss": -0.0248467246763866,
               "index": 18,
               "syllable_frequency": "unknown_target",
-              "syllable_info": "unavailable",
+              "syllable_info": "active",
               "target_char": "<END>",
               "word_key": "aaleniense",
               "word_position": "end"
@@ -502,12 +530,19 @@
       "pair_deltas": {
         "A_vs_C": {
           "by_syllable_info": {
+            "active": {
+              "accuracy_delta": 0.0,
+              "examples": 42,
+              "improved_loss_fraction": 0.5476190476190477,
+              "mean_delta_loss": -0.002952885944540367,
+              "regressed_loss_fraction": 0.4523809523809524
+            },
             "unavailable": {
               "accuracy_delta": 0.0,
-              "examples": 50,
-              "improved_loss_fraction": 0.48,
-              "mean_delta_loss": -0.003236477438125407,
-              "regressed_loss_fraction": 0.52
+              "examples": 8,
+              "improved_loss_fraction": 0.125,
+              "mean_delta_loss": -0.004725332779446867,
+              "regressed_loss_fraction": 0.875
             }
           },
           "overall": {
@@ -520,12 +555,19 @@
         },
         "B_vs_D": {
           "by_syllable_info": {
+            "active": {
+              "accuracy_delta": 0.0,
+              "examples": 42,
+              "improved_loss_fraction": 0.5476190476190477,
+              "mean_delta_loss": -0.0021985417691745557,
+              "regressed_loss_fraction": 0.4523809523809524
+            },
             "unavailable": {
               "accuracy_delta": 0.0,
-              "examples": 50,
-              "improved_loss_fraction": 0.48,
-              "mean_delta_loss": -0.002526389229212409,
-              "regressed_loss_fraction": 0.52
+              "examples": 8,
+              "improved_loss_fraction": 0.125,
+              "mean_delta_loss": -0.004247588394411139,
+              "regressed_loss_fraction": 0.875
             }
           },
           "overall": {

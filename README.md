@@ -639,7 +639,13 @@ python run_syllable_analysis.py \
   --max-examples 50 --output experiments/phase5_3_syllable_gain_analysis.json
 ```
 
-No smoke test, 42/50 posições tinham informação silábica causal ativa. A/C e
-B/D foram avaliados por deltas de loss, acurácia e probabilidade do caractere
-correto. A execução com 1.000 exemplos e 3 seeds ainda deve ser feita antes de
-concluir que o ganho é amplo ou generalizado.
+No smoke test corrigido, 42/50 posições tinham informação silábica causal
+ativa. A/C e B/D foram avaliados por deltas de loss, acurácia e probabilidade
+do caractere correto. Os buckets agora usam a metadata causal de C/D, não os
+IDs mascarados de A/B. O primeiro smoke tinha essa classificação incorreta e
+não deve ser usado para conclusões por bucket.
+
+No smoke corrigido, o ganho médio de loss continuou levemente negativo:
+`-0,002953` para A/C nas posições ativas e `-0,002199` para B/D. Isso é uma
+amostra pequena e não altera a conclusão da Fase 5.1; a execução com 1.000
+exemplos e 3 seeds ainda deve ser feita antes de concluir que o ganho é amplo.

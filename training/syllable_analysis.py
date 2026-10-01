@@ -203,9 +203,10 @@ def _pair_row(base: dict[str, Any], augmented: dict[str, Any]) -> dict[str, Any]
         "index": base["index"],
         "word_key": base["word_key"],
         "target_char": base["target_char"],
-        "syllable_info": base["syllable_info"],
+        # A/B mascaram o canal silábico; buckets devem refletir C/D.
+        "syllable_info": augmented["syllable_info"],
         "word_position": base["word_position"],
-        "boundary_proximity": base["boundary_proximity"],
+        "boundary_proximity": augmented["boundary_proximity"],
         "syllable_frequency": base["syllable_frequency"],
         "base_loss": base["loss"],
         "augmented_loss": augmented["loss"],

@@ -55,6 +55,31 @@ class SyllableGainAnalysisTests(unittest.TestCase):
         self.assertIn("gain", report["runs"][0]["examples"]["A_vs_C"])
         self.assertIn("regression", report["runs"][0]["examples"]["B_vs_D"])
 
+    def test_pair_buckets_use_augmented_causal_metadata(self) -> None:
+        report = run_syllable_gain_analysis(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            syllable_vocab_size=5,
+            syllable_unknown_id=0,
+            seeds=[7],
+            epochs=1,
+            learning_rate=0.05,
+            max_examples=2,
+        )
+        run = report["runs"][0]
+        self.assertEqual(run["coverage"]["active"], 2)
+        active = run["pair_deltas"]["A_vs_C"]["by_syllable_info"]["active"]
+        self.assertEqual(active["examples"], 2)
+        proximity = run["buckets"]["boundary_proximity"]["A_vs_C"]
+        self.assertIn("after_completed_or_completed_context", proximity)
+        self.assertIn("inside_next_syllable", proximity)
+        example = run["examples"]["A_vs_C"]["gain"][0]
+        self.assertAlmostEqual(
+            example["delta_loss"],
+            example["base_loss"] - example["augmented_loss"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
