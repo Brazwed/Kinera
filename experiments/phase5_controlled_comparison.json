@@ -1,0 +1,96 @@
+{
+  "phase": "5_controlled_comparison",
+  "commit": "50fe1129a419a26b559944a0845184bce7672bad",
+  "date": "2026-10-01",
+  "configuration": {
+    "seeds": [7, 42, 123],
+    "epochs": 2,
+    "learning_rate": 0.05,
+    "train_examples": 50,
+    "validation_examples": 50,
+    "context_size": 8,
+    "loss_weights": {"char": 1.0, "syllable": 0.7, "boundary": 0.3}
+  },
+  "variants": {
+    "A": {
+      "inputs": "characters only",
+      "parameter_count": 139432,
+      "validation_mean": {
+        "char_loss": 3.735533248479316,
+        "char_accuracy": 0.04,
+        "total_loss": 9.607617251759784,
+        "syllable_accuracy_all": 0.14,
+        "boundary_f1": 0.717948717948718
+      },
+      "validation_std": {
+        "char_loss": 0.01356581658898431,
+        "char_accuracy": 0.0,
+        "total_loss": 0.016353268572853626
+      }
+    },
+    "B": {
+      "inputs": "characters + orthographic features",
+      "parameter_count": 139432,
+      "validation_mean": {
+        "char_loss": 3.6792905505543705,
+        "char_accuracy": 0.11333333333333333,
+        "total_loss": 9.479883380116087,
+        "syllable_accuracy_all": 0.14,
+        "boundary_f1": 0.717948717948718
+      },
+      "validation_std": {
+        "char_loss": 0.01099042467179802,
+        "char_accuracy": 0.009428090415820628,
+        "total_loss": 0.01874825397108746
+      }
+    },
+    "C": {
+      "inputs": "characters + causal completed-syllable embeddings",
+      "parameter_count": 139432,
+      "validation_mean": {
+        "char_loss": 3.7514492934481303,
+        "char_accuracy": 0.09999999999999999,
+        "total_loss": 9.647619848450141,
+        "syllable_accuracy_all": 0.14,
+        "boundary_f1": 0.717948717948718
+      },
+      "validation_std": {
+        "char_loss": 0.010746875178370582,
+        "char_accuracy": 0.04320493798938574,
+        "total_loss": 0.011174701246074182
+      }
+    },
+    "D": {
+      "inputs": "characters + orthographic features + causal completed-syllable embeddings",
+      "parameter_count": 139432,
+      "validation_mean": {
+        "char_loss": 3.68803952526224,
+        "char_accuracy": 0.11333333333333333,
+        "total_loss": 9.511858472161203,
+        "syllable_accuracy_all": 0.14,
+        "boundary_f1": 0.717948717948718
+      },
+      "validation_std": {
+        "char_loss": 0.008131512996555644,
+        "char_accuracy": 0.009428090415820628,
+        "total_loss": 0.006762558435643619
+      }
+    }
+  },
+  "controls_verified": {
+    "same_split": true,
+    "same_seeds": true,
+    "same_training_configuration": true,
+    "same_heads": true,
+    "same_loss_weights": true,
+    "same_parameter_count": true,
+    "causal_syllable_inputs_only": true,
+    "all_tests_passed_before_experiment": 192
+  },
+  "conclusions": [
+    "In this small smoke comparison, B and D had the best mean next-character accuracy and lower character loss than A.",
+    "C did not improve over B in this run; the causal syllable channel did not show a clear gain yet.",
+    "The result is preliminary because only 50 examples, 2 epochs and 3 seeds were used.",
+    "No final claim about the usefulness of syllables should be made until a larger controlled run is completed."
+  ]
+}

@@ -516,3 +516,18 @@ D = caracteres + features + sílabas causais
 
 As sílabas usadas em C/D são somente as sílabas já completamente observadas.
 O runner registra média e desvio entre seeds, além da contagem de parâmetros.
+
+Smoke comparison registrada em `experiments/phase5_controlled_comparison.json`
+com 50 exemplos, 2 épocas e 3 seeds:
+
+```text
+        char_loss médio    char_accuracy médio
+A       3.7355             4,0%
+B       3.6793            11,33%
+C       3.7514            10,0%
+D       3.6880            11,33%
+```
+
+B e D foram melhores neste smoke test, mas a diferença ainda não é evidência
+definitiva de que sílabas causais ajudam. A comparação maior deve usar a mesma
+configuração e mais exemplos antes de concluir.
