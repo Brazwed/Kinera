@@ -649,3 +649,21 @@ No smoke corrigido, o ganho médio de loss continuou levemente negativo:
 `-0,002953` para A/C nas posições ativas e `-0,002199` para B/D. Isso é uma
 amostra pequena e não altera a conclusão da Fase 5.1; a execução com 1.000
 exemplos e 3 seeds ainda deve ser feita antes de concluir que o ganho é amplo.
+
+Para a execução ampliada da Fase 5.3, use o runner retomável por seed:
+
+```bash
+python run_phase5_3_expanded.py \
+  --vocabulary data/processed/vocabulary.json \
+  --syllable-vocabulary data/processed/syllable_vocabulary.json \
+  --train data/processed/autoregressive_train.jsonl \
+  --validation data/processed/autoregressive_validation.jsonl \
+  --seeds 7 42 123 --epochs 2 --learning-rate 0.05 \
+  --max-examples 1000 --workers 3 \
+  --checkpoint experiments/phase5_3_expanded_analysis.json \
+  --resume
+```
+
+Cada seed é um job independente e o checkpoint é atualizado quando cada job
+termina. A execução usa a mesma arquitetura A/B/C/D da Fase 5.1; somente a
+análise e a escala dos dados mudam.
