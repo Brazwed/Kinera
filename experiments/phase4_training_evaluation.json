@@ -1,0 +1,63 @@
+{
+  "phase": "4_training_and_evaluation",
+  "commit": "32c7d73a5a49328bf0bcf7ddfa8140f49f1021b7",
+  "date": "2026-10-01",
+  "configuration": {
+    "seed": 7,
+    "epochs": 2,
+    "learning_rate": 0.05,
+    "train_examples": 100,
+    "validation_examples": 100,
+    "context_size": 8
+  },
+  "initial_validation": {
+    "char_loss": 3.942159068734276,
+    "syllable_loss": 8.281030619172185,
+    "boundary_loss": 0.691244265697721,
+    "total_loss": 9.946253781864126,
+    "char_accuracy": 0.0,
+    "syllable_accuracy": 0.0,
+    "boundary_accuracy": 0.52
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "char_loss": 3.4366835348401548,
+      "syllable_loss": 7.779856076603647,
+      "boundary_loss": 0.6763861581533017,
+      "total_loss": 9.085498635908694,
+      "char_accuracy": 0.2,
+      "syllable_accuracy": 0.23,
+      "boundary_accuracy": 0.59
+    },
+    {
+      "epoch": 2,
+      "char_loss": 3.0748246180439462,
+      "syllable_loss": 7.194302677307995,
+      "boundary_loss": 0.6705950767768064,
+      "total_loss": 8.312015015192586,
+      "char_accuracy": 0.23,
+      "syllable_accuracy": 0.23,
+      "boundary_accuracy": 0.59
+    }
+  ],
+  "final_validation": {
+    "char_loss": 3.2346623391704323,
+    "syllable_loss": 7.699157165668555,
+    "boundary_loss": 0.6883099277773571,
+    "total_loss": 8.830565333471624,
+    "char_accuracy": 0.26,
+    "syllable_accuracy": 0.15,
+    "boundary_accuracy": 0.52
+  },
+  "checks": {
+    "evaluation_does_not_update_parameters": true,
+    "same_seed_reproducible": true,
+    "small_dataset_overfit_test": true,
+    "all_tests_passed": 186
+  },
+  "notes": [
+    "This is a 100-example smoke experiment, not the final model-quality evaluation.",
+    "The training history improved total loss from 9.9463 initial validation baseline to 8.3120 on the training subset after epoch 2."
+  ]
+}
