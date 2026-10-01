@@ -1,4 +1,8 @@
 import unittest
+import json
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 
 from language.vocabulary import CharacterVocabulary
 from training.comparison import (
@@ -73,6 +77,68 @@ class ControlledComparisonTests(unittest.TestCase):
         self.assertIn("duration_seconds", report["runs"]["A"][0])
         self.assertEqual(report["input_usage"]["A"]["train_non_unk_context_positions"], 0)
         self.assertGreater(report["input_usage"]["D"]["train_non_unk_context_positions"], 0)
+
+    def test_runner_persists_each_run_and_resumes_completed_seeds(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "phase5.json"
+            first = run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                max_examples=1,
+                checkpoint_path=checkpoint,
+            )
+            self.assertEqual(first["status"], "completed")
+            self.assertEqual(first["completed_runs"], 4)
+            self.assertTrue(checkpoint.exists())
+            persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
+            self.assertEqual(persisted["completed_runs"], 4)
+
+            resumed = run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                seeds=[7, 8],
+                epochs=1,
+                learning_rate=0.05,
+                max_examples=1,
+                checkpoint_path=checkpoint,
+                resume=True,
+            )
+            self.assertEqual(resumed["status"], "completed")
+            self.assertEqual(resumed["completed_runs"], 8)
+            for variant in VARIANTS:
+                self.assertEqual([run["seed"] for run in resumed["runs"][variant]], [7, 8])
+
+    def test_runner_records_failed_run_without_discarding_checkpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "phase5.json"
+            with patch(
+                "training.comparison.train_multitask_examples",
+                side_effect=RuntimeError("synthetic training failure"),
+            ):
+                report = run_controlled_experiments(
+                    self.examples,
+                    self.examples,
+                    self.vocabulary,
+                    syllable_vocab_size=5,
+                    seeds=[7],
+                    epochs=1,
+                    learning_rate=0.05,
+                    max_examples=1,
+                    checkpoint_path=checkpoint,
+                )
+            self.assertEqual(report["status"], "failed")
+            self.assertEqual(report["completed_runs"], 0)
+            self.assertEqual(report["failed_runs"], 4)
+            self.assertEqual(report["runs"]["A"][0]["status"], "failed")
+            self.assertIn("synthetic training failure", report["runs"]["A"][0]["traceback"])
+            self.assertTrue(checkpoint.exists())
 
 
 if __name__ == "__main__":

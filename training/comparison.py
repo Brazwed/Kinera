@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import copy
+import json
 import math
+import os
 import time
+import traceback
+from pathlib import Path
 from typing import Any
 
 from language.vocabulary import CharacterVocabulary
@@ -78,16 +82,14 @@ def run_controlled_experiments(
     learning_rate: float,
     max_examples: int | None = None,
     syllable_unknown_id: int = 0,
+    checkpoint_path: str | Path | None = None,
+    resume: bool = False,
 ) -> dict[str, Any]:
-    """Executa A/B/C/D com os mesmos controles e agrega média/desvio."""
+    """Executa A/B/C/D, com checkpoint opcional por variante/seed."""
     if not seeds:
         raise ValueError("seeds não pode ser vazio")
     if any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds):
         raise TypeError("seeds deve conter inteiros")
-    reports: dict[str, list[dict[str, Any]]] = {}
-    aggregates: dict[str, dict[str, dict[str, float]]] = {}
-    parameter_counts: dict[str, int] = {}
-    input_usage: dict[str, dict[str, int]] = {}
     metric_names = (
         "char_loss",
         "syllable_loss",
@@ -101,6 +103,52 @@ def run_controlled_experiments(
         "boundary_recall",
         "boundary_f1",
     )
+    checkpoint = Path(checkpoint_path) if checkpoint_path is not None else None
+    configuration = {
+        "variants": list(VARIANTS),
+        "seeds": seeds.copy(),
+        "epochs": epochs,
+        "learning_rate": learning_rate,
+        "max_examples": max_examples,
+        "syllable_vocab_size": syllable_vocab_size,
+        "syllable_unknown_id": syllable_unknown_id,
+        "loss_weights": {"char": 1.0, "syllable": 0.7, "boundary": 0.3},
+    }
+    if resume:
+        if checkpoint is None or not checkpoint.exists():
+            raise ValueError("resume exige checkpoint_path existente")
+        persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
+        persisted_configuration = {
+            key: persisted.get(key) for key in configuration if key != "seeds"
+        }
+        persisted_seeds = set(persisted.get("seeds", []))
+        current_configuration = {
+            key: configuration[key] for key in configuration if key != "seeds"
+        }
+        current_seeds = set(configuration["seeds"])
+        if persisted_configuration != current_configuration or not persisted_seeds <= current_seeds:
+            raise ValueError("checkpoint incompatível com a configuração atual")
+        reports = persisted["runs"]
+        aggregates = persisted.get("aggregates", {})
+        parameter_counts = persisted.get("parameter_counts", {})
+        input_usage = persisted.get("input_usage", {})
+    else:
+        reports = {variant: [] for variant in VARIANTS}
+        aggregates = {}
+        parameter_counts = {}
+        input_usage = {}
+    if checkpoint is not None and not resume:
+        _persist_checkpoint(
+            checkpoint,
+            _checkpoint_report(
+                configuration,
+                reports,
+                aggregates,
+                parameter_counts,
+                input_usage,
+                metric_names,
+            ),
+        )
 
     for variant in VARIANTS:
         prepared_train = prepare_variant_examples(
@@ -123,65 +171,151 @@ def run_controlled_experiments(
             prepared_validation,
             syllable_unknown_id,
         )
-        reports[variant] = []
-        final_metrics: list[dict[str, float]] = []
+        reports.setdefault(variant, [])
         for seed in seeds:
+            previous = next(
+                (run for run in reports[variant] if run.get("seed") == seed),
+                None,
+            )
+            if previous is not None and previous.get("status") == "completed":
+                continue
+            if previous is not None:
+                reports[variant].remove(previous)
             started = time.perf_counter()
-            model = AutoregressiveModel(
-                len(vocabulary),
-                syllable_vocab_size,
-                seed=seed,
-            )
-            parameter_counts[variant] = count_trainable_parameters(model)
-            initial = evaluate_multitask_examples(
-                model,
-                prepared_validation,
-                vocabulary,
-                syllable_unknown_id=syllable_unknown_id,
-            )
-            training = train_multitask_examples(
-                model,
-                prepared_train,
-                vocabulary,
-                epochs=epochs,
-                learning_rate=learning_rate,
-                syllable_unknown_id=syllable_unknown_id,
-            )
-            final = evaluate_multitask_examples(
-                model,
-                prepared_validation,
-                vocabulary,
-                syllable_unknown_id=syllable_unknown_id,
-            )
-            final_metrics.append({name: float(final[name]) for name in metric_names})
-            reports[variant].append({
-                "seed": seed,
-                "initial_validation": initial,
-                "training": training,
-                "final_validation": final,
-                "parameter_count": parameter_counts[variant],
-                "duration_seconds": time.perf_counter() - started,
-            })
+            try:
+                model = AutoregressiveModel(
+                    len(vocabulary),
+                    syllable_vocab_size,
+                    seed=seed,
+                )
+                parameter_counts[variant] = count_trainable_parameters(model)
+                initial = evaluate_multitask_examples(
+                    model,
+                    prepared_validation,
+                    vocabulary,
+                    syllable_unknown_id=syllable_unknown_id,
+                )
+                training = train_multitask_examples(
+                    model,
+                    prepared_train,
+                    vocabulary,
+                    epochs=epochs,
+                    learning_rate=learning_rate,
+                    syllable_unknown_id=syllable_unknown_id,
+                )
+                final = evaluate_multitask_examples(
+                    model,
+                    prepared_validation,
+                    vocabulary,
+                    syllable_unknown_id=syllable_unknown_id,
+                )
+                reports[variant].append({
+                    "seed": seed,
+                    "status": "completed",
+                    "initial_validation": initial,
+                    "training": training,
+                    "final_validation": final,
+                    "parameter_count": parameter_counts[variant],
+                    "duration_seconds": time.perf_counter() - started,
+                })
+            except Exception:
+                if checkpoint is None:
+                    raise
+                reports[variant].append({
+                    "seed": seed,
+                    "status": "failed",
+                    "error": "experiment failed",
+                    "traceback": traceback.format_exc(),
+                    "duration_seconds": time.perf_counter() - started,
+                })
+            aggregates = _build_aggregates(reports, metric_names)
+            if checkpoint is not None:
+                _persist_checkpoint(
+                    checkpoint,
+                    _checkpoint_report(
+                        configuration,
+                        reports,
+                        aggregates,
+                        parameter_counts,
+                        input_usage,
+                        metric_names,
+                    ),
+                )
+
+    aggregates = _build_aggregates(reports, metric_names)
+    result = _checkpoint_report(
+        configuration,
+        reports,
+        aggregates,
+        parameter_counts,
+        input_usage,
+        metric_names,
+    )
+    if checkpoint is not None:
+        _persist_checkpoint(checkpoint, result)
+    return result
+
+
+def _build_aggregates(
+    reports: dict[str, list[dict[str, Any]]],
+    metric_names: tuple[str, ...],
+) -> dict[str, dict[str, dict[str, float]]]:
+    aggregates: dict[str, dict[str, dict[str, float]]] = {}
+    for variant in VARIANTS:
+        completed = [run for run in reports.get(variant, []) if run.get("status") == "completed"]
+        if not completed:
+            continue
         aggregates[variant] = {"mean": {}, "std": {}}
         for name in metric_names:
-            values = [metrics[name] for metrics in final_metrics]
+            values = [float(run["final_validation"][name]) for run in completed]
             mean = sum(values) / len(values)
             variance = sum((value - mean) ** 2 for value in values) / len(values)
             aggregates[variant]["mean"][name] = mean
             aggregates[variant]["std"][name] = math.sqrt(variance)
+    return aggregates
 
+
+def _checkpoint_report(
+    configuration: dict[str, Any],
+    reports: dict[str, list[dict[str, Any]]],
+    aggregates: dict[str, dict[str, dict[str, float]]],
+    parameter_counts: dict[str, int],
+    input_usage: dict[str, dict[str, int]],
+    metric_names: tuple[str, ...],
+) -> dict[str, Any]:
+    del metric_names
+    completed_runs = sum(
+        run.get("status") == "completed"
+        for variant in VARIANTS
+        for run in reports.get(variant, [])
+    )
+    failed_runs = sum(
+        run.get("status") == "failed"
+        for variant in VARIANTS
+        for run in reports.get(variant, [])
+    )
+    total_runs = len(configuration["variants"]) * len(configuration["seeds"])
     return {
-        "variants": list(VARIANTS),
-        "seeds": seeds.copy(),
-        "epochs": epochs,
-        "learning_rate": learning_rate,
-        "max_examples": max_examples,
-        "loss_weights": {"char": 1.0, "syllable": 0.7, "boundary": 0.3},
+        **configuration,
+        "status": "failed" if failed_runs else ("completed" if completed_runs == total_runs else "running"),
+        "total_runs": total_runs,
+        "completed_runs": completed_runs,
+        "failed_runs": failed_runs,
         "runs": reports,
         "aggregates": aggregates,
         "parameter_counts": parameter_counts,
         "input_usage": input_usage,
     }
+
+
+def _persist_checkpoint(path: Path, report: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.tmp")
+    temporary.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    os.replace(temporary, path)
 
 
 def _input_usage(

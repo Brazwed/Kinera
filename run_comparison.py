@@ -21,6 +21,16 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=2)
     parser.add_argument("--learning-rate", type=float, default=0.05)
     parser.add_argument("--max-examples", type=int, default=1000)
+    parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        help="arquivo de checkpoint incremental por variante/seed",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="retoma combinações concluídas a partir do checkpoint",
+    )
     args = parser.parse_args()
 
     with args.vocabulary.open(encoding="utf-8") as handle:
@@ -39,6 +49,8 @@ def main() -> None:
         epochs=args.epochs,
         learning_rate=args.learning_rate,
         max_examples=args.max_examples,
+        checkpoint_path=args.checkpoint,
+        resume=args.resume,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
 

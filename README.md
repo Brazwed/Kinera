@@ -526,12 +526,32 @@ python run_comparison.py \
   --train data/processed/autoregressive_train.jsonl \
   --validation data/processed/autoregressive_validation.jsonl \
   --seeds 7 42 123 --epochs 2 --learning-rate 0.05 \
-  --max-examples 1000
+  --max-examples 1000 \
+  --checkpoint experiments/phase5_1_checkpoint.json
 ```
 
 Além das métricas, o relatório registra duração por seed e o uso efetivo do
 canal silábico: posições não-`<UNK_SYL>` e quantidade de IDs silábicos únicos
 presentes em treino e validação.
+
+O checkpoint é atualizado depois de cada variante/seed usando substituição
+atômica. Se o processo for interrompido, a execução pode ser retomada com os
+mesmos parâmetros e `--resume`; combinações concluídas não são repetidas:
+
+```bash
+python run_comparison.py \
+  --vocabulary data/processed/vocabulary.json \
+  --syllable-vocabulary data/processed/syllable_vocabulary.json \
+  --train data/processed/autoregressive_train.jsonl \
+  --validation data/processed/autoregressive_validation.jsonl \
+  --seeds 7 42 123 --epochs 2 --learning-rate 0.05 \
+  --max-examples 1000 \
+  --checkpoint experiments/phase5_1_checkpoint.json \
+  --resume
+```
+
+Falhas individuais ficam registradas com traceback sem apagar os resultados
+anteriores. Os agregados consideram somente execuções concluídas.
 
 Smoke comparison registrada em `experiments/phase5_controlled_comparison.json`
 com 50 exemplos, 2 épocas e 3 seeds:
