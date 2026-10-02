@@ -888,11 +888,19 @@ O reprofile pós-commit de `Embedding.forward()` marcou **131,20 s**. Os estági
 foram avaliação **38,82 s (29,59%)**, backward **31,26 s (23,83%)**, forward
 **23,15 s (17,64%)**, atualização **20,29 s (15,46%)** e loss **16,75 s (12,76%)**.
 `evaluate_multitask_examples()` manteve tempo próprio baixo (**0,20 s**, 57,99 s
-cumulativos). O profile ainda mostra custo relevante em `_validate_logits`
-(**8,90 s próprios**), `losses._validate_number` (**8,68 s**) e
-`losses._validate_outputs` (**6,49 s**): a próxima investigação deve avaliar a
-validação duplicada sem enfraquecer os contratos públicos de erro e segurança
-numérica.
+cumulativos). O profile ainda mostra custo relevante em `_validate_logits` (**8,90 s próprios**),
+`losses._validate_number` (**8,68 s**) e `losses._validate_outputs` (**6,49 s**). A
+investigação A/B seguinte ficou restrita ao harness: B chama helpers aritméticos
+internos somente após `_validate_outputs()` e a validação dos targets; as APIs
+públicas permanecem inalteradas. Em seis blocos pareados (3 warmups, 25 chamadas
+por amostra), B venceu A em 6/6 para `MultiTaskLoss.forward()` e `backward()`, com
+speedups medianos de **1,558×**, **1,713×** e **1,554×** combinados. Valores de
+forward e gradientes foram exatamente iguais. A bateria comparou exceções de 64
+casos inválidos das APIs públicas e 42 casos por método do `MultiTaskLoss`
+(NaN/inf, bool, string, logits vazios, targets inválidos etc.); tipos e mensagens
+foram preservados, e todos os casos inválidos foram rejeitados. Essa evidência só
+justifica avançar para um trial D separado: nenhum workload D foi rodado e nenhum
+código de produção foi alterado neste passo.
 
 Relatórios versionados:
 
@@ -928,6 +936,7 @@ experiments/phase7_1_embedding_forward_full_D_B2.json
 experiments/phase7_1_embedding_forward_full_D_A2.json
 experiments/phase7_1_embedding_forward_paired_validation.json
 experiments/phase7_1_embedding_forward_post_commit_profile.json
+experiments/phase7_1_validated_loss_helpers_microbenchmark.json
 ```
 
 As quatro otimizações aprovadas passaram igualdade matemática, testes e benchmark do workload real. Isso ainda não conclui as demais oportunidades da Fase 7.1.
