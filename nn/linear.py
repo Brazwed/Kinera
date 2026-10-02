@@ -79,17 +79,17 @@ class Linear:
         for index, value in enumerate(grad_output):
             self._validate_number(value, f"grad_output[{index}]")
 
+        grad_output_float = [float(value) for value in grad_output]
+        columns = [list(column) for column in zip(*self.weights)]
         self.grad_weights = [
-            [float(grad_output[row_index]) * input_value for input_value in self.last_input]
+            [grad_output_float[row_index] * input_value for input_value in self.last_input]
             for row_index in range(len(self.weights))
         ]
-        self.grad_bias = [float(value) for value in grad_output]
-        grad_inputs = [0.0 for _ in self.last_input]
-        for input_index in range(len(self.last_input)):
-            grad_inputs[input_index] = sum(
-                float(grad_output[row_index]) * self.weights[row_index][input_index]
-                for row_index in range(len(self.weights))
-            )
+        self.grad_bias = grad_output_float.copy()
+        grad_inputs = [
+            float(sum(map(operator.mul, column, grad_output_float)))
+            for column in columns
+        ]
         self._has_backward = True
         return grad_inputs
 

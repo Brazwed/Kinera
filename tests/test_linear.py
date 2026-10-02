@@ -102,6 +102,35 @@ class LinearBackwardTests(unittest.TestCase):
         self.assertEqual(layer.grad_bias, [3.0, -2.0])
         self.assertEqual(gradients, [-2.5, -3.5])
 
+    def test_backward_matches_generator_reference_for_benchmark_shapes(self) -> None:
+        input_size = 26
+        for output_size in (51, 3932):
+            with self.subTest(output_size=output_size):
+                layer = Linear(input_size=input_size, output_size=output_size, seed=7)
+                inputs = [((index % 13) - 6) / 13.0 for index in range(input_size)]
+                grad_output = [((index % 19) - 9) / 19.0 for index in range(output_size)]
+                layer.forward(inputs)
+
+                expected_grad_weights = [
+                    [float(grad_output[row_index]) * value for value in inputs]
+                    for row_index in range(output_size)
+                ]
+                expected_grad_bias = [float(value) for value in grad_output]
+                expected_grad_inputs = [
+                    sum(
+                        float(grad_output[row_index]) * layer.weights[row_index][input_index]
+                        for row_index in range(output_size)
+                    )
+                    for input_index in range(input_size)
+                ]
+
+                actual_grad_inputs = layer.backward(grad_output)
+
+                self.assertEqual(layer.grad_weights, expected_grad_weights)
+                self.assertEqual(layer.grad_bias, expected_grad_bias)
+                self.assertEqual(actual_grad_inputs, expected_grad_inputs)
+                self.assertTrue(layer._has_backward)
+
     def test_backward_before_forward_is_rejected(self) -> None:
         layer = Linear(input_size=2, output_size=2, seed=7)
 
