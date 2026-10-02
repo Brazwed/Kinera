@@ -957,4 +957,6 @@ experiments/phase7_1_validated_loss_helpers_paired_full_D.json
 experiments/phase7_1_validated_loss_helpers_post_commit_profile.json
 ```
 
-As cinco otimizações aprovadas passaram igualdade matemática, testes e benchmark do workload real. Isso ainda não conclui as demais oportunidades da Fase 7.1.
+**Fase 7.1 encerrada.** No workload D de referência, o baseline de **256,01 s** foi a **116,61 s** (**−54,45%**), com matemática e **139.432 parâmetros** preservados, suítes de testes e gradient checks aprovados e as cinco otimizações sustentadas por comparação pareada. Novas otimizações só serão retomadas após profiling em workloads maiores; os ganhos restantes não justificam aumentar complexidade sem nova evidência.
+
+A próxima etapa é a Fase 7.2: A como baseline mínimo, C/D como variantes principais, E/F como históricas e seleção explícita para evitar treinos desnecessários. A execução da 7.2 começa em branch independente depois da integração desta unidade.
