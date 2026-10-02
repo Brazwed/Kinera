@@ -61,6 +61,10 @@ class Linear:
             + bias
             for row, bias in zip(self.weights, self.bias)
         ]
+        self.grad_weights = [
+            [0.0 for _ in row] for row in self.weights
+        ]
+        self.grad_bias = [0.0 for _ in self.bias]
         self._has_backward = False
         return self.output.copy()
 
