@@ -14,7 +14,12 @@ from typing import Any
 from language.dataset import load_jsonl
 from language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from training.experiment_types import ExecutionConfig, ExperimentConfig
-from training.runner_common import aggregate_run_dicts, write_json_checkpoint
+from training.runner_common import (
+    aggregate_run_dicts,
+    load_seed_checkpoint,
+    pending_seeds,
+    write_json_checkpoint,
+)
 from training.syllable_analysis import run_syllable_gain_analysis
 
 
@@ -98,26 +103,27 @@ def main() -> None:
         max_examples=args.max_examples,
         top_examples=args.top_examples,
     )
+    experiment_configuration = experiment_config.to_dict()
     configuration = {
-        **experiment_config.to_dict(),
+        **experiment_configuration,
         **ExecutionConfig(workers=args.workers).to_dict(),
     }
     if args.resume:
-        if not args.checkpoint.exists():
-            raise SystemExit("--resume exige checkpoint existente")
-        report = json.loads(args.checkpoint.read_text(encoding="utf-8"))
-        previous_config = {key: report.get(key) for key in configuration if key != "seeds"}
-        current_config = {key: configuration[key] for key in configuration if key != "seeds"}
-        if previous_config != current_config or not set(report.get("seeds", [])) <= set(args.seeds):
-            raise SystemExit("checkpoint incompatível com a configuração")
+        try:
+            report = load_seed_checkpoint(
+                args.checkpoint,
+                experiment_configuration,
+                args.seeds,
+            )
+        except ValueError as error:
+            raise SystemExit(str(error)) from error
         results = report.get("runs", [])
     else:
         results = []
         report = {**configuration, "runs": results, "status": "running"}
         write_json_checkpoint(args.checkpoint, report)
 
-    completed_seeds = {item["seed"] for item in results if item.get("status") == "completed"}
-    pending = [seed for seed in args.seeds if seed not in completed_seeds]
+    pending = pending_seeds(results, args.seeds)
     payloads = [
         {
             "vocabulary": str(args.vocabulary),

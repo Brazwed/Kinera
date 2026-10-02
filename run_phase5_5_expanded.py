@@ -14,7 +14,12 @@ from language.dataset import load_jsonl
 from language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from training.experiment_types import ExecutionConfig, ExperimentConfig
 from training.orthographic_analysis import run_orthographic_class_analysis
-from training.runner_common import aggregate_run_dicts, write_json_checkpoint
+from training.runner_common import (
+    aggregate_run_dicts,
+    load_seed_checkpoint,
+    pending_seeds,
+    write_json_checkpoint,
+)
 
 
 def run_seed(payload: dict) -> dict:
@@ -72,21 +77,24 @@ def main() -> None:
         learning_rate=args.learning_rate,
         max_examples=args.max_examples,
     )
+    experiment_configuration = experiment_config.to_dict()
     config = {
-        **experiment_config.to_dict(),
+        **experiment_configuration,
         **ExecutionConfig(workers=args.workers).to_dict(),
     }
     if args.resume:
-        report = json.loads(args.checkpoint.read_text(encoding='utf-8'))
-        if any(report.get(key) != value for key, value in config.items() if key != 'seeds'):
-            raise SystemExit('checkpoint incompatível')
-        if not set(report.get('seeds', [])) <= set(args.seeds):
-            raise SystemExit('seeds incompatíveis')
+        try:
+            report = load_seed_checkpoint(
+                args.checkpoint,
+                experiment_configuration,
+                args.seeds,
+            )
+        except ValueError as error:
+            raise SystemExit(str(error)) from error
         results = report.get('runs', [])
     else:
         results = []
-    completed = {item['seed'] for item in results if item.get('status') == 'completed'}
-    pending = [seed for seed in args.seeds if seed not in completed]
+    pending = pending_seeds(results, args.seeds)
     for seed in pending:
         results.append({'seed': seed, 'status': 'pending', 'worker_pid': None})
     report = {**config, 'workers': args.workers, 'runs': results, 'status': 'running'}
