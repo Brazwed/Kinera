@@ -851,7 +851,21 @@ transposição são apenas o tamanho superficial dos containers; o RSS de proces
 O reprofile pós-commit da alteração de backward levou **149,50 s**. A avaliação
 voltou a ser o maior estágio (**28,01%**), seguida de backward (**21,04%**),
 atualização do otimizador (**20,10%**), forward (**19,27%**) e loss (**10,95%**).
-O próximo alvo deve ser escolhido a partir desse perfil atualizado.
+
+A terceira otimização aprovada hoista `float(learning_rate)` para fora dos loops
+em `Linear.step()`, mantendo a reconstrução das listas. Dois pares frescos
+(A1/B1 e B2/A2) reduziram o workload D de **149,10 para 138,29 s** (**7,25%**) e
+de **147,77 para 137,96 s** (**6,64%**). `initial_validation`, `training.history`,
+`final_validation` e os **139.432 parâmetros** ficaram exatamente iguais; RSS
+caiu 420 KiB e 748 KiB nos pares. A suíte continuou em **226/226**, com **6/6
+gradient checks**.
+
+O reprofile pós-commit de B marcou **140,45 s**; `optimizer_update` ficou em
+**19,67 s (14,00%)** e `Linear.step()` em **11,51 s** de tempo próprio. O estágio
+`evaluation` aparece com 31,25%, mas `evaluate_multitask_examples()` tem apenas
+**0,22 s** de tempo próprio (67,11 s cumulativos): ele agrega o custo das
+primitivas compartilhadas, não é um hotspot isolado. O próximo alvo deve partir
+deste perfil atualizado.
 
 Relatórios versionados:
 
@@ -870,7 +884,16 @@ experiments/phase7_1_linear_backward_full_D_C2.json
 experiments/phase7_1_linear_backward_full_D_A2.json
 experiments/phase7_1_linear_backward_paired_validation.json
 experiments/phase7_1_linear_backward_post_commit_profile.json
+experiments/phase7_1_linear_step_microbenchmark.json
+experiments/phase7_1_linear_step_microbenchmark_round2.json
+experiments/phase7_1_linear_step_comparison.json
+experiments/phase7_1_linear_step_full_D_A1.json
+experiments/phase7_1_linear_step_full_D_B1.json
+experiments/phase7_1_linear_step_full_D_B2.json
+experiments/phase7_1_linear_step_full_D_A2.json
+experiments/phase7_1_linear_step_paired_validation.json
+experiments/phase7_1_linear_step_post_commit_profile.json
 ```
 
-As duas otimizações passaram igualdade matemática, testes e benchmark do workload
+As três otimizações passaram igualdade matemática, testes e benchmark do workload
 real. Isso ainda não conclui as demais oportunidades da Fase 7.1.
