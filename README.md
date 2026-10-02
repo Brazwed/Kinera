@@ -816,3 +816,27 @@ As invariantes de causalidade, dimensões, loss, parâmetros, avaliação e
 checkpoints estão documentadas em `docs/phase7-invariants.md`. A equivalência
 matemática antes/depois da consolidação e entre `workers=1`/`workers=2` está
 registrada em `experiments/phase7_deterministic_validation.json`.
+
+### Fase 7.1 — Baseline de performance
+
+O primeiro passo da Fase 7.1 mede, sem otimizar, a variante D com:
+
+```text
+seed=7, workers=1, epochs=1, max_examples=1000, context_size=8
+```
+
+O runner `run_phase7_1_performance_baseline.py` separa preparação/features,
+`forward`, loss, backward, atualização do otimizador e avaliação. Também registra
+tempo total, percentual por etapa, pico de RSS e os hotspots do `cProfile`.
+
+Relatório versionado:
+
+```text
+experiments/phase7_1_performance_baseline.json
+```
+
+Nesta primeira medição, o workload levou aproximadamente 256,01 s e o pico de
+RSS foi 53.548 KiB. Os maiores componentes medidos foram avaliação (30,50%),
+backward (26,74%) e forward (24,83%). Esses números são apenas baseline; nenhuma
+otimização foi aplicada. As próximas mudanças devem ser justificadas por esse
+perfil e revalidadas contra os invariantes matemáticos.
