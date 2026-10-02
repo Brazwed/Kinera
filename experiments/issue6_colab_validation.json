@@ -1,0 +1,300 @@
+{
+  "schema_version": 1,
+  "issue": 6,
+  "phase": "google_colab_environment_validation",
+  "report_date": "2026-10-02",
+  "status": "completed",
+  "source_commit": "26fe5e47a475d567be41f52739fd19777eeb6493",
+  "decision": {
+    "go": true,
+    "go_no_go": "GO_WITH_GUARDRAILS",
+    "scope": "Autoriza abrir uma Issue separada para progressão controlada 5k → 10k; não autoriza executar essa escala nesta Issue.",
+    "reason": "Checkout limpo, 241 testes verdes, equivalência exata da fixture A/C/D e D-only, checkpoint preservado fora de /content e retomado em um segundo runtime sem duplicar A.",
+    "guardrails": [
+      "workers=1 é o gate obrigatório de determinismo para a próxima etapa.",
+      "Continuar em CPU; nenhum acelerador foi solicitado ou usado.",
+      "Persistir checkpoints e relatórios fora de /content antes de encerrar qualquer runtime.",
+      "O caminho de scratch usado neste teste expira após 24h sem atividade; a próxima etapa deve escolher e testar um destino durável (workspace persistente ou Drive) antes de iniciar 5k.",
+      "workers=2+ pode ser caracterizado separadamente, mas não substitui nem invalida o gate workers=1.",
+      "Não inferir qualidade ou performance geral a partir desta fixture; não comparar estes tempos com os números históricos da Netcup."
+    ],
+    "scale_executed": false,
+    "recommended_next_issue_title": "Progressão controlada do Kinera: 5k → 10k"
+  },
+  "colab_environment": {
+    "requested_runtime": "CPU",
+    "actual_accelerator": "NONE",
+    "account_plan_observed": false,
+    "sessions": [
+      {
+        "name": "kinera-issue6-colab-validation",
+        "runtime_fingerprint": "ee2c712107d842378f17f01679030588",
+        "runtime_variant": "DEFAULT",
+        "python": {
+          "version": "3.13.15",
+          "executable": "/usr/bin/python3"
+        },
+        "platform": {
+          "system": "Linux",
+          "release": "6.6.122+",
+          "machine": "x86_64",
+          "platform": "Linux-6.6.122+-x86_64-with-glibc2.39"
+        },
+        "cpu": {
+          "vendor_id": "AuthenticAMD",
+          "model_name": "AMD EPYC 7B12",
+          "family": "23",
+          "model": "49",
+          "stepping": "0",
+          "logical_count": 2,
+          "cores_per_package": 1,
+          "siblings_per_package": 2,
+          "proc_cpuinfo_records": 2
+        },
+        "memory": {
+          "total_bytes": 13605830656,
+          "available_bytes_at_capture": 12621549568,
+          "swap_total_bytes": 0,
+          "cgroup_current_bytes_at_capture": 2691084288,
+          "cgroup_max": "max"
+        },
+        "disk": {
+          "path": "/content",
+          "total_bytes": 115658190848,
+          "used_bytes_at_capture": 21979451392,
+          "free_bytes_at_capture": 93661962240
+        },
+        "gpu_devices": [],
+        "nvidia_smi_present": false,
+        "cuda_version": null,
+        "tpu_env_present": false,
+        "tpu_device_nodes": [],
+        "keepalive_observed_healthy": true,
+        "ended_by_explicit_stop": true
+      },
+      {
+        "name": "kinera-issue6-colab-resume-2",
+        "runtime_fingerprint": "99f34325a7724e36845f836ace642a0a",
+        "runtime_variant": "DEFAULT",
+        "python": {
+          "version": "3.13.15",
+          "executable": "/usr/bin/python3"
+        },
+        "platform": {
+          "system": "Linux",
+          "release": "6.6.122+",
+          "machine": "x86_64",
+          "platform": "Linux-6.6.122+-x86_64-with-glibc2.39"
+        },
+        "cpu": {
+          "vendor_id": "GenuineIntel",
+          "model_name": "Intel(R) Xeon(R) CPU @ 2.20GHz",
+          "family": "6",
+          "model": "79",
+          "cores_per_package": 1,
+          "siblings_per_package": 2,
+          "logical_count": 2,
+          "proc_cpuinfo_records": 2
+        },
+        "memory": {
+          "total_bytes": 13605822464,
+          "available_bytes_at_capture": 12575924224,
+          "swap_total_bytes": 0
+        },
+        "disk": {
+          "path": "/content",
+          "total_bytes": 115658190848,
+          "used_bytes_at_capture": 21982646272,
+          "free_bytes_at_capture": 93658767360
+        },
+        "gpu_devices": [],
+        "nvidia_smi_present": false,
+        "cuda_version": null,
+        "tpu_env_present": false,
+        "tpu_device_nodes": [],
+        "keepalive_observed_healthy": true,
+        "ended_by_explicit_stop": true
+      }
+    ],
+    "hardware_variation_observed": "As duas sessões tiveram 2 CPUs lógicas, mas modelos distintos (AMD EPYC 7B12 e Intel Xeon 2.20GHz); não presuma hardware fixo entre sessões.",
+    "runtime_limits": {
+      "measured": "Duas sessões curtas permaneceram ativas durante os testes e o handoff; ambas foram encerradas intencionalmente. Não foi medido o tempo máximo de vida de uma sessão.",
+      "documented": {
+        "source": "Google Colab FAQ — Resource Limits / How long can notebooks run",
+        "source_url": "https://research.google.com/colaboratory/faq.html",
+        "retrieved_date": "2026-10-02",
+        "summary": "Os limites de uso, timeouts de inatividade, vida máxima de VM e disponibilidade de hardware variam; o Google não publica esses limites como garantia.",
+        "general_notebook_max_hours": 12,
+        "general_limit_condition": "Depende da disponibilidade e dos padrões de uso.",
+        "free_tier_max_hours": 12,
+        "free_tier_limit_condition": "Depende da disponibilidade e dos padrões de uso.",
+        "pro_plus_continuous_max_hours": 24,
+        "pro_plus_requires_sufficient_compute_units": true,
+        "idle_timeouts_apply_after_code_execution_terminates": true,
+        "account_plan_used": "not observed"
+      }
+    }
+  },
+  "local_mcp_cpu_option": {
+    "initial_blocker": "O validador do tool rejeitava gpu=null, enquanto omitir gpu selecionava T4.",
+    "adaptation": "Adicionado o sentinel explícito gpu=CPU, mapeado para manager.start(..., None); o default T4 foi preservado.",
+    "local_repository_branch": "fix/cpu-runtime-tool-option",
+    "local_commit": "6e0e273812119d762f98d10df98b0a168ea157a2",
+    "pushed_upstream": false,
+    "worker_hot_reload_verified": true,
+    "tool_schema_cpu_choice_verified": true,
+    "tests": {
+      "command": "uv run --locked pytest -q",
+      "result": "193 passed",
+      "ruff": "passed",
+      "mypy_changed_scope": "passed: src/server.py tests/test_cpu_start.py",
+      "broader_mypy_note": "Uma execução incluindo tests/test_protocol.py retornou quatro erros de tipagem em linhas não alteradas desse teste (84, 100, 101, 114); os testes, Ruff e mypy do escopo alterado passaram."
+    }
+  },
+  "checkout": {
+    "method": "Git bundle local transferido pelo MCP; clone e checkout detached do commit-alvo em cada runtime.",
+    "commit_expected": "26fe5e47a475d567be41f52739fd19777eeb6493",
+    "commit_verified_session_1": "26fe5e47a475d567be41f52739fd19777eeb6493",
+    "commit_verified_session_2": "26fe5e47a475d567be41f52739fd19777eeb6493",
+    "working_tree_clean_after_checkout": true,
+    "bundle_bytes": 306128,
+    "bundle_sha256": "7536f37df014425bf55db14c9c35080e36adf7b2a0587ee519ca372aef2f8f5b",
+    "bundle_verify": "complete history; target branch ref verified",
+    "high_confidence_secret_pattern_scan": {
+      "reachable_objects": 422,
+      "blobs_scanned": 274,
+      "matches": 0,
+      "scope_note": "Varredura de padrões de alta confiança, não uma auditoria abrangente."
+    }
+  },
+  "canonical_test_suite": {
+    "command": "python3 -m unittest discover -s tests -v",
+    "checkout_sha": "26fe5e47a475d567be41f52739fd19777eeb6493",
+    "runtime": "kinera-issue6-colab-validation",
+    "python_version": "3.13.15",
+    "process_exit_code": 0,
+    "tests_run": 241,
+    "result": "OK",
+    "unittest_reported_seconds": 0.920,
+    "process_duration_seconds": 1.142
+  },
+  "fixture_equivalence": {
+    "fixture_source": "tests/test_syllable_analysis.py::SyllableGainAnalysisTests.setUp — primeiro exemplo",
+    "fixture_note": "Um exemplo de treino e o mesmo exemplo de validação; fixture funcional determinística, não avaliação de qualidade.",
+    "train_examples": 1,
+    "validation_examples": 1,
+    "character_vocabulary_size": 5,
+    "syllable_vocabulary_size": 5,
+    "seed": 7,
+    "epochs": 1,
+    "learning_rate": 0.05,
+    "max_examples": 1,
+    "workers": 1,
+    "fixture_manifest_sha256": "69cd61084a63c143b0524fd8a06455ec630c8e46cc676134304685f6be69b817",
+    "normalized_comparison_excluded_only": [
+      "pid",
+      "duration_seconds",
+      "max_rss_kb"
+    ],
+    "acd": {
+      "variants": ["A", "C", "D"],
+      "local_normalized_sha256": "12f180e959457693603368b758910be73430036ca81416c104613dfc916e3ad8",
+      "colab_normalized_sha256": "12f180e959457693603368b758910be73430036ca81416c104613dfc916e3ad8",
+      "exact": true,
+      "parameter_counts": {"A": 377, "C": 377, "D": 377}
+    },
+    "d_only": {
+      "variants": ["D"],
+      "local_normalized_sha256": "acf90ce268e24fb17955b74a5cfab13c664243baca329b9384a8666210219952",
+      "colab_normalized_sha256": "acf90ce268e24fb17955b74a5cfab13c664243baca329b9384a8666210219952",
+      "exact": true,
+      "parameter_counts": {"D": 377}
+    },
+    "metric_snapshot": {
+      "A": {"initial_char_loss": 1.6422327981713145, "initial_total_loss": 3.067645245925604, "final_char_loss": 1.597088966671571, "final_total_loss": 2.9987254639778302},
+      "C": {"initial_char_loss": 1.6293070504288565, "initial_total_loss": 3.04878166635782, "final_char_loss": 1.5868659447390667, "final_total_loss": 2.983704288671192},
+      "D": {"initial_char_loss": 1.5956846204566733, "initial_total_loss": 3.0155912401176153, "final_char_loss": 1.54412531925536, "final_total_loss": 2.935961003565618}
+    },
+    "functional_equivalence_only": true
+  },
+  "resource_characterization": {
+    "measurement_basis": "duration_seconds e max_rss_kb reportados por variante pelo runner; uma amostra por configuração, excludes startup/checkout; não é benchmark nem evidência de qualidade.",
+    "colab_session_1": {
+      "acd_duration_seconds": {"A": 0.000996579999991809, "C": 0.0007796600000347098, "D": 0.0007349599999315615},
+      "acd_max_rss_kb": {"A": 14848, "C": 14848, "D": 14848},
+      "d_only_duration_seconds": {"D": 0.0009926910000785938},
+      "d_only_max_rss_kb": {"D": 14720}
+    },
+    "local_reference_host": {
+      "python_version": "3.14.7",
+      "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.43",
+      "cpu_model": "AMD EPYC-Genoa Processor",
+      "logical_cpu_count": 4,
+      "memory_total_bytes": 8315756544,
+      "acd_duration_seconds": {"A": 0.0009345798753201962, "C": 0.000654097180813551, "D": 0.0006427101325243711},
+      "acd_max_rss_kb": {"A": 20596, "C": 20724, "D": 20724},
+      "d_only_duration_seconds": {"D": 0.0008637430146336555},
+      "d_only_max_rss_kb": {"D": 20004}
+    },
+    "netcup_comparison": "not performed; historical Netcup measurements were not used or mixed with these observations."
+  },
+  "checkpoint_resume": {
+    "configuration": {
+      "variants": ["A", "C", "D"],
+      "seeds": [7],
+      "epochs": 1,
+      "learning_rate": 0.05,
+      "max_examples": 1,
+      "workers": 1
+    },
+    "interruption": {
+      "method": "Teste controlado com barreira somente em memória após a gravação atômica do checkpoint de A; o processo real do runner recebeu SIGINT via MCP antes de continuar.",
+      "process_id": "8336c836058a403a89c8ff018e74178c",
+      "signal": "INT",
+      "process_exit_code": -2,
+      "barrier_observed": true,
+      "checkpoint_status": "running",
+      "completed_runs_before_restart": 1,
+      "total_runs_before_restart": 3,
+      "run_counts_before_restart": {"A": 1, "C": 0, "D": 0},
+      "checkpoint_sha256_before_restart": "296fa9e0658db5caab1c33b838450f7b91abf3e1cc2df49138261d9632eddb23"
+    },
+    "persistence_and_resume": {
+      "external_store_method": "colab_workspace_sync pull para host, stop do runtime 1, push do checkpoint para um runtime CPU novo e --resume normal.",
+      "host_checkpoint_path_during_test": "/codex/.hermes/cache/scratch/issue6-colab-validation/checkpoint_resume.json",
+      "checkpoint_sha256_after_pull_and_before_push": "296fa9e0658db5caab1c33b838450f7b91abf3e1cc2df49138261d9632eddb23",
+      "checkpoint_sha256_after_push_to_runtime_2": "296fa9e0658db5caab1c33b838450f7b91abf3e1cc2df49138261d9632eddb23",
+      "runtime_1_stopped_before_resume": true,
+      "runtime_1_fingerprint": "ee2c712107d842378f17f01679030588",
+      "runtime_2_fingerprint": "99f34325a7724e36845f836ace642a0a",
+      "runtime_fingerprints_differ": true,
+      "resume_process_id": "2c79f0abf5f04411811c1aee539addd7",
+      "resume_process_exit_code": 0,
+      "final_checkpoint_sha256": "1f5f2fb596f630df3f5505a0b216e799e8942f88fb9ae066fa1e67fd25023637",
+      "final_status": "completed",
+      "final_completed_runs": 3,
+      "final_failed_runs": 0,
+      "final_run_counts": {"A": 1, "C": 1, "D": 1},
+      "completed_A_record_preserved_exactly": true,
+      "resumed_output_equals_local_A_C_D_after_process_metadata_normalization": true
+    },
+    "process_metadata_after_release": "After colab_stop, colab_process_status/output returned Unknown session. Export logs/artifacts before releasing the session; the checkpoint itself was already persisted and restored successfully."
+  },
+  "persistence_strategy": {
+    "tested_transport": "MCP colab_workspace_sync (authenticated_files_proxy)",
+    "fixture_bundle_and_report_transferred": true,
+    "checkpoint_pulled_before_stop": true,
+    "checkpoint_restored_in_new_session": true,
+    "credentials_in_notebook_or_transferred_fixture": false,
+    "long_term_caveat": "The tested host path is Hermes scratch and is pruned after 24h idle; suitable for this immediate handoff test, not for long-running scale artifacts.",
+    "recommendation_for_scale": "Before 5k, choose a durable host workspace or Drive storage path and repeat the transfer/resume gate; never rely on /content alone."
+  },
+  "limitations": [
+    "A fixture de um exemplo e uma seed demonstram equivalência funcional, não qualidade ou performance em datasets maiores.",
+    "Nenhum workload de 5k, 10k ou maior foi executado.",
+    "Nenhum acelerador foi usado; workers>1 não foi caracterizado no Colab.",
+    "Os limites Colab são dinâmicos e não foi medida uma duração máxima de sessão.",
+    "O processo remoto não pôde ser consultado após colab_stop; é necessário exportar log/checkpoint antes de liberar o runtime.",
+    "A transferência foi validada em scratch local; seu prazo de retenção torna obrigatório selecionar armazenamento mais durável para a próxima etapa."
+  ]
+}
