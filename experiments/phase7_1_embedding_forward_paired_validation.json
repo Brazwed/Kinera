@@ -1,0 +1,107 @@
+{
+  "phase": "7.1_embedding_forward_paired_validation",
+  "control_commit": "b1e94be33d98fd7aa5681328039090e6136adef9",
+  "candidate_commit": "4c700bf7d809b77782c548645d4514244536900c",
+  "workload": {
+    "context_size": 8,
+    "epochs": 1,
+    "learning_rate": 0.05,
+    "max_examples": 1000,
+    "seed": 7,
+    "variant": "D",
+    "workers": 1
+  },
+  "pair_order": [
+    "A1",
+    "B1",
+    "B2",
+    "A2"
+  ],
+  "candidate": "B: local vocab_size/embedding_dim; preserve validation and copies; reset every grad_weights row using independent [0.0] * embedding_dim rows",
+  "raw_runs": {
+    "A1": "experiments/phase7_1_embedding_forward_full_D_A1.json",
+    "B1": "experiments/phase7_1_embedding_forward_full_D_B1.json",
+    "B2": "experiments/phase7_1_embedding_forward_full_D_B2.json",
+    "A2": "experiments/phase7_1_embedding_forward_full_D_A2.json"
+  },
+  "pairs": [
+    {
+      "pair": [
+        "A1",
+        "B1"
+      ],
+      "wall_seconds": {
+        "A": 146.027102709,
+        "B": 139.047410211,
+        "saved": 6.9796924979999915,
+        "gain_pct": 4.779724015965028,
+        "speedup_ratio_A_over_B": 1.0501964940404753
+      },
+      "stage_forward_seconds": {
+        "A": 28.730583201,
+        "B": 26.376343393
+      },
+      "peak_rss_kb": {
+        "A": 53804,
+        "B": 54388,
+        "delta_B_minus_A": 584,
+        "delta_pct": 1.0854211582781947
+      },
+      "exact_equivalence": {
+        "initial_validation": true,
+        "training_history": true,
+        "final_validation": true,
+        "parameter_count": true,
+        "workload_controls": true,
+        "candidate_wins": true
+      }
+    },
+    {
+      "pair": [
+        "A2",
+        "B2"
+      ],
+      "wall_seconds": {
+        "A": 140.014173895,
+        "B": 135.728979676,
+        "saved": 4.2851942190000045,
+        "gain_pct": 3.0605431577331412,
+        "speedup_ratio_A_over_B": 1.0315716969893183
+      },
+      "stage_forward_seconds": {
+        "A": 28.665467258,
+        "B": 24.331190636
+      },
+      "peak_rss_kb": {
+        "A": 54256,
+        "B": 53692,
+        "delta_B_minus_A": -564,
+        "delta_pct": -1.0395163668534355
+      },
+      "exact_equivalence": {
+        "initial_validation": true,
+        "training_history": true,
+        "final_validation": true,
+        "parameter_count": true,
+        "workload_controls": true,
+        "candidate_wins": true
+      }
+    }
+  ],
+  "median_speedup_ratio_A_over_B": 1.0408840955148968,
+  "all_runs_exact_metrics_parameters_and_workload": true,
+  "both_pairs_won": true,
+  "peak_rss_assessment": "Pair 1 +584 KiB (+1.09%); pair 2 -564 KiB (-1.04%); no consistent material regression.",
+  "verification": {
+    "full_unittest_suite": {
+      "passed": 226,
+      "total": 226
+    },
+    "gradient_checks": {
+      "passed": 6,
+      "total": 6
+    }
+  },
+  "decision": "accept_B_and_keep_in_production",
+  "post_commit_profile": "experiments/phase7_1_embedding_forward_post_commit_profile.json"
+}

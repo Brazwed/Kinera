@@ -862,10 +862,37 @@ gradient checks**.
 
 O reprofile pós-commit de B marcou **140,45 s**; `optimizer_update` ficou em
 **19,67 s (14,00%)** e `Linear.step()` em **11,51 s** de tempo próprio. O estágio
-`evaluation` aparece com 31,25%, mas `evaluate_multitask_examples()` tem apenas
-**0,22 s** de tempo próprio (67,11 s cumulativos): ele agrega o custo das
-primitivas compartilhadas, não é um hotspot isolado. O próximo alvo deve partir
-deste perfil atualizado.
+`evaluation` aparecia com 31,25%, mas `evaluate_multitask_examples()` tinha apenas
+**0,22 s** de tempo próprio (67,11 s cumulativos): agrega o custo das primitivas
+compartilhadas, não é um hotspot isolado.
+
+A quarta otimização aprovada altera `Embedding.forward()` sem mudar seu contrato:
+cacheia `vocab_size`/`embedding_dim` localmente e usa `[0.0] * embedding_dim` para
+cada linha, mantendo o reset integral de `grad_weights`, linhas independentes,
+validação e cópias de saída. O microbenchmark nos shapes reais `3932×8` e `51×8`
+confirmou igualdade exata; B venceu A nos 6/6 blocos, com speedups medianos de
+**1,925×** e **2,355×**. C, que resetava só IDs usados, foi descartada: o teste de
+múltiplos batches mostrou que `Embedding.step()` reaplicaria gradientes antigos
+nas linhas omitidas.
+
+No workload D, os pares frescos A1→B1 e B2→A2 reduziram o total de **146,03 para
+139,05 s (4,78%)** e de **140,01 para 135,73 s (3,06%)**. `initial_validation`,
+`training.history`, `final_validation`, workload e **139.432 parâmetros** ficaram
+exatamente iguais nos quatro runs. O RSS variou **+584 KiB (+1,09%)** no primeiro
+par e **−564 KiB (−1,04%)** no segundo, sem regressão consistente. A suíte passou
+com **226/226 testes** e **6/6 gradient checks**. O teste permanente de forward
+agora cobre dois batches e garante que gradientes antigos não alterem pesos em
+linhas ausentes do batch seguinte. Implementação/teste: commit `4c700bf`.
+
+O reprofile pós-commit de `Embedding.forward()` marcou **131,20 s**. Os estágios
+foram avaliação **38,82 s (29,59%)**, backward **31,26 s (23,83%)**, forward
+**23,15 s (17,64%)**, atualização **20,29 s (15,46%)** e loss **16,75 s (12,76%)**.
+`evaluate_multitask_examples()` manteve tempo próprio baixo (**0,20 s**, 57,99 s
+cumulativos). O profile ainda mostra custo relevante em `_validate_logits`
+(**8,90 s próprios**), `losses._validate_number` (**8,68 s**) e
+`losses._validate_outputs` (**6,49 s**): a próxima investigação deve avaliar a
+validação duplicada sem enfraquecer os contratos públicos de erro e segurança
+numérica.
 
 Relatórios versionados:
 
@@ -893,7 +920,14 @@ experiments/phase7_1_linear_step_full_D_B2.json
 experiments/phase7_1_linear_step_full_D_A2.json
 experiments/phase7_1_linear_step_paired_validation.json
 experiments/phase7_1_linear_step_post_commit_profile.json
+experiments/phase7_1_embedding_forward_microbenchmark.json
+experiments/phase7_1_embedding_forward_comparison.json
+experiments/phase7_1_embedding_forward_full_D_A1.json
+experiments/phase7_1_embedding_forward_full_D_B1.json
+experiments/phase7_1_embedding_forward_full_D_B2.json
+experiments/phase7_1_embedding_forward_full_D_A2.json
+experiments/phase7_1_embedding_forward_paired_validation.json
+experiments/phase7_1_embedding_forward_post_commit_profile.json
 ```
 
-As três otimizações passaram igualdade matemática, testes e benchmark do workload
-real. Isso ainda não conclui as demais oportunidades da Fase 7.1.
+As quatro otimizações aprovadas passaram igualdade matemática, testes e benchmark do workload real. Isso ainda não conclui as demais oportunidades da Fase 7.1.
