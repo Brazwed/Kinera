@@ -1,0 +1,717 @@
+{
+  "phase": "7.1_linear_step_microbenchmark",
+  "environment": {
+    "python": "3.14.7 (main, Sep  1 2026, 14:18:09) [Clang 22.1.3 ]",
+    "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.43"
+  },
+  "variant_definitions": {
+    "A": "current production Linear.step()",
+    "B": "float(learning_rate) once; preserve nested-list reconstruction",
+    "C": "float(learning_rate) once; update weight rows and bias list in place"
+  },
+  "measurements": {
+    "3932x26": {
+      "shape": {
+        "output_size": 3932,
+        "input_size": 26
+      },
+      "learning_rate": 0.05,
+      "protocol": {
+        "warmups_per_variant": 2,
+        "warmup_order": [
+          "A",
+          "B",
+          "C",
+          "A",
+          "B",
+          "C"
+        ],
+        "iterations_per_sample": 40,
+        "block_orders": [
+          [
+            "A",
+            "B",
+            "C"
+          ],
+          [
+            "B",
+            "C",
+            "A"
+          ],
+          [
+            "C",
+            "A",
+            "B"
+          ],
+          [
+            "A",
+            "C",
+            "B"
+          ],
+          [
+            "C",
+            "B",
+            "A"
+          ],
+          [
+            "B",
+            "A",
+            "C"
+          ]
+        ],
+        "timers": [
+          "perf_counter_ns",
+          "process_time_ns"
+        ],
+        "paired_ratio": "A_over_candidate = elapsed_A / elapsed_candidate; >1 favors candidate"
+      },
+      "exact_one_step_state_vs_A": {
+        "A": {
+          "weights_exact_vs_A": true,
+          "bias_exact_vs_A": true,
+          "has_backward_exact_vs_A": true
+        },
+        "B": {
+          "weights_exact_vs_A": true,
+          "bias_exact_vs_A": true,
+          "has_backward_exact_vs_A": true
+        },
+        "C": {
+          "weights_exact_vs_A": true,
+          "bias_exact_vs_A": true,
+          "has_backward_exact_vs_A": true
+        }
+      },
+      "identity_semantics_after_one_step": {
+        "A": {
+          "weights_outer_list_preserved": false,
+          "weight_row_lists_preserved": false,
+          "bias_list_preserved": false,
+          "has_backward_after_step": false
+        },
+        "B": {
+          "weights_outer_list_preserved": false,
+          "weight_row_lists_preserved": false,
+          "bias_list_preserved": false,
+          "has_backward_after_step": false
+        },
+        "C": {
+          "weights_outer_list_preserved": true,
+          "weight_row_lists_preserved": true,
+          "bias_list_preserved": true,
+          "has_backward_after_step": false
+        }
+      },
+      "allocation_probe_tracemalloc_bytes": {
+        "A": {
+          "live_bytes_delta": 3841320,
+          "peak_bytes_above_start": 3841384
+        },
+        "B": {
+          "live_bytes_delta": 3841272,
+          "peak_bytes_above_start": 3841336
+        },
+        "C": {
+          "live_bytes_delta": 2548576,
+          "peak_bytes_above_start": 2548712
+        }
+      },
+      "blocks": [
+        {
+          "block": 1,
+          "order": [
+            "A",
+            "B",
+            "C"
+          ],
+          "samples": {
+            "A": {
+              "wall_ns": 397693269,
+              "cpu_ns": 396988305
+            },
+            "B": {
+              "wall_ns": 335753137,
+              "cpu_ns": 335173167
+            },
+            "C": {
+              "wall_ns": 344503282,
+              "cpu_ns": 344232085
+            }
+          }
+        },
+        {
+          "block": 2,
+          "order": [
+            "B",
+            "C",
+            "A"
+          ],
+          "samples": {
+            "B": {
+              "wall_ns": 403406365,
+              "cpu_ns": 402902112
+            },
+            "C": {
+              "wall_ns": 405764812,
+              "cpu_ns": 405426312
+            },
+            "A": {
+              "wall_ns": 423941514,
+              "cpu_ns": 423279177
+            }
+          }
+        },
+        {
+          "block": 3,
+          "order": [
+            "C",
+            "A",
+            "B"
+          ],
+          "samples": {
+            "C": {
+              "wall_ns": 337742527,
+              "cpu_ns": 337207132
+            },
+            "A": {
+              "wall_ns": 428630866,
+              "cpu_ns": 427982480
+            },
+            "B": {
+              "wall_ns": 311682855,
+              "cpu_ns": 311419448
+            }
+          }
+        },
+        {
+          "block": 4,
+          "order": [
+            "A",
+            "C",
+            "B"
+          ],
+          "samples": {
+            "A": {
+              "wall_ns": 386367248,
+              "cpu_ns": 386137499
+            },
+            "C": {
+              "wall_ns": 314980588,
+              "cpu_ns": 314281872
+            },
+            "B": {
+              "wall_ns": 387143527,
+              "cpu_ns": 386622718
+            }
+          }
+        },
+        {
+          "block": 5,
+          "order": [
+            "C",
+            "B",
+            "A"
+          ],
+          "samples": {
+            "C": {
+              "wall_ns": 317932259,
+              "cpu_ns": 317582725
+            },
+            "B": {
+              "wall_ns": 353143232,
+              "cpu_ns": 352883270
+            },
+            "A": {
+              "wall_ns": 419316640,
+              "cpu_ns": 418791643
+            }
+          }
+        },
+        {
+          "block": 6,
+          "order": [
+            "B",
+            "A",
+            "C"
+          ],
+          "samples": {
+            "B": {
+              "wall_ns": 361337020,
+              "cpu_ns": 360572698
+            },
+            "A": {
+              "wall_ns": 382991006,
+              "cpu_ns": 382411430
+            },
+            "C": {
+              "wall_ns": 340337080,
+              "cpu_ns": 340015617
+            }
+          }
+        }
+      ],
+      "median_ns_per_step": {
+        "A": {
+          "wall": 10212623.8625,
+          "cpu": 10197249.35
+        },
+        "B": {
+          "wall": 8931003.15,
+          "cpu": 8918199.6
+        },
+        "C": {
+          "wall": 8475995.0875,
+          "cpu": 8465284.3625
+        }
+      },
+      "paired_speedup_ratios": {
+        "B": {
+          "wall": [
+            1.18448117135537,
+            1.050904375294128,
+            1.3752147707964237,
+            0.9979948547609321,
+            1.1873840470486492,
+            1.0599273940987282
+          ],
+          "cpu": [
+            1.1844274664146965,
+            1.0505757214794644,
+            1.3742959302914184,
+            0.9987449806299277,
+            1.1867710333788282,
+            1.060566793107558
+          ]
+        },
+        "C": {
+          "wall": [
+            1.1543961691488327,
+            1.0447961515204034,
+            1.2691054034779576,
+            1.2266382841345131,
+            1.3188867380708291,
+            1.1253284714084049
+          ],
+          "cpu": [
+            1.1532577069333907,
+            1.0440347961431768,
+            1.2691975921790408,
+            1.228634335613223,
+            1.3186852118609411,
+            1.1246878404411642
+          ]
+        }
+      },
+      "median_paired_speedup": {
+        "B": {
+          "wall": 1.122204282727049,
+          "cpu": 1.1224971297611273
+        },
+        "C": {
+          "wall": 1.1905172266416728,
+          "cpu": 1.190946021273307
+        }
+      },
+      "paired_speedup_range_percent": {
+        "B": {
+          "wall": 33.614193230381915,
+          "cpu": 33.456740307336894
+        },
+        "C": {
+          "wall": 23.022815665054022,
+          "cpu": 23.061533504610072
+        }
+      },
+      "candidate_wins_out_of_six_blocks": {
+        "B": {
+          "wall": 5,
+          "cpu": 5
+        },
+        "C": {
+          "wall": 6,
+          "cpu": 6
+        }
+      },
+      "exact_final_state_after_repeated_steps_by_block": {
+        "A": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "B": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "C": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      "all_numeric_and_flag_states_exact": true
+    },
+    "51x26": {
+      "shape": {
+        "output_size": 51,
+        "input_size": 26
+      },
+      "learning_rate": 0.05,
+      "protocol": {
+        "warmups_per_variant": 2,
+        "warmup_order": [
+          "A",
+          "B",
+          "C",
+          "A",
+          "B",
+          "C"
+        ],
+        "iterations_per_sample": 40,
+        "block_orders": [
+          [
+            "A",
+            "B",
+            "C"
+          ],
+          [
+            "B",
+            "C",
+            "A"
+          ],
+          [
+            "C",
+            "A",
+            "B"
+          ],
+          [
+            "A",
+            "C",
+            "B"
+          ],
+          [
+            "C",
+            "B",
+            "A"
+          ],
+          [
+            "B",
+            "A",
+            "C"
+          ]
+        ],
+        "timers": [
+          "perf_counter_ns",
+          "process_time_ns"
+        ],
+        "paired_ratio": "A_over_candidate = elapsed_A / elapsed_candidate; >1 favors candidate"
+      },
+      "exact_one_step_state_vs_A": {
+        "A": {
+          "weights_exact_vs_A": true,
+          "bias_exact_vs_A": true,
+          "has_backward_exact_vs_A": true
+        },
+        "B": {
+          "weights_exact_vs_A": true,
+          "bias_exact_vs_A": true,
+          "has_backward_exact_vs_A": true
+        },
+        "C": {
+          "weights_exact_vs_A": true,
+          "bias_exact_vs_A": true,
+          "has_backward_exact_vs_A": true
+        }
+      },
+      "identity_semantics_after_one_step": {
+        "A": {
+          "weights_outer_list_preserved": false,
+          "weight_row_lists_preserved": false,
+          "bias_list_preserved": false,
+          "has_backward_after_step": false
+        },
+        "B": {
+          "weights_outer_list_preserved": false,
+          "weight_row_lists_preserved": false,
+          "bias_list_preserved": false,
+          "has_backward_after_step": false
+        },
+        "C": {
+          "weights_outer_list_preserved": true,
+          "weight_row_lists_preserved": true,
+          "bias_list_preserved": true,
+          "has_backward_after_step": false
+        }
+      },
+      "allocation_probe_tracemalloc_bytes": {
+        "A": {
+          "live_bytes_delta": 50360,
+          "peak_bytes_above_start": 50424
+        },
+        "B": {
+          "live_bytes_delta": 50360,
+          "peak_bytes_above_start": 50424
+        },
+        "C": {
+          "live_bytes_delta": 33624,
+          "peak_bytes_above_start": 33760
+        }
+      },
+      "blocks": [
+        {
+          "block": 1,
+          "order": [
+            "A",
+            "B",
+            "C"
+          ],
+          "samples": {
+            "A": {
+              "wall_ns": 3995526,
+              "cpu_ns": 3963299
+            },
+            "B": {
+              "wall_ns": 3001446,
+              "cpu_ns": 3002947
+            },
+            "C": {
+              "wall_ns": 3877467,
+              "cpu_ns": 3788896
+            }
+          }
+        },
+        {
+          "block": 2,
+          "order": [
+            "B",
+            "C",
+            "A"
+          ],
+          "samples": {
+            "B": {
+              "wall_ns": 3054867,
+              "cpu_ns": 3055045
+            },
+            "C": {
+              "wall_ns": 3699718,
+              "cpu_ns": 3701315
+            },
+            "A": {
+              "wall_ns": 3791247,
+              "cpu_ns": 3792743
+            }
+          }
+        },
+        {
+          "block": 3,
+          "order": [
+            "C",
+            "A",
+            "B"
+          ],
+          "samples": {
+            "C": {
+              "wall_ns": 3911579,
+              "cpu_ns": 3877351
+            },
+            "A": {
+              "wall_ns": 3966503,
+              "cpu_ns": 3969478
+            },
+            "B": {
+              "wall_ns": 3357674,
+              "cpu_ns": 3359182
+            }
+          }
+        },
+        {
+          "block": 4,
+          "order": [
+            "A",
+            "C",
+            "B"
+          ],
+          "samples": {
+            "A": {
+              "wall_ns": 4804095,
+              "cpu_ns": 4806013
+            },
+            "C": {
+              "wall_ns": 13780203,
+              "cpu_ns": 13783267
+            },
+            "B": {
+              "wall_ns": 2878461,
+              "cpu_ns": 2880954
+            }
+          }
+        },
+        {
+          "block": 5,
+          "order": [
+            "C",
+            "B",
+            "A"
+          ],
+          "samples": {
+            "C": {
+              "wall_ns": 3539758,
+              "cpu_ns": 3540415
+            },
+            "B": {
+              "wall_ns": 2734194,
+              "cpu_ns": 2734774
+            },
+            "A": {
+              "wall_ns": 3598366,
+              "cpu_ns": 3599372
+            }
+          }
+        },
+        {
+          "block": 6,
+          "order": [
+            "B",
+            "A",
+            "C"
+          ],
+          "samples": {
+            "B": {
+              "wall_ns": 2684880,
+              "cpu_ns": 2685340
+            },
+            "A": {
+              "wall_ns": 3703505,
+              "cpu_ns": 3704650
+            },
+            "C": {
+              "wall_ns": 3752219,
+              "cpu_ns": 3753673
+            }
+          }
+        }
+      ],
+      "median_ns_per_step": {
+        "A": {
+          "wall": 96971.875,
+          "cpu": 96950.525
+        },
+        "B": {
+          "wall": 73498.8375,
+          "cpu": 73548.76250000001
+        },
+        "C": {
+          "wall": 95371.07500000001,
+          "cpu": 94282.11249999999
+        }
+      },
+      "paired_speedup_ratios": {
+        "B": {
+          "wall": [
+            1.3312003614257928,
+            1.2410514107488149,
+            1.1813246312774854,
+            1.668980403069557,
+            1.316060967144248,
+            1.3793931199904652
+          ],
+          "cpu": [
+            1.319803180009504,
+            1.2414687836022056,
+            1.181679944700823,
+            1.6682019220022257,
+            1.316149707434691,
+            1.379583218512367
+          ]
+        },
+        "C": {
+          "wall": [
+            1.0304474544851059,
+            1.0247394531150753,
+            1.01404138840095,
+            0.3486229484427769,
+            1.0165570640704817,
+            0.9870172823068163
+          ],
+          "cpu": [
+            1.046030030911379,
+            1.0247014912267667,
+            1.0237602940770645,
+            0.34868460431042947,
+            1.0166525675662317,
+            0.9869399918426565
+          ]
+        }
+      },
+      "median_paired_speedup": {
+        "B": {
+          "wall": 1.3236306642850204,
+          "cpu": 1.3179764437220975
+        },
+        "C": {
+          "wall": 1.015299226235716,
+          "cpu": 1.020206430821648
+        }
+      },
+      "paired_speedup_range_percent": {
+        "B": {
+          "wall": 36.842284252721385,
+          "cpu": 36.91431509408589
+        },
+        "C": {
+          "wall": 67.15503059824394,
+          "cpu": 68.3533651164427
+        }
+      },
+      "candidate_wins_out_of_six_blocks": {
+        "B": {
+          "wall": 6,
+          "cpu": 6
+        },
+        "C": {
+          "wall": 4,
+          "cpu": 4
+        }
+      },
+      "exact_final_state_after_repeated_steps_by_block": {
+        "A": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "B": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "C": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      "all_numeric_and_flag_states_exact": true
+    }
+  },
+  "identity_contract_note": "C intentionally preserves outer weights/row/bias list identities; A and B replace those lists. This is observable and must be considered separately from numeric equality.",
+  "production_code_changed": false,
+  "decision": "review_cross_shape_guardrail_and_identity_contract_before_advancing"
+}

@@ -30,7 +30,7 @@ class EmbeddingConstructionTests(unittest.TestCase):
 
 
 class EmbeddingForwardTests(unittest.TestCase):
-    def test_forward_looks_up_rows_in_order_and_copies_output(self) -> None:
+    def test_forward_looks_up_rows_copies_output_and_resets_stale_gradients(self) -> None:
         embedding = Embedding(vocab_size=3, embedding_dim=2, seed=7)
         embedding.weights = [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]
 
@@ -40,6 +40,29 @@ class EmbeddingForwardTests(unittest.TestCase):
         output[0][0] = 99.0
         self.assertEqual(embedding.weights[2], [0.5, 0.6])
         self.assertEqual(embedding.last_ids, [2, 0, 2])
+
+        training_embedding = Embedding(vocab_size=4, embedding_dim=2, seed=11)
+        first_ids = [0, 1]
+        second_ids = [2, 3]
+        training_embedding.forward(first_ids)
+        training_embedding.backward([[1.0, 2.0], [3.0, 4.0]])
+        training_embedding.step(0.1)
+        weights_after_first_step = [row.copy() for row in training_embedding.weights]
+        self.assertNotEqual(training_embedding.grad_weights[0], [0.0, 0.0])
+
+        training_embedding.forward(second_ids)
+
+        self.assertEqual(training_embedding.grad_weights, [[0.0, 0.0] for _ in range(4)])
+        self.assertTrue(
+            all(
+                training_embedding.grad_weights[index]
+                is not training_embedding.grad_weights[index + 1]
+                for index in range(3)
+            )
+        )
+        training_embedding.backward([[0.0, 0.0], [0.0, 0.0]])
+        training_embedding.step(0.1)
+        self.assertEqual(training_embedding.weights, weights_after_first_step)
 
     def test_forward_rejects_invalid_ids(self) -> None:
         embedding = Embedding(vocab_size=3, embedding_dim=2, seed=7)

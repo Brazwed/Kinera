@@ -1,0 +1,1360 @@
+{
+  "phase": "7.1_validated_loss_helpers_microbenchmark",
+  "environment": {
+    "python": "3.14.7 (main, Sep  1 2026, 14:18:09) [Clang 22.1.3 ]",
+    "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.43"
+  },
+  "candidate_definitions": {
+    "A": "current MultiTaskLoss.forward/backward; _validate_outputs followed by public validated cross_entropy / cross_entropy_gradient / softmax path",
+    "B": "harness-only subclass preserves output/target validation, then calls arithmetic-only internal validated helpers; public APIs are not patched"
+  },
+  "correctness_and_public_error_contract_gate": {
+    "forward_exact_A_vs_B": true,
+    "backward_exact_A_vs_B": true,
+    "input_outputs_unchanged": true,
+    "public_api_error_cases": 64,
+    "public_api_errors_exact_before_vs_after_candidate_definition": true,
+    "public_api_all_invalid_inputs_rejected": true,
+    "public_api_bindings_unchanged": true,
+    "multitask_error_cases_per_method": 42,
+    "multitask_exceptions_exact_A_vs_B": true,
+    "multitask_all_invalid_inputs_rejected_by_both": true,
+    "public_api_error_details": {
+      "probability.softmax": {
+        "logits.tuple_container": {
+          "type": "TypeError",
+          "message": "logits deve ser uma lista"
+        },
+        "logits.none_container": {
+          "type": "TypeError",
+          "message": "logits deve ser uma lista"
+        },
+        "logits.empty_list": {
+          "type": "ValueError",
+          "message": "logits não pode ser vazio"
+        },
+        "logits.nan": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.positive_inf": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.negative_inf": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.bool_value": {
+          "type": "TypeError",
+          "message": "logits[0] deve ser numérico"
+        },
+        "logits.string_value": {
+          "type": "TypeError",
+          "message": "logits[0] deve ser numérico"
+        }
+      },
+      "probability.cross_entropy": {
+        "logits.tuple_container": {
+          "type": "TypeError",
+          "message": "logits deve ser uma lista"
+        },
+        "logits.none_container": {
+          "type": "TypeError",
+          "message": "logits deve ser uma lista"
+        },
+        "logits.empty_list": {
+          "type": "ValueError",
+          "message": "logits não pode ser vazio"
+        },
+        "logits.nan": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.positive_inf": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.negative_inf": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.bool_value": {
+          "type": "TypeError",
+          "message": "logits[0] deve ser numérico"
+        },
+        "logits.string_value": {
+          "type": "TypeError",
+          "message": "logits[0] deve ser numérico"
+        },
+        "target.bool_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.string_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.none_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.float_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.negative_target": {
+          "type": "ValueError",
+          "message": "target_id fora do vocabulário"
+        },
+        "target.out_of_range_target": {
+          "type": "ValueError",
+          "message": "target_id fora do vocabulário"
+        }
+      },
+      "probability.cross_entropy_gradient": {
+        "logits.tuple_container": {
+          "type": "TypeError",
+          "message": "logits deve ser uma lista"
+        },
+        "logits.none_container": {
+          "type": "TypeError",
+          "message": "logits deve ser uma lista"
+        },
+        "logits.empty_list": {
+          "type": "ValueError",
+          "message": "logits não pode ser vazio"
+        },
+        "logits.nan": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.positive_inf": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.negative_inf": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.bool_value": {
+          "type": "TypeError",
+          "message": "logits[0] deve ser numérico"
+        },
+        "logits.string_value": {
+          "type": "TypeError",
+          "message": "logits[0] deve ser numérico"
+        },
+        "target.bool_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.string_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.none_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.float_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.negative_target": {
+          "type": "ValueError",
+          "message": "target_id fora do vocabulário"
+        },
+        "target.out_of_range_target": {
+          "type": "ValueError",
+          "message": "target_id fora do vocabulário"
+        }
+      },
+      "losses.cross_entropy": {
+        "logits.tuple_container": {
+          "type": "TypeError",
+          "message": "logits deve ser uma lista"
+        },
+        "logits.none_container": {
+          "type": "TypeError",
+          "message": "logits deve ser uma lista"
+        },
+        "logits.empty_list": {
+          "type": "ValueError",
+          "message": "logits não pode ser vazio"
+        },
+        "logits.nan": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.positive_inf": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.negative_inf": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.bool_value": {
+          "type": "TypeError",
+          "message": "logits[0] deve ser numérico"
+        },
+        "logits.string_value": {
+          "type": "TypeError",
+          "message": "logits[0] deve ser numérico"
+        },
+        "target.bool_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.string_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.none_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.float_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.negative_target": {
+          "type": "ValueError",
+          "message": "target_id fora do vocabulário"
+        },
+        "target.out_of_range_target": {
+          "type": "ValueError",
+          "message": "target_id fora do vocabulário"
+        }
+      },
+      "losses.cross_entropy_gradient": {
+        "logits.tuple_container": {
+          "type": "TypeError",
+          "message": "logits deve ser uma lista"
+        },
+        "logits.none_container": {
+          "type": "TypeError",
+          "message": "logits deve ser uma lista"
+        },
+        "logits.empty_list": {
+          "type": "ValueError",
+          "message": "logits não pode ser vazio"
+        },
+        "logits.nan": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.positive_inf": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.negative_inf": {
+          "type": "ValueError",
+          "message": "logits[0] deve ser finito"
+        },
+        "logits.bool_value": {
+          "type": "TypeError",
+          "message": "logits[0] deve ser numérico"
+        },
+        "logits.string_value": {
+          "type": "TypeError",
+          "message": "logits[0] deve ser numérico"
+        },
+        "target.bool_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.string_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.none_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.float_target": {
+          "type": "TypeError",
+          "message": "target_id deve ser inteiro"
+        },
+        "target.negative_target": {
+          "type": "ValueError",
+          "message": "target_id fora do vocabulário"
+        },
+        "target.out_of_range_target": {
+          "type": "ValueError",
+          "message": "target_id fora do vocabulário"
+        }
+      }
+    },
+    "multitask_exception_details_A": {
+      "forward.outputs_none": {
+        "type": "ValueError",
+        "message": "outputs deve conter char, syllable e boundary"
+      },
+      "backward.outputs_none": {
+        "type": "ValueError",
+        "message": "outputs deve conter char, syllable e boundary"
+      },
+      "forward.outputs_missing_head": {
+        "type": "ValueError",
+        "message": "outputs deve conter char, syllable e boundary"
+      },
+      "backward.outputs_missing_head": {
+        "type": "ValueError",
+        "message": "outputs deve conter char, syllable e boundary"
+      },
+      "forward.char_empty": {
+        "type": "ValueError",
+        "message": "outputs[char] deve ser uma lista não vazia"
+      },
+      "backward.char_empty": {
+        "type": "ValueError",
+        "message": "outputs[char] deve ser uma lista não vazia"
+      },
+      "forward.char_nan": {
+        "type": "ValueError",
+        "message": "outputs[char][0] deve ser finito"
+      },
+      "backward.char_nan": {
+        "type": "ValueError",
+        "message": "outputs[char][0] deve ser finito"
+      },
+      "forward.char_positive_inf": {
+        "type": "ValueError",
+        "message": "outputs[char][0] deve ser finito"
+      },
+      "backward.char_positive_inf": {
+        "type": "ValueError",
+        "message": "outputs[char][0] deve ser finito"
+      },
+      "forward.char_negative_inf": {
+        "type": "ValueError",
+        "message": "outputs[char][0] deve ser finito"
+      },
+      "backward.char_negative_inf": {
+        "type": "ValueError",
+        "message": "outputs[char][0] deve ser finito"
+      },
+      "forward.char_bool": {
+        "type": "TypeError",
+        "message": "outputs[char][0] deve ser numérico"
+      },
+      "backward.char_bool": {
+        "type": "TypeError",
+        "message": "outputs[char][0] deve ser numérico"
+      },
+      "forward.char_string": {
+        "type": "TypeError",
+        "message": "outputs[char][0] deve ser numérico"
+      },
+      "backward.char_string": {
+        "type": "TypeError",
+        "message": "outputs[char][0] deve ser numérico"
+      },
+      "forward.syllable_empty": {
+        "type": "ValueError",
+        "message": "outputs[syllable] deve ser uma lista não vazia"
+      },
+      "backward.syllable_empty": {
+        "type": "ValueError",
+        "message": "outputs[syllable] deve ser uma lista não vazia"
+      },
+      "forward.syllable_nan": {
+        "type": "ValueError",
+        "message": "outputs[syllable][0] deve ser finito"
+      },
+      "backward.syllable_nan": {
+        "type": "ValueError",
+        "message": "outputs[syllable][0] deve ser finito"
+      },
+      "forward.syllable_positive_inf": {
+        "type": "ValueError",
+        "message": "outputs[syllable][0] deve ser finito"
+      },
+      "backward.syllable_positive_inf": {
+        "type": "ValueError",
+        "message": "outputs[syllable][0] deve ser finito"
+      },
+      "forward.syllable_negative_inf": {
+        "type": "ValueError",
+        "message": "outputs[syllable][0] deve ser finito"
+      },
+      "backward.syllable_negative_inf": {
+        "type": "ValueError",
+        "message": "outputs[syllable][0] deve ser finito"
+      },
+      "forward.syllable_bool": {
+        "type": "TypeError",
+        "message": "outputs[syllable][0] deve ser numérico"
+      },
+      "backward.syllable_bool": {
+        "type": "TypeError",
+        "message": "outputs[syllable][0] deve ser numérico"
+      },
+      "forward.syllable_string": {
+        "type": "TypeError",
+        "message": "outputs[syllable][0] deve ser numérico"
+      },
+      "backward.syllable_string": {
+        "type": "TypeError",
+        "message": "outputs[syllable][0] deve ser numérico"
+      },
+      "forward.boundary_empty": {
+        "type": "ValueError",
+        "message": "outputs[boundary] deve ser uma lista não vazia"
+      },
+      "backward.boundary_empty": {
+        "type": "ValueError",
+        "message": "outputs[boundary] deve ser uma lista não vazia"
+      },
+      "forward.boundary_wrong_length": {
+        "type": "ValueError",
+        "message": "outputs[boundary] deve conter um logit"
+      },
+      "backward.boundary_wrong_length": {
+        "type": "ValueError",
+        "message": "outputs[boundary] deve conter um logit"
+      },
+      "forward.boundary_logit_nan": {
+        "type": "ValueError",
+        "message": "outputs[boundary][0] deve ser finito"
+      },
+      "backward.boundary_logit_nan": {
+        "type": "ValueError",
+        "message": "outputs[boundary][0] deve ser finito"
+      },
+      "forward.boundary_logit_positive_inf": {
+        "type": "ValueError",
+        "message": "outputs[boundary][0] deve ser finito"
+      },
+      "backward.boundary_logit_positive_inf": {
+        "type": "ValueError",
+        "message": "outputs[boundary][0] deve ser finito"
+      },
+      "forward.boundary_logit_negative_inf": {
+        "type": "ValueError",
+        "message": "outputs[boundary][0] deve ser finito"
+      },
+      "backward.boundary_logit_negative_inf": {
+        "type": "ValueError",
+        "message": "outputs[boundary][0] deve ser finito"
+      },
+      "forward.boundary_logit_bool": {
+        "type": "TypeError",
+        "message": "outputs[boundary][0] deve ser numérico"
+      },
+      "backward.boundary_logit_bool": {
+        "type": "TypeError",
+        "message": "outputs[boundary][0] deve ser numérico"
+      },
+      "forward.boundary_logit_string": {
+        "type": "TypeError",
+        "message": "outputs[boundary][0] deve ser numérico"
+      },
+      "backward.boundary_logit_string": {
+        "type": "TypeError",
+        "message": "outputs[boundary][0] deve ser numérico"
+      },
+      "forward.target_char_bool": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "backward.target_char_bool": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "forward.target_char_string": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "backward.target_char_string": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "forward.target_char_none": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "backward.target_char_none": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "forward.target_char_float": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "backward.target_char_float": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "forward.target_char_negative": {
+        "type": "ValueError",
+        "message": "targets[char] fora do vocabulário"
+      },
+      "backward.target_char_negative": {
+        "type": "ValueError",
+        "message": "targets[char] fora do vocabulário"
+      },
+      "forward.target_char_out_of_range": {
+        "type": "ValueError",
+        "message": "targets[char] fora do vocabulário"
+      },
+      "backward.target_char_out_of_range": {
+        "type": "ValueError",
+        "message": "targets[char] fora do vocabulário"
+      },
+      "forward.target_syllable_bool": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "backward.target_syllable_bool": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "forward.target_syllable_string": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "backward.target_syllable_string": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "forward.target_syllable_none": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "backward.target_syllable_none": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "forward.target_syllable_float": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "backward.target_syllable_float": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "forward.target_syllable_negative": {
+        "type": "ValueError",
+        "message": "targets[syllable] fora do vocabulário"
+      },
+      "backward.target_syllable_negative": {
+        "type": "ValueError",
+        "message": "targets[syllable] fora do vocabulário"
+      },
+      "forward.target_syllable_out_of_range": {
+        "type": "ValueError",
+        "message": "targets[syllable] fora do vocabulário"
+      },
+      "backward.target_syllable_out_of_range": {
+        "type": "ValueError",
+        "message": "targets[syllable] fora do vocabulário"
+      },
+      "forward.target_boundary_bool": {
+        "type": "TypeError",
+        "message": "target de fronteira deve ser numérico"
+      },
+      "backward.target_boundary_bool": {
+        "type": "TypeError",
+        "message": "target de fronteira deve ser numérico"
+      },
+      "forward.target_boundary_string": {
+        "type": "TypeError",
+        "message": "target de fronteira deve ser numérico"
+      },
+      "backward.target_boundary_string": {
+        "type": "TypeError",
+        "message": "target de fronteira deve ser numérico"
+      },
+      "forward.target_boundary_none": {
+        "type": "TypeError",
+        "message": "target de fronteira deve ser numérico"
+      },
+      "backward.target_boundary_none": {
+        "type": "TypeError",
+        "message": "target de fronteira deve ser numérico"
+      },
+      "forward.target_boundary_nan": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "backward.target_boundary_nan": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "forward.target_boundary_inf": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "backward.target_boundary_inf": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "forward.target_boundary_negative": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "backward.target_boundary_negative": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "forward.target_boundary_above_one": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "backward.target_boundary_above_one": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "forward.target_char_missing": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "backward.target_char_missing": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "forward.targets_none": {
+        "type": "AttributeError",
+        "message": "'NoneType' object has no attribute 'get'"
+      },
+      "backward.targets_none": {
+        "type": "AttributeError",
+        "message": "'NoneType' object has no attribute 'get'"
+      }
+    },
+    "multitask_exception_details_B": {
+      "forward.outputs_none": {
+        "type": "ValueError",
+        "message": "outputs deve conter char, syllable e boundary"
+      },
+      "backward.outputs_none": {
+        "type": "ValueError",
+        "message": "outputs deve conter char, syllable e boundary"
+      },
+      "forward.outputs_missing_head": {
+        "type": "ValueError",
+        "message": "outputs deve conter char, syllable e boundary"
+      },
+      "backward.outputs_missing_head": {
+        "type": "ValueError",
+        "message": "outputs deve conter char, syllable e boundary"
+      },
+      "forward.char_empty": {
+        "type": "ValueError",
+        "message": "outputs[char] deve ser uma lista não vazia"
+      },
+      "backward.char_empty": {
+        "type": "ValueError",
+        "message": "outputs[char] deve ser uma lista não vazia"
+      },
+      "forward.char_nan": {
+        "type": "ValueError",
+        "message": "outputs[char][0] deve ser finito"
+      },
+      "backward.char_nan": {
+        "type": "ValueError",
+        "message": "outputs[char][0] deve ser finito"
+      },
+      "forward.char_positive_inf": {
+        "type": "ValueError",
+        "message": "outputs[char][0] deve ser finito"
+      },
+      "backward.char_positive_inf": {
+        "type": "ValueError",
+        "message": "outputs[char][0] deve ser finito"
+      },
+      "forward.char_negative_inf": {
+        "type": "ValueError",
+        "message": "outputs[char][0] deve ser finito"
+      },
+      "backward.char_negative_inf": {
+        "type": "ValueError",
+        "message": "outputs[char][0] deve ser finito"
+      },
+      "forward.char_bool": {
+        "type": "TypeError",
+        "message": "outputs[char][0] deve ser numérico"
+      },
+      "backward.char_bool": {
+        "type": "TypeError",
+        "message": "outputs[char][0] deve ser numérico"
+      },
+      "forward.char_string": {
+        "type": "TypeError",
+        "message": "outputs[char][0] deve ser numérico"
+      },
+      "backward.char_string": {
+        "type": "TypeError",
+        "message": "outputs[char][0] deve ser numérico"
+      },
+      "forward.syllable_empty": {
+        "type": "ValueError",
+        "message": "outputs[syllable] deve ser uma lista não vazia"
+      },
+      "backward.syllable_empty": {
+        "type": "ValueError",
+        "message": "outputs[syllable] deve ser uma lista não vazia"
+      },
+      "forward.syllable_nan": {
+        "type": "ValueError",
+        "message": "outputs[syllable][0] deve ser finito"
+      },
+      "backward.syllable_nan": {
+        "type": "ValueError",
+        "message": "outputs[syllable][0] deve ser finito"
+      },
+      "forward.syllable_positive_inf": {
+        "type": "ValueError",
+        "message": "outputs[syllable][0] deve ser finito"
+      },
+      "backward.syllable_positive_inf": {
+        "type": "ValueError",
+        "message": "outputs[syllable][0] deve ser finito"
+      },
+      "forward.syllable_negative_inf": {
+        "type": "ValueError",
+        "message": "outputs[syllable][0] deve ser finito"
+      },
+      "backward.syllable_negative_inf": {
+        "type": "ValueError",
+        "message": "outputs[syllable][0] deve ser finito"
+      },
+      "forward.syllable_bool": {
+        "type": "TypeError",
+        "message": "outputs[syllable][0] deve ser numérico"
+      },
+      "backward.syllable_bool": {
+        "type": "TypeError",
+        "message": "outputs[syllable][0] deve ser numérico"
+      },
+      "forward.syllable_string": {
+        "type": "TypeError",
+        "message": "outputs[syllable][0] deve ser numérico"
+      },
+      "backward.syllable_string": {
+        "type": "TypeError",
+        "message": "outputs[syllable][0] deve ser numérico"
+      },
+      "forward.boundary_empty": {
+        "type": "ValueError",
+        "message": "outputs[boundary] deve ser uma lista não vazia"
+      },
+      "backward.boundary_empty": {
+        "type": "ValueError",
+        "message": "outputs[boundary] deve ser uma lista não vazia"
+      },
+      "forward.boundary_wrong_length": {
+        "type": "ValueError",
+        "message": "outputs[boundary] deve conter um logit"
+      },
+      "backward.boundary_wrong_length": {
+        "type": "ValueError",
+        "message": "outputs[boundary] deve conter um logit"
+      },
+      "forward.boundary_logit_nan": {
+        "type": "ValueError",
+        "message": "outputs[boundary][0] deve ser finito"
+      },
+      "backward.boundary_logit_nan": {
+        "type": "ValueError",
+        "message": "outputs[boundary][0] deve ser finito"
+      },
+      "forward.boundary_logit_positive_inf": {
+        "type": "ValueError",
+        "message": "outputs[boundary][0] deve ser finito"
+      },
+      "backward.boundary_logit_positive_inf": {
+        "type": "ValueError",
+        "message": "outputs[boundary][0] deve ser finito"
+      },
+      "forward.boundary_logit_negative_inf": {
+        "type": "ValueError",
+        "message": "outputs[boundary][0] deve ser finito"
+      },
+      "backward.boundary_logit_negative_inf": {
+        "type": "ValueError",
+        "message": "outputs[boundary][0] deve ser finito"
+      },
+      "forward.boundary_logit_bool": {
+        "type": "TypeError",
+        "message": "outputs[boundary][0] deve ser numérico"
+      },
+      "backward.boundary_logit_bool": {
+        "type": "TypeError",
+        "message": "outputs[boundary][0] deve ser numérico"
+      },
+      "forward.boundary_logit_string": {
+        "type": "TypeError",
+        "message": "outputs[boundary][0] deve ser numérico"
+      },
+      "backward.boundary_logit_string": {
+        "type": "TypeError",
+        "message": "outputs[boundary][0] deve ser numérico"
+      },
+      "forward.target_char_bool": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "backward.target_char_bool": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "forward.target_char_string": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "backward.target_char_string": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "forward.target_char_none": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "backward.target_char_none": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "forward.target_char_float": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "backward.target_char_float": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "forward.target_char_negative": {
+        "type": "ValueError",
+        "message": "targets[char] fora do vocabulário"
+      },
+      "backward.target_char_negative": {
+        "type": "ValueError",
+        "message": "targets[char] fora do vocabulário"
+      },
+      "forward.target_char_out_of_range": {
+        "type": "ValueError",
+        "message": "targets[char] fora do vocabulário"
+      },
+      "backward.target_char_out_of_range": {
+        "type": "ValueError",
+        "message": "targets[char] fora do vocabulário"
+      },
+      "forward.target_syllable_bool": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "backward.target_syllable_bool": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "forward.target_syllable_string": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "backward.target_syllable_string": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "forward.target_syllable_none": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "backward.target_syllable_none": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "forward.target_syllable_float": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "backward.target_syllable_float": {
+        "type": "TypeError",
+        "message": "targets[syllable] deve ser inteiro"
+      },
+      "forward.target_syllable_negative": {
+        "type": "ValueError",
+        "message": "targets[syllable] fora do vocabulário"
+      },
+      "backward.target_syllable_negative": {
+        "type": "ValueError",
+        "message": "targets[syllable] fora do vocabulário"
+      },
+      "forward.target_syllable_out_of_range": {
+        "type": "ValueError",
+        "message": "targets[syllable] fora do vocabulário"
+      },
+      "backward.target_syllable_out_of_range": {
+        "type": "ValueError",
+        "message": "targets[syllable] fora do vocabulário"
+      },
+      "forward.target_boundary_bool": {
+        "type": "TypeError",
+        "message": "target de fronteira deve ser numérico"
+      },
+      "backward.target_boundary_bool": {
+        "type": "TypeError",
+        "message": "target de fronteira deve ser numérico"
+      },
+      "forward.target_boundary_string": {
+        "type": "TypeError",
+        "message": "target de fronteira deve ser numérico"
+      },
+      "backward.target_boundary_string": {
+        "type": "TypeError",
+        "message": "target de fronteira deve ser numérico"
+      },
+      "forward.target_boundary_none": {
+        "type": "TypeError",
+        "message": "target de fronteira deve ser numérico"
+      },
+      "backward.target_boundary_none": {
+        "type": "TypeError",
+        "message": "target de fronteira deve ser numérico"
+      },
+      "forward.target_boundary_nan": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "backward.target_boundary_nan": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "forward.target_boundary_inf": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "backward.target_boundary_inf": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "forward.target_boundary_negative": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "backward.target_boundary_negative": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "forward.target_boundary_above_one": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "backward.target_boundary_above_one": {
+        "type": "ValueError",
+        "message": "target de fronteira deve estar entre 0 e 1"
+      },
+      "forward.target_char_missing": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "backward.target_char_missing": {
+        "type": "TypeError",
+        "message": "targets[char] deve ser inteiro"
+      },
+      "forward.targets_none": {
+        "type": "AttributeError",
+        "message": "'NoneType' object has no attribute 'get'"
+      },
+      "backward.targets_none": {
+        "type": "AttributeError",
+        "message": "'NoneType' object has no attribute 'get'"
+      }
+    },
+    "gate_passed": true,
+    "forward_A": {
+      "char_loss": 7.860112629618563,
+      "syllable_loss": 11.587957488723658,
+      "boundary_loss": 0.8259394198788436,
+      "total_loss": 16.219464697688778
+    },
+    "forward_B": {
+      "char_loss": 7.860112629618563,
+      "syllable_loss": 11.587957488723658,
+      "boundary_loss": 0.8259394198788436,
+      "total_loss": 16.219464697688778
+    },
+    "backward_gradient_lengths": {
+      "A": {
+        "char": 51,
+        "syllable": 3932,
+        "boundary": 1
+      },
+      "B": {
+        "char": 51,
+        "syllable": 3932,
+        "boundary": 1
+      }
+    }
+  },
+  "production_code_changed": false,
+  "workload_D_run": false,
+  "timing_measurements": {
+    "shape": {
+      "char_logits": 51,
+      "syllable_logits": 3932
+    },
+    "input_generation": "deterministic finite lists; char[i]=((i*37)%101-50)/13; syllable[i]=((i*43)%127-63)/17; boundary=-0.25",
+    "target_ids": {
+      "char": 17,
+      "syllable": 2213,
+      "boundary": 1.0
+    },
+    "protocol": {
+      "warmups_per_variant": 3,
+      "warmup_method_calls_per_variant": 6,
+      "iterations_per_sample": 25,
+      "blocks": 6,
+      "block_orders": [
+        [
+          "A",
+          "B"
+        ],
+        [
+          "B",
+          "A"
+        ],
+        [
+          "A",
+          "B"
+        ],
+        [
+          "B",
+          "A"
+        ],
+        [
+          "A",
+          "B"
+        ],
+        [
+          "B",
+          "A"
+        ]
+      ],
+      "timers": [
+        "perf_counter_ns",
+        "process_time_ns"
+      ],
+      "speedup_definition": "A_elapsed / B_elapsed; values >1 favor B",
+      "predeclared_advance_gate": "exact values/errors; combined median wall speedup >=1.03, >=5/6 combined wall wins, and neither operation's median wall speedup below 0.99"
+    },
+    "blocks": [
+      {
+        "block": 1,
+        "order": [
+          "A",
+          "B"
+        ],
+        "samples": {
+          "A": {
+            "forward": {
+              "wall_ns": 40474627,
+              "cpu_ns": 40324765,
+              "iterations": 25
+            },
+            "backward": {
+              "wall_ns": 63734013,
+              "cpu_ns": 63733887,
+              "iterations": 25
+            }
+          },
+          "B": {
+            "forward": {
+              "wall_ns": 27442448,
+              "cpu_ns": 27371963,
+              "iterations": 25
+            },
+            "backward": {
+              "wall_ns": 42112597,
+              "cpu_ns": 42116372,
+              "iterations": 25
+            }
+          }
+        }
+      },
+      {
+        "block": 2,
+        "order": [
+          "B",
+          "A"
+        ],
+        "samples": {
+          "A": {
+            "forward": {
+              "wall_ns": 49658820,
+              "cpu_ns": 49643179,
+              "iterations": 25
+            },
+            "backward": {
+              "wall_ns": 80245512,
+              "cpu_ns": 80157559,
+              "iterations": 25
+            }
+          },
+          "B": {
+            "forward": {
+              "wall_ns": 30061337,
+              "cpu_ns": 29876060,
+              "iterations": 25
+            },
+            "backward": {
+              "wall_ns": 32542630,
+              "cpu_ns": 32401572,
+              "iterations": 25
+            }
+          }
+        }
+      },
+      {
+        "block": 3,
+        "order": [
+          "A",
+          "B"
+        ],
+        "samples": {
+          "A": {
+            "forward": {
+              "wall_ns": 45071551,
+              "cpu_ns": 45055334,
+              "iterations": 25
+            },
+            "backward": {
+              "wall_ns": 61976120,
+              "cpu_ns": 61964141,
+              "iterations": 25
+            }
+          },
+          "B": {
+            "forward": {
+              "wall_ns": 27468377,
+              "cpu_ns": 27407584,
+              "iterations": 25
+            },
+            "backward": {
+              "wall_ns": 42544669,
+              "cpu_ns": 42441850,
+              "iterations": 25
+            }
+          }
+        }
+      },
+      {
+        "block": 4,
+        "order": [
+          "B",
+          "A"
+        ],
+        "samples": {
+          "A": {
+            "forward": {
+              "wall_ns": 49669907,
+              "cpu_ns": 49456110,
+              "iterations": 25
+            },
+            "backward": {
+              "wall_ns": 57302190,
+              "cpu_ns": 56814541,
+              "iterations": 25
+            }
+          },
+          "B": {
+            "forward": {
+              "wall_ns": 27148183,
+              "cpu_ns": 27114556,
+              "iterations": 25
+            },
+            "backward": {
+              "wall_ns": 32315788,
+              "cpu_ns": 32198415,
+              "iterations": 25
+            }
+          }
+        }
+      },
+      {
+        "block": 5,
+        "order": [
+          "A",
+          "B"
+        ],
+        "samples": {
+          "A": {
+            "forward": {
+              "wall_ns": 38190980,
+              "cpu_ns": 38192092,
+              "iterations": 25
+            },
+            "backward": {
+              "wall_ns": 66714558,
+              "cpu_ns": 66556814,
+              "iterations": 25
+            }
+          },
+          "B": {
+            "forward": {
+              "wall_ns": 30619979,
+              "cpu_ns": 30622181,
+              "iterations": 25
+            },
+            "backward": {
+              "wall_ns": 35781567,
+              "cpu_ns": 35784548,
+              "iterations": 25
+            }
+          }
+        }
+      },
+      {
+        "block": 6,
+        "order": [
+          "B",
+          "A"
+        ],
+        "samples": {
+          "A": {
+            "forward": {
+              "wall_ns": 50656787,
+              "cpu_ns": 50500496,
+              "iterations": 25
+            },
+            "backward": {
+              "wall_ns": 61720106,
+              "cpu_ns": 61628868,
+              "iterations": 25
+            }
+          },
+          "B": {
+            "forward": {
+              "wall_ns": 37107606,
+              "cpu_ns": 37094154,
+              "iterations": 25
+            },
+            "backward": {
+              "wall_ns": 37353748,
+              "cpu_ns": 37355566,
+              "iterations": 25
+            }
+          }
+        }
+      }
+    ],
+    "methods": {
+      "forward": {
+        "median_ns_per_call": {
+          "A": {
+            "wall": 1894607.42,
+            "cpu": 1890228.88
+          },
+          "B": {
+            "wall": 1150594.28,
+            "cpu": 1145672.88
+          }
+        },
+        "paired_speedup_ratios_A_over_B": {
+          "wall": [
+            1.4748912706329989,
+            1.6519165464929255,
+            1.6408523517789202,
+            1.8295849486501545,
+            1.247256897204273,
+            1.3651321780230177
+          ],
+          "cpu": [
+            1.4732142155825654,
+            1.6616374113587937,
+            1.6439002430860012,
+            1.8239690150190917,
+            1.2472035221789068,
+            1.361413876698738
+          ]
+        },
+        "median_paired_speedup": {
+          "wall": 1.5578718112059595,
+          "cpu": 1.5585572293342833
+        },
+        "median_absolute_deviation_of_speedup": {
+          "wall": 0.14339218423495392,
+          "cpu": 0.15011176733002785
+        },
+        "candidate_wins_out_of_six": {
+          "wall": 6,
+          "cpu": 6
+        }
+      },
+      "backward": {
+        "median_ns_per_call": {
+          "A": {
+            "wall": 2514202.66,
+            "cpu": 2513960.56
+          },
+          "B": {
+            "wall": 1462706.2999999998,
+            "cpu": 1462802.2799999998
+          }
+        },
+        "paired_speedup_ratios_A_over_B": {
+          "wall": [
+            1.5134192032849458,
+            2.4658582296513836,
+            1.456730571813827,
+            1.773194885422568,
+            1.8644951463416903,
+            1.6523136045143314
+          ],
+          "cpu": [
+            1.5132805598734858,
+            2.4738787056381093,
+            1.4599773808163405,
+            1.7645135948462058,
+            1.8599316665953136,
+            1.6497907701358347
+          ]
+        },
+        "median_paired_speedup": {
+          "wall": 1.7127542449684499,
+          "cpu": 1.7071521824910203
+        },
+        "median_absolute_deviation_of_speedup": {
+          "wall": 0.17553797152837225,
+          "cpu": 0.17332555336091393
+        },
+        "candidate_wins_out_of_six": {
+          "wall": 6,
+          "cpu": 6
+        }
+      }
+    },
+    "combined_forward_plus_backward": {
+      "wall": {
+        "ratios_A_over_B": [
+          1.4982182816501664,
+          2.0750175783588922,
+          1.5289674870023509,
+          1.798939680634514,
+          1.5798658964958436,
+          1.509197549644343
+        ],
+        "median_speedup": 1.5544166917490974,
+        "median_absolute_deviation": 0.050708776101842656,
+        "candidate_wins_out_of_six": 6
+      },
+      "cpu": {
+        "ratios_A_over_B": [
+          1.4974981340393319,
+          2.0842272551403367,
+          1.5321451996303936,
+          1.7916932706001187,
+          1.577383912404419,
+          1.506108605915509
+        ],
+        "median_speedup": 1.5547645560174064,
+        "median_absolute_deviation": 0.0529611860399859,
+        "candidate_wins_out_of_six": 6
+      }
+    }
+  },
+  "decision": "advance_to_separate_full_D_trial",
+  "note": "This harness is only a candidate filter; even a pass does not authorize production edits or substitute for a separately approved full-D gate."
+}

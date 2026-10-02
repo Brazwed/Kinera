@@ -25,19 +25,16 @@ def _validate_target(logits: list[float], target_id: object) -> None:
         raise ValueError("target_id fora do vocabulário")
 
 
-def softmax(logits: list[float]) -> list[float]:
-    """Converte logits em probabilidades usando a forma numericamente estável."""
-    _validate_logits(logits)
+def _softmax_validated(logits: list[float]) -> list[float]:
+    """Aplica softmax a logits já validados; não verifica entradas."""
     maximum = max(logits)
     exponentials = [math.exp(value - maximum) for value in logits]
     denominator = sum(exponentials)
     return [value / denominator for value in exponentials]
 
 
-def cross_entropy(logits: list[float], target_id: int) -> float:
-    """Retorna a cross-entropy para um alvo inteiro."""
-    _validate_logits(logits)
-    _validate_target(logits, target_id)
+def _cross_entropy_validated(logits: list[float], target_id: int) -> float:
+    """Calcula cross-entropy após validação de logits e target."""
     maximum = max(logits)
     log_sum_exp = maximum + math.log(
         sum(math.exp(value - maximum) for value in logits)
@@ -45,10 +42,31 @@ def cross_entropy(logits: list[float], target_id: int) -> float:
     return log_sum_exp - logits[target_id]
 
 
+def _cross_entropy_gradient_validated(
+    logits: list[float],
+    target_id: int,
+) -> list[float]:
+    """Calcula o gradiente após validação de logits e target."""
+    probabilities = _softmax_validated(logits)
+    probabilities[target_id] -= 1.0
+    return probabilities
+
+
+def softmax(logits: list[float]) -> list[float]:
+    """Converte logits em probabilidades usando a forma numericamente estável."""
+    _validate_logits(logits)
+    return _softmax_validated(logits)
+
+
+def cross_entropy(logits: list[float], target_id: int) -> float:
+    """Retorna a cross-entropy para um alvo inteiro."""
+    _validate_logits(logits)
+    _validate_target(logits, target_id)
+    return _cross_entropy_validated(logits, target_id)
+
+
 def cross_entropy_gradient(logits: list[float], target_id: int) -> list[float]:
     """Retorna o gradiente de cross-entropy em relação aos logits."""
     _validate_logits(logits)
     _validate_target(logits, target_id)
-    probabilities = softmax(logits)
-    probabilities[target_id] -= 1.0
-    return probabilities
+    return _cross_entropy_gradient_validated(logits, target_id)

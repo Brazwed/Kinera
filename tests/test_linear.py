@@ -48,6 +48,21 @@ class LinearForwardTests(unittest.TestCase):
         self.assertEqual(layer.last_input, [2.0, -1.0])
         self.assertEqual(layer.output, [2.25, 3.25])
 
+    def test_forward_matches_generator_reference_for_both_benchmark_shapes(self) -> None:
+        for output_size in (51, 3932):
+            with self.subTest(output_size=output_size):
+                layer = Linear(input_size=26, output_size=output_size, seed=7)
+                inputs = [float(index + 1) / 10 for index in range(26)]
+
+                actual = layer.forward(inputs)
+                expected = [
+                    sum(weight * value for weight, value in zip(row, inputs))
+                    + bias
+                    for row, bias in zip(layer.weights, layer.bias)
+                ]
+
+                self.assertEqual(actual, expected)
+
     def test_forward_copies_input(self) -> None:
         layer = Linear(input_size=2, output_size=1, seed=7)
         inputs = [2.0, -1.0]
@@ -87,6 +102,35 @@ class LinearBackwardTests(unittest.TestCase):
         self.assertEqual(layer.grad_bias, [3.0, -2.0])
         self.assertEqual(gradients, [-2.5, -3.5])
 
+    def test_backward_matches_generator_reference_for_benchmark_shapes(self) -> None:
+        input_size = 26
+        for output_size in (51, 3932):
+            with self.subTest(output_size=output_size):
+                layer = Linear(input_size=input_size, output_size=output_size, seed=7)
+                inputs = [((index % 13) - 6) / 13.0 for index in range(input_size)]
+                grad_output = [((index % 19) - 9) / 19.0 for index in range(output_size)]
+                layer.forward(inputs)
+
+                expected_grad_weights = [
+                    [float(grad_output[row_index]) * value for value in inputs]
+                    for row_index in range(output_size)
+                ]
+                expected_grad_bias = [float(value) for value in grad_output]
+                expected_grad_inputs = [
+                    sum(
+                        float(grad_output[row_index]) * layer.weights[row_index][input_index]
+                        for row_index in range(output_size)
+                    )
+                    for input_index in range(input_size)
+                ]
+
+                actual_grad_inputs = layer.backward(grad_output)
+
+                self.assertEqual(layer.grad_weights, expected_grad_weights)
+                self.assertEqual(layer.grad_bias, expected_grad_bias)
+                self.assertEqual(actual_grad_inputs, expected_grad_inputs)
+                self.assertTrue(layer._has_backward)
+
     def test_backward_before_forward_is_rejected(self) -> None:
         layer = Linear(input_size=2, output_size=2, seed=7)
 
@@ -124,6 +168,41 @@ class LinearStepTests(unittest.TestCase):
         self.assertAlmostEqual(layer.weights[1][1], 0.05)
         self.assertAlmostEqual(layer.bias[0], -0.05)
         self.assertAlmostEqual(layer.bias[1], -0.3)
+
+        learning_rate = 0.05
+        for output_size in (51, 3932):
+            with self.subTest(output_size=output_size):
+                layer = Linear(input_size=26, output_size=output_size, seed=7)
+                inputs = [((index % 13) - 6) / 13.0 for index in range(26)]
+                grad_output = [((index % 19) - 9) / 19.0 for index in range(output_size)]
+                layer.forward(inputs)
+                layer.backward(grad_output)
+
+                expected_weights = [
+                    [
+                        weight - float(learning_rate) * gradient
+                        for weight, gradient in zip(row, gradient_row)
+                    ]
+                    for row, gradient_row in zip(layer.weights, layer.grad_weights)
+                ]
+                expected_bias = [
+                    bias - float(learning_rate) * gradient
+                    for bias, gradient in zip(layer.bias, layer.grad_bias)
+                ]
+                old_weights = layer.weights
+                old_rows = layer.weights.copy()
+                old_bias = layer.bias
+
+                layer.step(learning_rate)
+
+                self.assertEqual(layer.weights, expected_weights)
+                self.assertEqual(layer.bias, expected_bias)
+                self.assertFalse(layer._has_backward)
+                self.assertIsNot(layer.weights, old_weights)
+                self.assertTrue(
+                    all(new_row is not old_row for new_row, old_row in zip(layer.weights, old_rows))
+                )
+                self.assertIsNot(layer.bias, old_bias)
 
     def test_step_before_backward_and_twice_are_rejected(self) -> None:
         layer = Linear(input_size=2, output_size=2, seed=7)

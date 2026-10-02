@@ -1,0 +1,81 @@
+{
+  "phase": "7.1_linear_step_cross_shape_investigation",
+  "production_code_changed": false,
+  "shape_convention": "output_size × input_size",
+  "variants": {
+    "A": "current Linear.step()",
+    "B": "convert learning_rate once; keep nested-list reconstruction",
+    "C": "convert once; update weights and bias in place"
+  },
+  "raw_reports": [
+    "experiments/phase7_1_linear_step_microbenchmark.json",
+    "experiments/phase7_1_linear_step_microbenchmark_round2.json"
+  ],
+  "measurement_protocol": {
+    "paired_order": ["ABC", "BCA", "CAB", "ACB", "CBA", "BAC"],
+    "timers": ["perf_counter_ns", "process_time_ns"],
+    "round1": {"iterations_per_sample": 40, "warmups_per_variant": 2},
+    "round2": {"iterations_per_sample": 500, "warmups_per_variant": 3}
+  },
+  "round1": {
+    "3932x26": {
+      "median_A_over_B_wall_cpu": [1.233230255769703, 1.236665214842975],
+      "B_wins_blocks_wall_cpu": [5, 5],
+      "median_A_over_C_wall_cpu": [1.4484934684367836, 1.447224705778073],
+      "C_wins_blocks_wall_cpu": [6, 6],
+      "median_B_over_C_wall_cpu": [1.027945503118783, 1.0271165934905053],
+      "C_wins_directly_vs_B_wall_cpu": [3, 3]
+    },
+    "51x26": {
+      "median_A_over_B_wall_cpu": [1.3236306642850204, 1.3179764437220975],
+      "B_wins_blocks_wall_cpu": [6, 6],
+      "median_A_over_C_wall_cpu": [1.015299226235716, 1.020206430821648],
+      "C_wins_blocks_wall_cpu": [4, 4],
+      "median_B_over_C_wall_cpu": [0.7732489449207758, 0.7825048213482739],
+      "B_wins_directly_vs_C_wall_cpu": [6, 6]
+    }
+  },
+  "round2": {
+    "3932x26": {
+      "median_ns_per_step": {"A_wall": 10909079.519, "B_wall": 8787980.799, "C_wall": 8653063.547, "A_cpu": 10891295.775, "B_cpu": 8764716.506, "C_cpu": 8642435.568},
+      "median_A_over_B_wall_cpu": [1.2449666780314022, 1.2453723161730357],
+      "B_wins_blocks_wall_cpu": [6, 6],
+      "median_A_over_C_wall_cpu": [1.2656950386407435, 1.2653790011706838],
+      "C_wins_blocks_wall_cpu": [6, 6],
+      "median_B_over_C_wall_cpu": [1.0294635714210374, 1.0299528033969862],
+      "C_wins_directly_vs_B_wall_cpu": [5, 5]
+    },
+    "51x26": {
+      "median_ns_per_step": {"A_wall": 110893.49, "B_wall": 73516.732, "C_wall": 109504.174, "A_cpu": 110862.313, "B_cpu": 73526.025, "C_cpu": 109155.279},
+      "median_A_over_B_wall_cpu": [1.496016300576403, 1.4953667711983198],
+      "B_wins_blocks_wall_cpu": [5, 5],
+      "median_A_over_C_wall_cpu": [0.9897257405960787, 0.9910757286370908],
+      "C_wins_blocks_wall_cpu": [3, 3],
+      "median_B_over_C_wall_cpu": [0.7275181300285087, 0.7287875764909038],
+      "B_wins_directly_vs_C_wall_cpu": [6, 6]
+    }
+  },
+  "exactness": {
+    "one_step_weights_bias_and_has_backward_exact_for_A_B_C": true,
+    "final_weights_bias_and_has_backward_exact_after_repeated_steps_in_every_block": true
+  },
+  "allocation_probe_tracemalloc_bytes_round2": {
+    "3932x26": {"A_peak": 3841384, "B_peak": 3841336, "C_peak": 2548712, "C_reduction_vs_A_percent": 33.65363989461956},
+    "51x26": {"A_peak": 50424, "B_peak": 50424, "C_peak": 33760, "C_reduction_vs_A_percent": 33.23272438443209},
+    "note": "Tracemalloc single-step allocation probe, not process RSS."
+  },
+  "identity_semantics": {
+    "A_and_B_replace_weights_outer_list_rows_and_bias_list": true,
+    "C_preserves_weights_outer_list_rows_and_bias_list": true,
+    "has_backward_false_after_all_variants": true,
+    "in_repo_alias_scan_found_a_caller_relying_on_old_weight_references": false,
+    "compatibility_note": "List identity is observable to external callers even though no in-repo alias dependency was found."
+  },
+  "interpretation": {
+    "primary_shape": "C is only about 2.7–2.9% faster than B in the longer round; B and C both consistently beat A.",
+    "small_shape": "B beats A strongly and C in every direct pair in both rounds; C's median is about 1% slower than A in round 2 and its paired result is noisy.",
+    "cross_shape_preference": "B is the safer candidate to advance: it wins both shapes without changing list identity. C saves about one-third of traced single-step allocations, but does not justify its small-shape slowdown and observable identity change from this microbenchmark alone."
+  },
+  "decision": "advance_B_to_full_D_benchmark_only; no production change applied",
+  "next_gate": "Run B against A on the exact D workload in fresh processes before any production edit."
+}

@@ -1,6 +1,7 @@
 """Camada afim com múltiplas saídas, implementada em Python puro."""
 
 import math
+import operator
 from random import Random
 
 
@@ -57,8 +58,7 @@ class Linear:
 
         self.last_input = [float(value) for value in inputs]
         self.output = [
-            sum(weight * input_value for weight, input_value in zip(row, self.last_input))
-            + bias
+            sum(map(operator.mul, row, self.last_input)) + bias
             for row, bias in zip(self.weights, self.bias)
         ]
         self.grad_weights = [
@@ -79,17 +79,17 @@ class Linear:
         for index, value in enumerate(grad_output):
             self._validate_number(value, f"grad_output[{index}]")
 
+        grad_output_float = [float(value) for value in grad_output]
+        columns = [list(column) for column in zip(*self.weights)]
         self.grad_weights = [
-            [float(grad_output[row_index]) * input_value for input_value in self.last_input]
+            [grad_output_float[row_index] * input_value for input_value in self.last_input]
             for row_index in range(len(self.weights))
         ]
-        self.grad_bias = [float(value) for value in grad_output]
-        grad_inputs = [0.0 for _ in self.last_input]
-        for input_index in range(len(self.last_input)):
-            grad_inputs[input_index] = sum(
-                float(grad_output[row_index]) * self.weights[row_index][input_index]
-                for row_index in range(len(self.weights))
-            )
+        self.grad_bias = grad_output_float.copy()
+        grad_inputs = [
+            float(sum(map(operator.mul, column, grad_output_float)))
+            for column in columns
+        ]
         self._has_backward = True
         return grad_inputs
 
@@ -101,15 +101,16 @@ class Linear:
         if not self._has_backward:
             raise RuntimeError("step exige um backward anterior")
 
+        rate = float(learning_rate)
         self.weights = [
             [
-                weight - float(learning_rate) * gradient
+                weight - rate * gradient
                 for weight, gradient in zip(row, gradient_row)
             ]
             for row, gradient_row in zip(self.weights, self.grad_weights)
         ]
         self.bias = [
-            bias - float(learning_rate) * gradient
+            bias - rate * gradient
             for bias, gradient in zip(self.bias, self.grad_bias)
         ]
         self._has_backward = False

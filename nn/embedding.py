@@ -50,14 +50,19 @@ class Embedding:
         """Busca vetores na ordem dos IDs fornecidos."""
         if not isinstance(ids, list):
             raise TypeError("ids deve ser uma lista")
+        vocab_size = self.vocab_size
+        embedding_dim = self.embedding_dim
         for position, index in enumerate(ids):
-            self._validate_id(index, f"ids[{position}]")
+            if isinstance(index, bool) or not isinstance(index, int):
+                raise TypeError(f"ids[{position}] deve ser um inteiro")
+            if not 0 <= index < vocab_size:
+                raise ValueError(f"ids[{position}] fora do vocabulário")
 
         self.last_ids = ids.copy()
-        self.output = [self.weights[index].copy() for index in ids]
+        weights = self.weights
+        self.output = [weights[index].copy() for index in ids]
         self.grad_weights = [
-            [0.0 for _ in range(self.embedding_dim)]
-            for _ in range(self.vocab_size)
+            [0.0] * embedding_dim for _ in range(vocab_size)
         ]
         self._has_backward = False
         return [vector.copy() for vector in self.output]

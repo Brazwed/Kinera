@@ -1,0 +1,278 @@
+{
+  "cprofile_hotspots": [
+    {
+      "cumulative_time_seconds": 183.66672546200002,
+      "function": "run_phase7_1_performance_baseline.py:67(wrapped)",
+      "primitive_calls": 13000,
+      "total_calls": 13000,
+      "total_time_seconds": 0.140417107
+    },
+    {
+      "cumulative_time_seconds": 142.84028678800001,
+      "function": "autoregressive.py:358(train_multitask_examples)",
+      "primitive_calls": 1,
+      "total_calls": 1,
+      "total_time_seconds": 0.06254944400000001
+    },
+    {
+      "cumulative_time_seconds": 120.34915560200001,
+      "function": "autoregressive.py:132(multitask_train_step)",
+      "primitive_calls": 1000,
+      "total_calls": 1000,
+      "total_time_seconds": 0.037321787
+    },
+    {
+      "cumulative_time_seconds": 64.28918976300001,
+      "function": "autoregressive.py:405(evaluate_multitask_examples)",
+      "primitive_calls": 3,
+      "total_calls": 3,
+      "total_time_seconds": 0.20767051800000003
+    },
+    {
+      "cumulative_time_seconds": 56.97235757000001,
+      "function": "~:0(<built-in method builtins.sum>)",
+      "primitive_calls": 16154008,
+      "total_calls": 16154008,
+      "total_time_seconds": 25.571508218
+    },
+    {
+      "cumulative_time_seconds": 56.496967957,
+      "function": "heads.py:46(backward)",
+      "primitive_calls": 1000,
+      "total_calls": 1000,
+      "total_time_seconds": 0.025123402000000003
+    },
+    {
+      "cumulative_time_seconds": 56.471707261000006,
+      "function": "linear.py:71(backward)",
+      "primitive_calls": 3000,
+      "total_calls": 3000,
+      "total_time_seconds": 16.714863619000003
+    },
+    {
+      "cumulative_time_seconds": 53.02447247200001,
+      "function": "autoregressive.py:60(forward_heads)",
+      "primitive_calls": 4000,
+      "total_calls": 4000,
+      "total_time_seconds": 0.052408006
+    },
+    {
+      "cumulative_time_seconds": 35.82675536,
+      "function": "heads.py:37(forward)",
+      "primitive_calls": 4000,
+      "total_calls": 4000,
+      "total_time_seconds": 0.032128495
+    },
+    {
+      "cumulative_time_seconds": 35.684676523,
+      "function": "linear.py:50(forward)",
+      "primitive_calls": 12000,
+      "total_calls": 12000,
+      "total_time_seconds": 21.564018312
+    },
+    {
+      "cumulative_time_seconds": 33.493425935000005,
+      "function": "losses.py:60(forward)",
+      "primitive_calls": 4000,
+      "total_calls": 4000,
+      "total_time_seconds": 0.055304213000000005
+    },
+    {
+      "cumulative_time_seconds": 26.863607774000002,
+      "function": "linear.py:89(<genexpr>)",
+      "primitive_calls": 103662000,
+      "total_calls": 103662000,
+      "total_time_seconds": 26.863607774000002
+    },
+    {
+      "cumulative_time_seconds": 20.981014077,
+      "function": "losses.py:117(_validate_outputs)",
+      "primitive_calls": 5000,
+      "total_calls": 5000,
+      "total_time_seconds": 6.60676253
+    },
+    {
+      "cumulative_time_seconds": 20.758918996000002,
+      "function": "heads.py:63(step)",
+      "primitive_calls": 1000,
+      "total_calls": 1000,
+      "total_time_seconds": 0.007211288000000001
+    },
+    {
+      "cumulative_time_seconds": 20.751707708,
+      "function": "linear.py:96(step)",
+      "primitive_calls": 3000,
+      "total_calls": 3000,
+      "total_time_seconds": 20.742524578
+    },
+    {
+      "cumulative_time_seconds": 16.887148423,
+      "function": "autoregressive.py:75(_forward_representation)",
+      "primitive_calls": 4000,
+      "total_calls": 4000,
+      "total_time_seconds": 0.078686351
+    },
+    {
+      "cumulative_time_seconds": 16.621698621,
+      "function": "probability.py:37(cross_entropy)",
+      "primitive_calls": 8000,
+      "total_calls": 8000,
+      "total_time_seconds": 0.056516929
+    },
+    {
+      "cumulative_time_seconds": 16.582475078,
+      "function": "hybrid.py:42(forward)",
+      "primitive_calls": 4000,
+      "total_calls": 4000,
+      "total_time_seconds": 0.070124856
+    },
+    {
+      "cumulative_time_seconds": 16.211610957,
+      "function": "embedding.py:49(forward)",
+      "primitive_calls": 8000,
+      "total_calls": 8000,
+      "total_time_seconds": 12.083652392000001
+    },
+    {
+      "cumulative_time_seconds": 15.522046962000001,
+      "function": "probability.py:9(_validate_logits)",
+      "primitive_calls": 12000,
+      "total_calls": 12000,
+      "total_time_seconds": 9.077855138
+    }
+  ],
+  "linear_backward": "A: current generator implementation at control commit 3c170ee",
+  "linear_forward": "sum(map(operator.mul, row, inputs))",
+  "metrics": {
+    "final_validation": {
+      "boundary_accuracy": 0.547,
+      "boundary_f1": 0.707175177763413,
+      "boundary_loss": 0.6848011780147428,
+      "boundary_precision": 0.547,
+      "boundary_recall": 1.0,
+      "boundary_target_distribution": {
+        "0": 453,
+        "1": 547
+      },
+      "char_accuracy": 0.312,
+      "char_loss": 2.390993508810895,
+      "examples": 1000,
+      "syllable_accuracy": 0.199,
+      "syllable_accuracy_all": 0.199,
+      "syllable_accuracy_known": 0.11396648044692738,
+      "syllable_loss": 5.843601166806794,
+      "total_loss": 6.686954678980064
+    },
+    "initial_validation": {
+      "boundary_accuracy": 0.552,
+      "boundary_f1": 0.4455445544554456,
+      "boundary_loss": 0.6931061239046192,
+      "boundary_precision": 0.6896551724137931,
+      "boundary_recall": 0.3290676416819013,
+      "boundary_target_distribution": {
+        "0": 453,
+        "1": 547
+      },
+      "char_accuracy": 0.0,
+      "char_loss": 3.9250538277474947,
+      "examples": 1000,
+      "syllable_accuracy": 0.0,
+      "syllable_accuracy_all": 0.0,
+      "syllable_accuracy_known": 0.0,
+      "syllable_loss": 8.271293601869802,
+      "total_loss": 9.92289118622772
+    },
+    "training": {
+      "epochs": 1,
+      "examples": 1000,
+      "history": [
+        {
+          "boundary_accuracy": 0.581,
+          "boundary_f1": 0.734977862112587,
+          "boundary_loss": 0.6659616283215016,
+          "boundary_precision": 0.581,
+          "boundary_recall": 1.0,
+          "boundary_target_distribution": {
+            "0": 419,
+            "1": 581
+          },
+          "char_accuracy": 0.327,
+          "char_loss": 2.462833662370699,
+          "syllable_accuracy": 0.242,
+          "syllable_accuracy_all": 0.242,
+          "syllable_accuracy_known": 0.15862068965517243,
+          "syllable_loss": 4.836018948500853,
+          "total_loss": 6.047835414817754
+        }
+      ]
+    }
+  },
+  "model": {
+    "char_vocab_size": 51,
+    "parameter_count": 139432,
+    "syllable_vocab_size": 3932
+  },
+  "notes": [
+    "Control run A1 in separate Python process/worktree at 3c170ee; forward optimization is present, backward candidate C is absent.",
+    "Shared immutable dataset artifacts loaded from the active branch checkout.",
+    "Fixed D workload: seed=7, 1000 examples, workers=1, 1 epoch, learning_rate=0.05, context_size=8."
+  ],
+  "pair_run_id": "A1",
+  "peak_rss_kb": 53560,
+  "phase": "7.1_performance_baseline",
+  "timing": {
+    "stages": {
+      "backward": {
+        "nanoseconds": 67735268573,
+        "percent_total": 36.5822216841236,
+        "seconds": 67.735268573
+      },
+      "data_preparation": {
+        "nanoseconds": 190102126,
+        "percent_total": 0.10266967655794132,
+        "seconds": 0.190102126
+      },
+      "evaluation": {
+        "nanoseconds": 41998450653,
+        "percent_total": 22.68237307602846,
+        "seconds": 41.998450653
+      },
+      "forward": {
+        "nanoseconds": 28038801695,
+        "percent_total": 15.143095775256649,
+        "seconds": 28.038801695
+      },
+      "loss": {
+        "nanoseconds": 17148326304,
+        "percent_total": 9.261406761656717,
+        "seconds": 17.148326304
+      },
+      "optimizer_update": {
+        "nanoseconds": 29290016729,
+        "percent_total": 15.818847517481844,
+        "seconds": 29.290016729
+      },
+      "preparation_features": {
+        "nanoseconds": 243281539,
+        "percent_total": 0.13139062380421873,
+        "seconds": 0.243281539
+      },
+      "unattributed_overhead": {
+        "nanoseconds": 514732494,
+        "percent_total": 0.2779948850905669,
+        "seconds": 0.514732494
+      }
+    },
+    "total_nanoseconds": 185158980113,
+    "total_seconds": 185.158980113
+  },
+  "workload": {
+    "context_size": 8,
+    "epochs": 1,
+    "learning_rate": 0.05,
+    "max_examples": 1000,
+    "seed": 7,
+    "variant": "D",
+    "workers": 1
+  }
+}

@@ -1,5 +1,6 @@
 import math
 import unittest
+from typing import Any
 
 from nn.heads import MultiTaskHeads
 from nn.losses import MultiTaskLoss, binary_cross_entropy_with_logits
@@ -55,6 +56,86 @@ class MultiTaskLossTests(unittest.TestCase):
             loss.forward(outputs, {"char": 2, "syllable": 0, "boundary": 0.0})
         with self.assertRaises(ValueError):
             loss.forward(outputs, {"char": 0, "syllable": 0, "boundary": 2.0})
+
+    def test_forward_and_backward_reject_invalid_inputs_with_exact_errors(self) -> None:
+        valid_outputs: dict[str, Any] = {
+            "char": [0.0, 1.0],
+            "syllable": [0.0, 1.0],
+            "boundary": [0.0],
+        }
+        valid_targets: dict[str, Any] = {
+            "char": 0,
+            "syllable": 1,
+            "boundary": 0.0,
+        }
+        empty_char = {**valid_outputs, "char": []}
+        container_char = {**valid_outputs, "char": (0.0, 1.0)}
+        cases: tuple[tuple[str, Any, Any, type[Exception], str], ...] = (
+            (
+                "outputs_container",
+                [],
+                valid_targets,
+                ValueError,
+                "outputs deve conter char, syllable e boundary",
+            ),
+            (
+                "char_container",
+                container_char,
+                valid_targets,
+                ValueError,
+                "outputs[char] deve ser uma lista não vazia",
+            ),
+            (
+                "char_empty",
+                empty_char,
+                valid_targets,
+                ValueError,
+                "outputs[char] deve ser uma lista não vazia",
+            ),
+            (
+                "char_nan",
+                {**valid_outputs, "char": [math.nan, 1.0]},
+                valid_targets,
+                ValueError,
+                "outputs[char][0] deve ser finito",
+            ),
+            (
+                "char_inf",
+                {**valid_outputs, "char": [math.inf, 1.0]},
+                valid_targets,
+                ValueError,
+                "outputs[char][0] deve ser finito",
+            ),
+            (
+                "char_bool",
+                {**valid_outputs, "char": [True, 1.0]},
+                valid_targets,
+                TypeError,
+                "outputs[char][0] deve ser numérico",
+            ),
+            (
+                "char_string",
+                {**valid_outputs, "char": ["0", 1.0]},
+                valid_targets,
+                TypeError,
+                "outputs[char][0] deve ser numérico",
+            ),
+            (
+                "target_out_of_range",
+                valid_outputs,
+                {**valid_targets, "char": 2},
+                ValueError,
+                "targets[char] fora do vocabulário",
+            ),
+        )
+
+        for method_name in ("forward", "backward"):
+            for case_name, outputs, targets, error_type, expected_message in cases:
+                with self.subTest(method=method_name, case=case_name):
+                    method = getattr(MultiTaskLoss(), method_name)
+                    with self.assertRaises(error_type) as raised:
+                        method(outputs, targets)
+                    self.assertEqual(str(raised.exception), expected_message)
 
 
 class MultiTaskGradientCheckingTests(unittest.TestCase):

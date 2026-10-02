@@ -1,0 +1,59 @@
+{
+  "phase": "7.1_linear_step_full_workload_paired_validation",
+  "candidate": "B: convert learning_rate once, keep the current nested-list reconstruction",
+  "control_commit": "83d575d",
+  "run_order": ["A1", "B1", "B2", "A2"],
+  "separate_fresh_processes": true,
+  "workload": {
+    "variant": "D",
+    "seed": 7,
+    "max_examples": 1000,
+    "workers": 1,
+    "epochs": 1,
+    "learning_rate": 0.05,
+    "context_size": 8
+  },
+  "runs": {
+    "A1": {"implementation": "A at control commit 83d575d", "seconds": 149.101302337, "peak_rss_kb": 54108, "report": "experiments/phase7_1_linear_step_full_D_A1.json"},
+    "B1": {"implementation": "production B", "seconds": 138.29465309, "peak_rss_kb": 53688, "report": "experiments/phase7_1_linear_step_full_D_B1.json"},
+    "B2": {"implementation": "production B", "seconds": 137.963583943, "peak_rss_kb": 53732, "report": "experiments/phase7_1_linear_step_full_D_B2.json"},
+    "A2": {"implementation": "A at control commit 83d575d", "seconds": 147.773685558, "peak_rss_kb": 54480, "report": "experiments/phase7_1_linear_step_full_D_A2.json"}
+  },
+  "paired_comparisons": [
+    {"pair": "A1/B1", "seconds_saved": 10.806649247, "improvement_percent": 7.247857045926211, "optimizer_update_A_seconds": 30.077661129, "optimizer_update_B_seconds": 19.520608177, "rss_delta_kb": -420, "rss_delta_percent": -0.7762253271235307},
+    {"pair": "A2/B2", "seconds_saved": 9.810101615, "improvement_percent": 6.638598460853587, "optimizer_update_A_seconds": 28.722376236, "optimizer_update_B_seconds": 20.076973406, "rss_delta_kb": -748, "rss_delta_percent": -1.3729809104258444}
+  ],
+  "gates": {
+    "same_workload_for_both_pairs": true,
+    "initial_validation_exact_across_all_four_runs": true,
+    "training_history_exact_across_all_four_runs": true,
+    "final_validation_exact_across_all_four_runs": true,
+    "all_metrics_exact_across_all_four_runs": true,
+    "all_parameter_counts_equal_139432": true,
+    "full_test_suite_count": 226,
+    "full_test_suite_passed": true,
+    "gradient_checks_count": 6,
+    "gradient_checks_passed": true,
+    "reconstruction_identity_contract_preserved": true
+  },
+  "post_commit_profile": {
+    "commit": "5f18cf4",
+    "report": "experiments/phase7_1_linear_step_post_commit_profile.json",
+    "total_seconds": 140.446418864,
+    "peak_rss_kb": 54420,
+    "optimizer_update_seconds": 19.666513599,
+    "optimizer_update_percent": 14.00285871158017,
+    "evaluation_stage_seconds": 43.887403701,
+    "evaluation_stage_percent": 31.248503205694384,
+    "linear_step_cprofile_self_seconds": 11.511266955,
+    "linear_step_calls": 3000,
+    "evaluate_multitask_examples_self_seconds": 0.219864021,
+    "evaluate_multitask_examples_cumulative_seconds": 67.108980747
+  },
+  "decision": "retain_B",
+  "notes": [
+    "Both fresh-process D pairs favored B by 6.64–7.25%, exceeding the expected 2–4% range; all nested metrics and parameter counts were exact.",
+    "RSS decreased in both paired comparisons.",
+    "B preserves A's list-reconstruction/identity behavior; no in-place mutation was introduced."
+  ]
+}

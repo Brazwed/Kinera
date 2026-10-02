@@ -1,0 +1,59 @@
+{
+  "phase": "7.1_embedding_forward_candidate_investigation",
+  "production_code_changed": false,
+  "input_contract": {
+    "variant": "D",
+    "source": "first 128 train records from data/processed/autoregressive_train.jsonl, prepared as D",
+    "context_size": 8,
+    "embedding_dim": 8,
+    "syllable_table": "3932×8",
+    "character_table": "51×8",
+    "unique_ids_per_context_mean": {"syllable": 2.6875, "character": 4.0859375}
+  },
+  "raw_report": "experiments/phase7_1_embedding_forward_microbenchmark.json",
+  "protocol": {
+    "paired_order": ["ABC", "BCA", "CAB", "ACB", "CBA", "BAC"],
+    "cycles_over_128_contexts_per_sample": 5,
+    "forward_calls_per_sample": 640,
+    "warmups_per_variant": 2,
+    "timers": ["perf_counter_ns", "process_time_ns"]
+  },
+  "variants": {
+    "A": "current production forward",
+    "B": "cache vocab_size/embedding_dim; reset all grad rows with independent [0.0] * embedding_dim lists",
+    "C": "reset only unique rows in the current ids list; experimental and unsafe with current dense step"
+  },
+  "results": {
+    "B": {
+      "syllable_3932x8_median_speedup_wall_cpu": [1.9247681688896239, 1.9248592884710871],
+      "syllable_wins_out_of_six_wall_cpu": [6, 6],
+      "character_51x8_median_speedup_wall_cpu": [2.3550981549100385, 2.3655505014405707],
+      "character_wins_out_of_six_wall_cpu": [6, 6],
+      "exact_returned_vectors_internal_output_last_ids_grad_weights_and_flag_on_clean_state": true
+    },
+    "C": {
+      "clean_state_syllable_3932x8_median_speedup_wall_cpu": [432.28759681880285, 431.61132867225865],
+      "clean_state_character_51x8_median_speedup_wall_cpu": [4.9392290247952655, 4.937492291603861],
+      "single_forward_tracemalloc_peak_bytes": {"syllable_3932x8": 2624, "character_51x8": 2592},
+      "two_batch_numeric_contract_preserved": false,
+      "stale_gradient_probe": {
+        "stale_id": 0,
+        "stale_grad_after_next_forward_backward": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        "stale_weight_delta_on_following_step": [-0.05, -0.05, -0.05, -0.05, -0.05, -0.05000000000000002, -0.05, -0.04999999999999999]
+      }
+    }
+  },
+  "allocation_probe_tracemalloc_peak_bytes": {
+    "syllable_3932x8": {"A": 507012, "B": 507016, "C": 2624},
+    "character_51x8": {"A": 8636, "B": 8624, "C": 2592},
+    "note": "Python allocation trace for one isolated forward; not process RSS."
+  },
+  "correctness_analysis": {
+    "A_B_contract_equal": true,
+    "C_clean_forward_outputs_equal": true,
+    "C_full_reset_contract_equal": false,
+    "reason": "Embedding.step updates the full table. A later forward on another ID set leaves C's unused stale grad rows intact, so the next step changes weights that A and B leave unchanged."
+  },
+  "decision": "advance_B_to_temporary_D_trial_only; reject_C_as_currently_defined",
+  "next_gate": "Run B versus A on the exact D workload in fresh processes; no production change until that comparison passes."
+}

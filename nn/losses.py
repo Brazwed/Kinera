@@ -5,7 +5,12 @@ from __future__ import annotations
 import math
 from typing import Mapping
 
-from nn.probability import cross_entropy, cross_entropy_gradient
+from nn.probability import (
+    _cross_entropy_gradient_validated,
+    _cross_entropy_validated,
+    cross_entropy as cross_entropy,
+    cross_entropy_gradient as cross_entropy_gradient,
+)
 
 
 _REQUIRED_HEADS = ("char", "syllable", "boundary")
@@ -69,8 +74,10 @@ class MultiTaskLoss:
             targets.get("syllable"), len(outputs["syllable"]), "syllable"
         )
         boundary_target = _validate_binary_target(targets.get("boundary"))
-        char_loss = cross_entropy(outputs["char"], char_target)
-        syllable_loss = cross_entropy(outputs["syllable"], syllable_target)
+        char_loss = _cross_entropy_validated(outputs["char"], char_target)
+        syllable_loss = _cross_entropy_validated(
+            outputs["syllable"], syllable_target
+        )
         boundary_loss = binary_cross_entropy_with_logits(
             outputs["boundary"][0], boundary_target
         )
@@ -100,11 +107,15 @@ class MultiTaskLoss:
         return {
             "char": [
                 self.weights["char"] * value
-                for value in cross_entropy_gradient(outputs["char"], char_target)
+                for value in _cross_entropy_gradient_validated(
+                    outputs["char"], char_target
+                )
             ],
             "syllable": [
                 self.weights["syllable"] * value
-                for value in cross_entropy_gradient(outputs["syllable"], syllable_target)
+                for value in _cross_entropy_gradient_validated(
+                    outputs["syllable"], syllable_target
+                )
             ],
             "boundary": [
                 self.weights["boundary"]

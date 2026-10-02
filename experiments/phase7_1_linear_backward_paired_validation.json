@@ -1,0 +1,66 @@
+{
+  "phase": "7.1_linear_backward_full_workload_paired_validation",
+  "candidate": "C: convert grad_output once, transpose weights per call, and sum(map(operator.mul, column, grad_output_float))",
+  "run_order": ["A1", "C1", "C2", "A2"],
+  "separate_processes": true,
+  "control_commit": "3c170ee",
+  "workload": {
+    "variant": "D",
+    "seed": 7,
+    "max_examples": 1000,
+    "workers": 1,
+    "epochs": 1,
+    "learning_rate": 0.05,
+    "context_size": 8
+  },
+  "runs": {
+    "A1": {"implementation": "current generator backward", "seconds": 185.158980113, "peak_rss_kb": 53560, "report": "experiments/phase7_1_linear_backward_full_D_A1.json"},
+    "C1": {"implementation": "production C", "seconds": 149.825478216, "peak_rss_kb": 54524, "report": "experiments/phase7_1_linear_backward_full_D_C1.json"},
+    "C2": {"implementation": "production C", "seconds": 149.354159295, "peak_rss_kb": 53700, "report": "experiments/phase7_1_linear_backward_full_D_C2.json"},
+    "A2": {"implementation": "current generator backward", "seconds": 180.657401568, "peak_rss_kb": 53084, "report": "experiments/phase7_1_linear_backward_full_D_A2.json"}
+  },
+  "paired_comparisons": [
+    {"pair": "A1/C1", "seconds_saved": 35.333501897, "improvement_percent": 19.082791380378346, "rss_delta_kb": 964, "rss_delta_percent": 1.799850634802091},
+    {"pair": "A2/C2", "seconds_saved": 31.303242273, "improvement_percent": 17.32740646179248, "rss_delta_kb": 616, "rss_delta_percent": 1.1604249868133525}
+  ],
+  "post_commit_profile": {
+    "commit": "13bd8d9",
+    "report": "experiments/phase7_1_linear_backward_post_commit_profile.json",
+    "total_seconds": 149.502527941,
+    "peak_rss_kb": 53932,
+    "stage_seconds": {
+      "evaluation": 41.869893974,
+      "backward": 31.460082118,
+      "optimizer_update": 30.045147482,
+      "forward": 28.812107435,
+      "loss": 16.365589786
+    },
+    "stage_percent": {
+      "evaluation": 28.006144478388766,
+      "backward": 21.043177363807168,
+      "optimizer_update": 20.096748794680636,
+      "forward": 19.271986789661824,
+      "loss": 10.946697698957005
+    }
+  },
+  "gates": {
+    "A1_C1_same_workload": true,
+    "A2_C2_same_workload": true,
+    "all_parameter_counts_equal_139432": true,
+    "initial_validation_exact_across_all_runs": true,
+    "training_history_exact_across_all_runs": true,
+    "final_validation_exact_across_all_runs": true,
+    "all_metrics_exact_across_all_runs": true,
+    "full_test_suite_count": 226,
+    "full_test_suite_passed": true,
+    "gradient_checks_count": 6,
+    "gradient_checks_passed": true,
+    "shape_reference_tests_cover_3932x26_and_51x26": true
+  },
+  "decision": "retain_candidate_C",
+  "notes": [
+    "Both paired full-workload trials favored C by a two-digit margin; mathematical reports were exactly equal.",
+    "Peak RSS increased by 964 KiB (1.80%) in pair 1 and 616 KiB (1.16%) in pair 2.",
+    "The prior 819,624-byte transpose figure is shallow list-container size; process peak RSS above is the practical memory gate."
+  ]
+}

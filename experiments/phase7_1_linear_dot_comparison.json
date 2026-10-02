@@ -1,0 +1,55 @@
+{
+  "phase": "7.1_linear_forward_optimization_comparison",
+  "candidate": "sum(map(operator.mul, row, inputs))",
+  "baseline_report": "experiments/phase7_1_performance_baseline.json",
+  "candidate_report": "experiments/phase7_1_linear_dot_candidate.json",
+  "microbenchmark_report": "experiments/phase7_1_linear_dot_microbenchmark.json",
+  "post_optimization_profile": "experiments/phase7_1_linear_dot_post_profile.json",
+  "workload": {
+    "variant": "D",
+    "seed": 7,
+    "max_examples": 1000,
+    "workers": 1,
+    "epochs": 1,
+    "learning_rate": 0.05,
+    "context_size": 8
+  },
+  "timing": {
+    "baseline_seconds": 256.006861379,
+    "candidate_seconds": 180.311431796,
+    "delta_seconds": -75.695429583,
+    "improvement_percent": 29.567734698695546,
+    "baseline_forward_seconds": 63.561522681,
+    "candidate_forward_seconds": 25.462011761,
+    "baseline_peak_rss_kb": 53548,
+    "candidate_peak_rss_kb": 54020,
+    "candidate_reprofile_seconds": 183.520887841,
+    "candidate_reprofile_peak_rss_kb": 53612,
+    "rss_delta_kb_main_comparison": 472,
+    "rss_delta_percent_main_comparison": 0.8814521550758199,
+    "rss_delta_kb_reprofile": 64,
+    "rss_delta_percent_reprofile": 0.1195199632133775
+  },
+  "gates": {
+    "same_workload": true,
+    "same_model_and_parameter_count": true,
+    "initial_validation_exactly_equal": true,
+    "training_history_exactly_equal": true,
+    "final_validation_exactly_equal": true,
+    "all_metrics_exactly_equal": true,
+    "parameter_count_baseline": 139432,
+    "parameter_count_candidate": 139432,
+    "gradient_checks_count": 6,
+    "gradient_checks_passed": true,
+    "full_test_suite_count": 225,
+    "full_test_suite_passed": true,
+    "microbenchmark_exact_output_equality": true,
+    "paired_blocks_favored_candidate_in_all_blocks": true
+  },
+  "decision": "all_requested_gates_passed_retain_candidate",
+  "notes": [
+    "The 6 gradient checks were run using the same command recorded in experiments/phase6_final_validation.json.",
+    "The full test suite was rerun after adding exact generator-reference coverage for both benchmark shapes.",
+    "A fresh post-optimization cProfile run was recorded before selecting another optimization target."
+  ]
+}
