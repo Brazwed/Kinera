@@ -737,3 +737,28 @@ parcial está causalmente válida, mas não deve substituir o esquema atual com
 base neste experimento.
 
 Relatório: `experiments/phase5_4_expanded_analysis.json`.
+
+### Fase 5.5 — Análise por classe ortográfica
+
+Esta fase diagnostica o ganho de C/D sem alterar a arquitetura. Os targets são
+separados em `vogal`, `consoante`, `vogal_acentuada`, `<END>`,
+`separador_pontuacao` e `outros`. `<END>` e pontuação não são misturados com
+letras na interpretação.
+
+Runner ampliado e retomável:
+
+```bash
+python run_phase5_5_expanded.py \
+  --vocabulary data/processed/vocabulary.json \
+  --syllable-vocabulary data/processed/syllable_vocabulary.json \
+  --train data/processed/autoregressive_train.jsonl \
+  --validation data/processed/autoregressive_validation.jsonl \
+  --seeds 7 42 123 --epochs 2 --learning-rate 0.05 \
+  --max-examples 1000 --workers 3 \
+  --checkpoint experiments/phase5_5_orthographic_class_analysis.json \
+  --resume
+```
+
+Para cada classe, o relatório registra quantidade de exemplos, `char_loss`,
+`char_accuracy`, delta de loss, delta de acurácia, probabilidade média do
+target correto e fração de exemplos melhorados/regredidos.
