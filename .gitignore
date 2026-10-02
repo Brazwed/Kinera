@@ -3,9 +3,9 @@ __pycache__/
 *.log
 
 # Generated datasets and local training artifacts
-data/processed/*.jsonl
-data/processed/splits/
+data/processed/
 data/raw/
+.hermes/
 
 # Local experiment outputs
 checkpoints/*.json

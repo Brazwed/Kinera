@@ -33,6 +33,8 @@ def run_seed_jobs(
     """Executa jobs por seed e persiste cada transição de estado."""
     if not seeds:
         raise ValueError("seeds não pode ser vazio")
+    if len(set(seeds)) != len(seeds):
+        raise ValueError("seeds não pode conter duplicatas")
     if not callable(worker):
         raise TypeError("worker deve ser chamável")
     if job_factory is not None and not callable(job_factory):
@@ -55,11 +57,16 @@ def run_seed_jobs(
             "runs": results,
             "status": "running",
         }
-        write_json_checkpoint(checkpoint_path, report)
+    results = prepare_seed_records(results, seeds)
+    write_json_checkpoint(checkpoint_path, {
+        **experiment_config,
+        **execution_config,
+        "seeds": list(seeds),
+        "runs": results,
+        "status": "running",
+    })
 
     pending = pending_seeds(results, seeds)
-    for seed in pending:
-        results.append({"seed": seed, "status": "pending", "worker_pid": None})
     _persist(checkpoint_path, experiment_config, execution_config, seeds, results, aggregate)
 
     jobs = [(seed, seed if job_factory is None else job_factory(seed)) for seed in pending]
@@ -105,6 +112,32 @@ def run_seed_jobs(
         report["aggregates"] = aggregate(results)
     write_json_checkpoint(checkpoint_path, report)
     return report
+
+
+def prepare_seed_records(
+    results: list[dict[str, Any]],
+    seeds: list[int] | tuple[int, ...],
+) -> list[dict[str, Any]]:
+    """Normaliza registros para exatamente um registro por seed solicitada."""
+    by_seed: dict[int, dict[str, Any]] = {}
+    for record in results:
+        seed = record.get("seed")
+        if seed not in seeds:
+            continue
+        previous = by_seed.get(seed)
+        if previous is None or (
+            record.get("status") == "completed" and previous.get("status") != "completed"
+        ):
+            by_seed[seed] = dict(record)
+
+    prepared: list[dict[str, Any]] = []
+    for seed in seeds:
+        record = by_seed.get(seed)
+        if record is not None and record.get("status") == "completed":
+            prepared.append(record)
+        else:
+            prepared.append({"seed": seed, "status": "pending", "worker_pid": None})
+    return prepared
 
 
 def _execute_worker(worker: Worker, seed: int, job: Any) -> dict[str, Any]:
