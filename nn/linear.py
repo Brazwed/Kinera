@@ -1,6 +1,7 @@
 """Camada afim com múltiplas saídas, implementada em Python puro."""
 
 import math
+import operator
 from random import Random
 
 
@@ -57,8 +58,7 @@ class Linear:
 
         self.last_input = [float(value) for value in inputs]
         self.output = [
-            sum(weight * input_value for weight, input_value in zip(row, self.last_input))
-            + bias
+            sum(map(operator.mul, row, self.last_input)) + bias
             for row, bias in zip(self.weights, self.bias)
         ]
         self.grad_weights = [

@@ -48,6 +48,21 @@ class LinearForwardTests(unittest.TestCase):
         self.assertEqual(layer.last_input, [2.0, -1.0])
         self.assertEqual(layer.output, [2.25, 3.25])
 
+    def test_forward_matches_generator_reference_for_both_benchmark_shapes(self) -> None:
+        for output_size in (51, 3932):
+            with self.subTest(output_size=output_size):
+                layer = Linear(input_size=26, output_size=output_size, seed=7)
+                inputs = [float(index + 1) / 10 for index in range(26)]
+
+                actual = layer.forward(inputs)
+                expected = [
+                    sum(weight * value for weight, value in zip(row, inputs))
+                    + bias
+                    for row, bias in zip(layer.weights, layer.bias)
+                ]
+
+                self.assertEqual(actual, expected)
+
     def test_forward_copies_input(self) -> None:
         layer = Linear(input_size=2, output_size=1, seed=7)
         inputs = [2.0, -1.0]
