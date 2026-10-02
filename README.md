@@ -762,3 +762,23 @@ python run_phase5_5_expanded.py \
 Para cada classe, o relatório registra quantidade de exemplos, `char_loss`,
 `char_accuracy`, delta de loss, delta de acurácia, probabilidade média do
 target correto e fração de exemplos melhorados/regredidos.
+
+A execução ampliada foi concluída com 1.000 exemplos por split, 2 épocas e as
+seeds `7`, `42`, `123`. Médias entre seeds:
+
+```text
+classe              n     A vs C loss   A vs C acc    B vs D loss   B vs D acc
+vogal               456   +0,242796     +2,12 p.p.    +0,222917     +1,17 p.p.
+consoante           426   +0,067275      0,00 p.p.    +0,149653      0,00 p.p.
+<END>                98   -0,071900     +3,06 p.p.    -0,071622     -2,04 p.p.
+vogal_acentuada      13   -0,280952      0,00 p.p.    -0,200466      0,00 p.p.
+separador_pontuacao   7   -0,410634      0,00 p.p.    -0,080541      0,00 p.p.
+```
+
+O canal silábico mostrou ganho consistente de `char_loss` em vogais e
+consoantes, principalmente vogais. Já `<END>`, vogais acentuadas e pontuação
+regrediram em loss; as classes pequenas exigem cautela, especialmente as 13
+vogais acentuadas e os 7 separadores. O resultado não autoriza generalizar o
+benefício para todos os targets.
+
+Relatório: `experiments/phase5_5_orthographic_class_analysis.json`.

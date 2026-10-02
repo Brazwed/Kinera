@@ -1,0 +1,338 @@
+{
+  "completed_runs": 3,
+  "epochs": 2,
+  "failed_runs": 0,
+  "learning_rate": 0.05,
+  "max_examples": 1000,
+  "phase": "5.5_orthographic_class_analysis",
+  "runs": [
+    {
+      "run": {
+        "comparisons": {
+          "A_vs_C": {
+            "<END>": {
+              "count": 98,
+              "delta_accuracy": 0.05102040816326531,
+              "improved_loss_fraction": 0.2857142857142857,
+              "mean_augmented_prob_correct": 0.6055030480439317,
+              "mean_base_prob_correct": 0.6457686841574892,
+              "mean_delta_loss": -0.031147445497339697,
+              "regressed_loss_fraction": 0.7142857142857143
+            },
+            "consoante": {
+              "count": 426,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.4694835680751174,
+              "mean_augmented_prob_correct": 0.06517983928463232,
+              "mean_base_prob_correct": 0.07785612276283944,
+              "mean_delta_loss": 0.03021035694805822,
+              "regressed_loss_fraction": 0.5305164319248826
+            },
+            "separador_pontuacao": {
+              "count": 7,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.14285714285714285,
+              "mean_augmented_prob_correct": 0.002996951209186108,
+              "mean_base_prob_correct": 0.003865799136676667,
+              "mean_delta_loss": -0.5036096049542435,
+              "regressed_loss_fraction": 0.8571428571428571
+            },
+            "vogal": {
+              "count": 456,
+              "delta_accuracy": 0.010964912280701754,
+              "improved_loss_fraction": 0.8267543859649122,
+              "mean_augmented_prob_correct": 0.3940257397866376,
+              "mean_base_prob_correct": 0.3163777468596697,
+              "mean_delta_loss": 0.23482842754331734,
+              "regressed_loss_fraction": 0.17324561403508773
+            },
+            "vogal_acentuada": {
+              "count": 13,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.3076923076923077,
+              "mean_augmented_prob_correct": 0.009398464022072827,
+              "mean_base_prob_correct": 0.010874807771300753,
+              "mean_delta_loss": -0.3237093826296211,
+              "regressed_loss_fraction": 0.6923076923076923
+            }
+          },
+          "B_vs_D": {
+            "<END>": {
+              "count": 98,
+              "delta_accuracy": -0.02040816326530612,
+              "improved_loss_fraction": 0.3979591836734694,
+              "mean_augmented_prob_correct": 0.6665514113697032,
+              "mean_base_prob_correct": 0.6801525729099808,
+              "mean_delta_loss": -0.0622320208061021,
+              "regressed_loss_fraction": 0.6020408163265306
+            },
+            "consoante": {
+              "count": 426,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.715962441314554,
+              "mean_augmented_prob_correct": 0.0844175267583069,
+              "mean_base_prob_correct": 0.07869776074333601,
+              "mean_delta_loss": 0.13958581689387278,
+              "regressed_loss_fraction": 0.284037558685446
+            },
+            "separador_pontuacao": {
+              "count": 7,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.14285714285714285,
+              "mean_augmented_prob_correct": 0.003869521605318294,
+              "mean_base_prob_correct": 0.00418354182484762,
+              "mean_delta_loss": -0.10970367697575131,
+              "regressed_loss_fraction": 0.8571428571428571
+            },
+            "vogal": {
+              "count": 456,
+              "delta_accuracy": 0.006578947368421052,
+              "improved_loss_fraction": 0.8771929824561403,
+              "mean_augmented_prob_correct": 0.3623716130755818,
+              "mean_base_prob_correct": 0.32035692243805153,
+              "mean_delta_loss": 0.22768718018698653,
+              "regressed_loss_fraction": 0.12280701754385964
+            },
+            "vogal_acentuada": {
+              "count": 13,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.3076923076923077,
+              "mean_augmented_prob_correct": 0.009026670008973963,
+              "mean_base_prob_correct": 0.010580761619991932,
+              "mean_delta_loss": -0.21354591055564406,
+              "regressed_loss_fraction": 0.6923076923076923
+            }
+          }
+        },
+        "duration_seconds": 788.1463896560017,
+        "seed": 7,
+        "status": "completed"
+      },
+      "seed": 7,
+      "status": "completed",
+      "wall_time_seconds": 788.3962298759725,
+      "worker_pid": 2834805
+    },
+    {
+      "run": {
+        "comparisons": {
+          "A_vs_C": {
+            "<END>": {
+              "count": 98,
+              "delta_accuracy": 0.04081632653061224,
+              "improved_loss_fraction": 0.19387755102040816,
+              "mean_augmented_prob_correct": 0.5844123178395325,
+              "mean_base_prob_correct": 0.650693038846753,
+              "mean_delta_loss": -0.08128251912921076,
+              "regressed_loss_fraction": 0.8061224489795918
+            },
+            "consoante": {
+              "count": 426,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.4788732394366197,
+              "mean_augmented_prob_correct": 0.07000049574400444,
+              "mean_base_prob_correct": 0.07698359571122212,
+              "mean_delta_loss": 0.08361110986812806,
+              "regressed_loss_fraction": 0.5211267605633803
+            },
+            "separador_pontuacao": {
+              "count": 7,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.14285714285714285,
+              "mean_augmented_prob_correct": 0.0033321573177582425,
+              "mean_base_prob_correct": 0.00391996269575856,
+              "mean_delta_loss": -0.382207453432156,
+              "regressed_loss_fraction": 0.8571428571428571
+            },
+            "vogal": {
+              "count": 456,
+              "delta_accuracy": 0.02412280701754386,
+              "improved_loss_fraction": 0.8508771929824561,
+              "mean_augmented_prob_correct": 0.3786119283459551,
+              "mean_base_prob_correct": 0.31723102060814723,
+              "mean_delta_loss": 0.24597085431872356,
+              "regressed_loss_fraction": 0.14912280701754385
+            },
+            "vogal_acentuada": {
+              "count": 13,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.3076923076923077,
+              "mean_augmented_prob_correct": 0.00920428103869937,
+              "mean_base_prob_correct": 0.010709038237426138,
+              "mean_delta_loss": -0.2923686630000286,
+              "regressed_loss_fraction": 0.6923076923076923
+            }
+          },
+          "B_vs_D": {
+            "<END>": {
+              "count": 98,
+              "delta_accuracy": -0.02040816326530612,
+              "improved_loss_fraction": 0.3469387755102041,
+              "mean_augmented_prob_correct": 0.6658497616852062,
+              "mean_base_prob_correct": 0.6832451880588514,
+              "mean_delta_loss": -0.07971119009039349,
+              "regressed_loss_fraction": 0.6530612244897959
+            },
+            "consoante": {
+              "count": 426,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.7136150234741784,
+              "mean_augmented_prob_correct": 0.0838234242257347,
+              "mean_base_prob_correct": 0.07808480189780238,
+              "mean_delta_loss": 0.15277733834616358,
+              "regressed_loss_fraction": 0.2863849765258216
+            },
+            "separador_pontuacao": {
+              "count": 7,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.14285714285714285,
+              "mean_augmented_prob_correct": 0.004078289114254139,
+              "mean_base_prob_correct": 0.004294572874467203,
+              "mean_delta_loss": -0.08347523291609502,
+              "regressed_loss_fraction": 0.8571428571428571
+            },
+            "vogal": {
+              "count": 456,
+              "delta_accuracy": 0.017543859649122806,
+              "improved_loss_fraction": 0.8837719298245614,
+              "mean_augmented_prob_correct": 0.3532005067962286,
+              "mean_base_prob_correct": 0.3175293874075036,
+              "mean_delta_loss": 0.22182926529459684,
+              "regressed_loss_fraction": 0.1162280701754386
+            },
+            "vogal_acentuada": {
+              "count": 13,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.3076923076923077,
+              "mean_augmented_prob_correct": 0.008911525462993976,
+              "mean_base_prob_correct": 0.010408262656766431,
+              "mean_delta_loss": -0.20996061685219544,
+              "regressed_loss_fraction": 0.6923076923076923
+            }
+          }
+        },
+        "duration_seconds": 790.9292795050424,
+        "seed": 42,
+        "status": "completed"
+      },
+      "seed": 42,
+      "status": "completed",
+      "wall_time_seconds": 791.1529274838977,
+      "worker_pid": 2834808
+    },
+    {
+      "run": {
+        "comparisons": {
+          "A_vs_C": {
+            "<END>": {
+              "count": 98,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.20408163265306123,
+              "mean_augmented_prob_correct": 0.5601786260357837,
+              "mean_base_prob_correct": 0.6449531714142398,
+              "mean_delta_loss": -0.10326923728787744,
+              "regressed_loss_fraction": 0.7959183673469388
+            },
+            "consoante": {
+              "count": 426,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.47183098591549294,
+              "mean_augmented_prob_correct": 0.07090836784596528,
+              "mean_base_prob_correct": 0.07723016034559065,
+              "mean_delta_loss": 0.08800267578647678,
+              "regressed_loss_fraction": 0.528169014084507
+            },
+            "separador_pontuacao": {
+              "count": 7,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.14285714285714285,
+              "mean_augmented_prob_correct": 0.0034102970367828047,
+              "mean_base_prob_correct": 0.0038206817837752372,
+              "mean_delta_loss": -0.34608538723476645,
+              "regressed_loss_fraction": 0.8571428571428571
+            },
+            "vogal": {
+              "count": 456,
+              "delta_accuracy": 0.02850877192982456,
+              "improved_loss_fraction": 0.8508771929824561,
+              "mean_augmented_prob_correct": 0.37240841006992037,
+              "mean_base_prob_correct": 0.3169449715618954,
+              "mean_delta_loss": 0.2475894491630433,
+              "regressed_loss_fraction": 0.14912280701754385
+            },
+            "vogal_acentuada": {
+              "count": 13,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.3076923076923077,
+              "mean_augmented_prob_correct": 0.009623818282638934,
+              "mean_base_prob_correct": 0.01078049898709835,
+              "mean_delta_loss": -0.2267780493745186,
+              "regressed_loss_fraction": 0.6923076923076923
+            }
+          },
+          "B_vs_D": {
+            "<END>": {
+              "count": 98,
+              "delta_accuracy": -0.02040816326530612,
+              "improved_loss_fraction": 0.35714285714285715,
+              "mean_augmented_prob_correct": 0.6606401644050726,
+              "mean_base_prob_correct": 0.677838887766939,
+              "mean_delta_loss": -0.07292359750046638,
+              "regressed_loss_fraction": 0.6428571428571429
+            },
+            "consoante": {
+              "count": 426,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.7112676056338029,
+              "mean_augmented_prob_correct": 0.08467846976058792,
+              "mean_base_prob_correct": 0.07865939919733773,
+              "mean_delta_loss": 0.15659582904301603,
+              "regressed_loss_fraction": 0.2887323943661972
+            },
+            "separador_pontuacao": {
+              "count": 7,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.14285714285714285,
+              "mean_augmented_prob_correct": 0.003971066108126449,
+              "mean_base_prob_correct": 0.00404088977781258,
+              "mean_delta_loss": -0.048445146596037096,
+              "regressed_loss_fraction": 0.8571428571428571
+            },
+            "vogal": {
+              "count": 456,
+              "delta_accuracy": 0.010964912280701754,
+              "improved_loss_fraction": 0.8837719298245614,
+              "mean_augmented_prob_correct": 0.35342446007691775,
+              "mean_base_prob_correct": 0.3209495659674963,
+              "mean_delta_loss": 0.2192341603298315,
+              "regressed_loss_fraction": 0.1162280701754386
+            },
+            "vogal_acentuada": {
+              "count": 13,
+              "delta_accuracy": 0.0,
+              "improved_loss_fraction": 0.3076923076923077,
+              "mean_augmented_prob_correct": 0.009084609928662528,
+              "mean_base_prob_correct": 0.010439653108890045,
+              "mean_delta_loss": -0.17789096676905147,
+              "regressed_loss_fraction": 0.6923076923076923
+            }
+          }
+        },
+        "duration_seconds": 781.5348314139992,
+        "seed": 123,
+        "status": "completed"
+      },
+      "seed": 123,
+      "status": "completed",
+      "wall_time_seconds": 781.7437666640617,
+      "worker_pid": 2834809
+    }
+  ],
+  "seeds": [
+    7,
+    42,
+    123
+  ],
+  "status": "completed",
+  "workers": 3
+}
