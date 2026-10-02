@@ -13,13 +13,8 @@ from pathlib import Path
 from language.dataset import load_jsonl
 from language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from training.experiment_types import ExecutionConfig, ExperimentConfig
+from training.multi_seed_runner import run_seed_jobs
 from training.orthographic_analysis import run_orthographic_class_analysis
-from training.runner_common import (
-    aggregate_run_dicts,
-    load_seed_checkpoint,
-    pending_seeds,
-    write_json_checkpoint,
-)
 
 
 def run_seed(payload: dict) -> dict:
@@ -77,58 +72,29 @@ def main() -> None:
         learning_rate=args.learning_rate,
         max_examples=args.max_examples,
     )
-    experiment_configuration = experiment_config.to_dict()
-    config = {
-        **experiment_configuration,
-        **ExecutionConfig(workers=args.workers).to_dict(),
-    }
-    if args.resume:
-        try:
-            report = load_seed_checkpoint(
-                args.checkpoint,
-                experiment_configuration,
-                args.seeds,
-            )
-        except ValueError as error:
-            raise SystemExit(str(error)) from error
-        results = report.get('runs', [])
-    else:
-        results = []
-    pending = pending_seeds(results, args.seeds)
-    for seed in pending:
-        results.append({'seed': seed, 'status': 'pending', 'worker_pid': None})
-    report = {**config, 'workers': args.workers, 'runs': results, 'status': 'running'}
-    write_json_checkpoint(args.checkpoint, report)
-    payloads = [{
-        'vocabulary': str(args.vocabulary),
-        'syllable_vocabulary': str(args.syllable_vocabulary),
-        'train': str(args.train),
-        'validation': str(args.validation),
-        'seed': seed,
-        'epochs': args.epochs,
-        'learning_rate': args.learning_rate,
-        'max_examples': args.max_examples,
-    } for seed in pending]
-    with concurrent.futures.ProcessPoolExecutor(max_workers=args.workers) as pool:
-        futures = {}
-        for payload in payloads:
-            entry = next(item for item in results if item['seed'] == payload['seed'])
-            entry['status'] = 'running'
-            futures[pool.submit(run_seed, payload)] = payload['seed']
-        write_json_checkpoint(args.checkpoint, report)
-        for future in concurrent.futures.as_completed(futures):
-            seed = futures[future]
-            try:
-                result = future.result()
-            except Exception:
-                result = {'seed': seed, 'status': 'failed', 'traceback': traceback.format_exc()}
-            entry = next(item for item in results if item['seed'] == seed)
-            entry.clear(); entry.update(result)
-            report = {**config, 'workers': args.workers, 'runs': results, 'status': 'running'}
-            write_json_checkpoint(args.checkpoint, report)
-    report.update(aggregate_run_dicts(results))
-    report['status'] = 'failed' if report['failed_runs'] else 'completed'
-    write_json_checkpoint(args.checkpoint, report)
+    execution_config = ExecutionConfig(workers=args.workers)
+
+    def job_factory(seed: int) -> dict:
+        return {
+            'vocabulary': str(args.vocabulary),
+            'syllable_vocabulary': str(args.syllable_vocabulary),
+            'train': str(args.train),
+            'validation': str(args.validation),
+            'seed': seed,
+            'epochs': args.epochs,
+            'learning_rate': args.learning_rate,
+            'max_examples': args.max_examples,
+        }
+
+    report = run_seed_jobs(
+        seeds=args.seeds,
+        experiment_config=experiment_config.to_dict(),
+        execution_config=execution_config.to_dict(),
+        checkpoint_path=args.checkpoint,
+        worker=run_seed,
+        job_factory=job_factory,
+        resume=args.resume,
+    )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
 
 
