@@ -11,7 +11,7 @@ from language.features import character_features
 from language.vocabulary import CharacterVocabulary
 from nn.probability import cross_entropy, softmax
 from training.autoregressive import AutoregressiveModel, train_multitask_examples
-from training.comparison import VARIANTS, prepare_variant_examples
+from training.comparison import CONTROLLED_VARIANTS, prepare_variant_examples
 
 PAIR_VARIANTS = {"A_vs_C": ("A", "C"), "B_vs_D": ("B", "D")}
 CLASS_NAMES = ("vogal", "consoante", "vogal_acentuada", "<END>", "separador_pontuacao", "outros")
@@ -54,17 +54,17 @@ def run_orthographic_class_analysis(
         raise ValueError("treino e validação devem conter exemplos")
     prepared_train = {
         variant: prepare_variant_examples(train, variant, vocabulary, syllable_unknown_id=syllable_unknown_id)
-        for variant in VARIANTS
+        for variant in CONTROLLED_VARIANTS
     }
     prepared_validation = {
         variant: prepare_variant_examples(validation, variant, vocabulary, syllable_unknown_id=syllable_unknown_id)
-        for variant in VARIANTS
+        for variant in CONTROLLED_VARIANTS
     }
     runs = []
     for seed in seeds:
         started = time.perf_counter()
         models = {}
-        for variant in VARIANTS:
+        for variant in CONTROLLED_VARIANTS:
             model = AutoregressiveModel(len(vocabulary), syllable_vocab_size, seed=seed)
             train_multitask_examples(
                 model,
@@ -75,11 +75,11 @@ def run_orthographic_class_analysis(
                 syllable_unknown_id=syllable_unknown_id,
             )
             models[variant] = model
-        rows = {variant: [] for variant in VARIANTS}
+        rows = {variant: [] for variant in CONTROLLED_VARIANTS}
         for index, original in enumerate(validation):
             target = int(original["target_char_id"])
             target_class = classify_target(original.get("target_char"))
-            for variant in VARIANTS:
+            for variant in CONTROLLED_VARIANTS:
                 inputs = (
                     prepared_validation[variant][index]["context_ids"],
                     prepared_validation[variant][index]["context_syllable_ids"],

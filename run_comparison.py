@@ -1,4 +1,4 @@
-"""Executa os experimentos controlados A/B/C/D."""
+"""Executa experimentos controlados A/B/C/D (padrão: A/C/D)."""
 
 from __future__ import annotations
 
@@ -8,10 +8,14 @@ from pathlib import Path
 
 from language.dataset import load_jsonl
 from language.vocabulary import CharacterVocabulary, SyllableVocabulary
-from training.comparison import run_controlled_experiments
+from training.comparison import (
+    DEFAULT_VARIANTS,
+    SUPPORTED_VARIANTS,
+    run_controlled_experiments,
+)
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--vocabulary", type=Path, required=True)
     parser.add_argument("--syllable-vocabulary", type=Path, required=True)
@@ -19,6 +23,13 @@ def main() -> None:
     parser.add_argument("--validation", type=Path, required=True)
     parser.add_argument("--seeds", type=int, nargs="+", default=[7, 42, 123])
     parser.add_argument("--epochs", type=int, default=2)
+    parser.add_argument(
+        "--variants",
+        nargs="+",
+        choices=SUPPORTED_VARIANTS,
+        default=list(DEFAULT_VARIANTS),
+        help="variantes a executar (padrão: A C D)",
+    )
     parser.add_argument("--learning-rate", type=float, default=0.05)
     parser.add_argument("--max-examples", type=int, default=1000)
     parser.add_argument(
@@ -37,7 +48,11 @@ def main() -> None:
         default=1,
         help="quantidade de processos; 1 mantém execução sequencial",
     )
-    args = parser.parse_args()
+    return parser
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = build_parser().parse_args(argv)
 
     with args.vocabulary.open(encoding="utf-8") as handle:
         vocabulary = CharacterVocabulary.from_dict(json.load(handle))
@@ -58,6 +73,7 @@ def main() -> None:
         checkpoint_path=args.checkpoint,
         resume=args.resume,
         workers=args.workers,
+        variants=tuple(args.variants),
     )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
 

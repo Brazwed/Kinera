@@ -1,0 +1,44 @@
+{
+  "phase": "phase7_2_variant_selection_equivalence",
+  "status": "passed",
+  "executed_at": "2026-10-02",
+  "python_version": "3.14.7",
+  "fixture": {
+    "train_examples": 1,
+    "validation_examples": 1,
+    "character_vocabulary_size": 5,
+    "syllable_vocabulary_size": 5,
+    "seed": 7,
+    "epochs": 1,
+    "learning_rate": 0.05,
+    "max_examples": 1,
+    "workers": 1
+  },
+  "comparison": {
+    "baseline_commit": "3c5cbe700dc3b823c2415edb6bd2112b30d48881",
+    "baseline_selection": "pre-7.2 runner default A/B/C/D",
+    "candidate_commit": "6121fb17e3ab3792ca8b2bd734d7ca6fa681cf0d",
+    "candidate_selection": "post-7.2 --variants A B C D",
+    "variants": ["A", "B", "C", "D"],
+    "initial_validation_exact": true,
+    "training_history_exact": true,
+    "final_validation_exact": true,
+    "parameter_counts_exact": true,
+    "normalized_report_sha256": "cdd2eaf2e53d02476f7ac6afb458e46c59fb71740ee5812281eb77e2b9f751ac",
+    "parameter_counts": {"A": 377, "B": 377, "C": 377, "D": 377},
+    "metric_snapshot": {
+      "A": {"initial_char_loss": 1.6422327981713145, "initial_total_loss": 3.067645245925604, "final_char_loss": 1.597088966671571, "final_total_loss": 2.9987254639778302},
+      "B": {"initial_char_loss": 1.608476246166133, "initial_total_loss": 3.0342997606812117, "final_char_loss": 1.5541885826452406, "final_total_loss": 2.95078329906546},
+      "C": {"initial_char_loss": 1.6293070504288565, "initial_total_loss": 3.04878166635782, "final_char_loss": 1.5868659447390667, "final_total_loss": 2.983704288671192},
+      "D": {"initial_char_loss": 1.5956846204566733, "initial_total_loss": 3.0155912401176153, "final_char_loss": 1.54412531925536, "final_total_loss": 2.935961003565618}
+    }
+  },
+  "post_7_2_default": {"variants": ["A", "C", "D"], "total_runs": 3},
+  "post_7_2_D_only": {"variants": ["D"], "total_runs": 1},
+  "historical_partial_experiment": {
+    "variants": ["A", "B", "C", "D", "E", "F"],
+    "parameter_counts": {"A": 3807, "B": 3807, "C": 3807, "D": 3807, "E": 3807, "F": 3807},
+    "parameter_counts_equal": true
+  },
+  "scope_limit": "Fixture smoke only; no 1000-example workload, multi-seed benchmark, or timing comparison."
+}

@@ -20,7 +20,31 @@ from training.autoregressive import (
     train_multitask_examples,
 )
 
-VARIANTS = ("A", "B", "C", "D")
+SUPPORTED_VARIANTS = ("A", "B", "C", "D")
+CONTROLLED_VARIANTS = SUPPORTED_VARIANTS
+DEFAULT_VARIANTS = ("A", "C", "D")
+BASELINE_VARIANTS = ("A",)
+PRIMARY_VARIANTS = ("C", "D")
+OPTIONAL_ABLATION_VARIANTS = ("B",)
+# Compatibility alias for old imports; new code should name the intended set.
+VARIANTS = CONTROLLED_VARIANTS
+
+
+def _validate_variant_selection(variants: tuple[str, ...]) -> tuple[str, ...]:
+    if isinstance(variants, str):
+        raise TypeError("variants deve ser uma sequência de variantes")
+    try:
+        selected = tuple(variants)
+    except TypeError as error:
+        raise TypeError("variants deve ser uma sequência de variantes") from error
+    if not selected:
+        raise ValueError("variants não pode ser vazio")
+    for variant in selected:
+        if not isinstance(variant, str) or variant not in SUPPORTED_VARIANTS:
+            raise ValueError(f"variante desconhecida: {variant}")
+    if len(set(selected)) != len(selected):
+        raise ValueError("variants não pode conter duplicatas")
+    return selected
 
 
 def _max_rss_kb() -> int:
@@ -39,7 +63,7 @@ def prepare_variant_examples(
     syllable_unknown_id: int,
 ) -> list[dict[str, Any]]:
     """Mascara canais de entrada sem alterar targets ou shapes."""
-    if variant not in VARIANTS:
+    if variant not in SUPPORTED_VARIANTS:
         raise ValueError(f"variante desconhecida: {variant}")
     prepared = []
     for original in examples:
@@ -95,8 +119,10 @@ def run_controlled_experiments(
     checkpoint_path: str | Path | None = None,
     resume: bool = False,
     workers: int = 1,
+    variants: tuple[str, ...] = DEFAULT_VARIANTS,
 ) -> dict[str, Any]:
-    """Executa A/B/C/D, com checkpoint opcional por variante/seed."""
+    """Executa as variantes selecionadas, com checkpoint por variante/seed."""
+    variants = _validate_variant_selection(variants)
     if not seeds:
         raise ValueError("seeds não pode ser vazio")
     if any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds):
@@ -118,7 +144,7 @@ def run_controlled_experiments(
     )
     checkpoint = Path(checkpoint_path) if checkpoint_path is not None else None
     configuration = {
-        "variants": list(VARIANTS),
+        "variants": list(variants),
         "seeds": seeds.copy(),
         "epochs": epochs,
         "learning_rate": learning_rate,
@@ -142,12 +168,28 @@ def run_controlled_experiments(
         current_seeds = set(configuration["seeds"])
         if persisted_configuration != current_configuration or not persisted_seeds <= current_seeds:
             raise ValueError("checkpoint incompatível com a configuração atual")
-        reports = persisted["runs"]
-        aggregates = persisted.get("aggregates", {})
-        parameter_counts = persisted.get("parameter_counts", {})
-        input_usage = persisted.get("input_usage", {})
+        persisted_runs = persisted["runs"]
+        reports = {variant: persisted_runs.get(variant, []) for variant in variants}
+        persisted_aggregates = persisted.get("aggregates", {})
+        aggregates = {
+            variant: persisted_aggregates[variant]
+            for variant in variants
+            if variant in persisted_aggregates
+        }
+        persisted_parameter_counts = persisted.get("parameter_counts", {})
+        parameter_counts = {
+            variant: persisted_parameter_counts[variant]
+            for variant in variants
+            if variant in persisted_parameter_counts
+        }
+        persisted_input_usage = persisted.get("input_usage", {})
+        input_usage = {
+            variant: persisted_input_usage[variant]
+            for variant in variants
+            if variant in persisted_input_usage
+        }
     else:
-        reports = {variant: [] for variant in VARIANTS}
+        reports = {variant: [] for variant in variants}
         aggregates = {}
         parameter_counts = {}
         input_usage = {}
@@ -165,7 +207,7 @@ def run_controlled_experiments(
         )
 
     prepared_variants: dict[str, tuple[list[dict[str, Any]], list[dict[str, Any]]]] = {}
-    for variant in VARIANTS:
+    for variant in variants:
         prepared_train = prepare_variant_examples(
             train_examples,
             variant,
@@ -206,9 +248,10 @@ def run_controlled_experiments(
             input_usage,
             metric_names,
             workers,
+            variants,
         )
 
-    for variant in VARIANTS:
+    for variant in variants:
         prepared_train, prepared_validation = prepared_variants[variant]
         reports.setdefault(variant, [])
         for seed in seeds:
@@ -271,7 +314,7 @@ def run_controlled_experiments(
                     "traceback": traceback.format_exc(),
                     "duration_seconds": time.perf_counter() - started,
                 })
-            aggregates = _build_aggregates(reports, metric_names)
+            aggregates = _build_aggregates(reports, metric_names, variants)
             if checkpoint is not None:
                 _persist_checkpoint(
                     checkpoint,
@@ -285,7 +328,7 @@ def run_controlled_experiments(
                     ),
                 )
 
-    aggregates = _build_aggregates(reports, metric_names)
+    aggregates = _build_aggregates(reports, metric_names, variants)
     result = _checkpoint_report(
         configuration,
         reports,
@@ -379,15 +422,16 @@ def _run_parallel_experiments(
     input_usage: dict[str, dict[str, int]],
     metric_names: tuple[str, ...],
     workers: int,
+    variants: tuple[str, ...],
 ) -> dict[str, Any]:
     del resume
-    for variant in VARIANTS:
+    for variant in variants:
         reports.setdefault(variant, [])
 
     futures: dict[concurrent.futures.Future[tuple[str, int, dict[str, Any]]], tuple[str, int]] = {}
     pending_jobs: list[tuple[str, int, list[dict[str, Any]], list[dict[str, Any]]]] = []
     with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
-        for variant in VARIANTS:
+        for variant in variants:
             train_examples, validation_examples = prepared_variants[variant]
             for seed in seeds:
                 previous = next(
@@ -461,7 +505,7 @@ def _run_parallel_experiments(
             reports[variant][reports[variant].index(existing)] = record
             if record.get("status") == "completed":
                 parameter_counts[variant] = record["parameter_count"]
-            aggregates = _build_aggregates(reports, metric_names)
+            aggregates = _build_aggregates(reports, metric_names, variants)
             if checkpoint is not None:
                 _persist_checkpoint(
                     checkpoint,
@@ -475,7 +519,7 @@ def _run_parallel_experiments(
                     ),
                 )
 
-    aggregates = _build_aggregates(reports, metric_names)
+    aggregates = _build_aggregates(reports, metric_names, variants)
     result = _checkpoint_report(
         configuration,
         reports,
@@ -492,9 +536,10 @@ def _run_parallel_experiments(
 def _build_aggregates(
     reports: dict[str, list[dict[str, Any]]],
     metric_names: tuple[str, ...],
+    variants: tuple[str, ...],
 ) -> dict[str, dict[str, dict[str, float]]]:
     aggregates: dict[str, dict[str, dict[str, float]]] = {}
-    for variant in VARIANTS:
+    for variant in variants:
         completed = [run for run in reports.get(variant, []) if run.get("status") == "completed"]
         if not completed:
             continue
@@ -519,12 +564,12 @@ def _checkpoint_report(
     del metric_names
     completed_runs = sum(
         run.get("status") == "completed"
-        for variant in VARIANTS
+        for variant in configuration["variants"]
         for run in reports.get(variant, [])
     )
     failed_runs = sum(
         run.get("status") == "failed"
-        for variant in VARIANTS
+        for variant in configuration["variants"]
         for run in reports.get(variant, [])
     )
     total_runs = len(configuration["variants"]) * len(configuration["seeds"])
