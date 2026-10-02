@@ -33,7 +33,7 @@
   },
   "notes": [
     "The loss-reduction criterion is supported by held-out Phase 5.1/5.3 evidence, not by training loss alone.",
-    "Phase 6 does not close the issue; remaining architecture and diagnostic decisions stay explicit in Issue #2."
+    "Phase 6.1 executes and records the full test suite and gradient checks; the issue can be closed after this validation."
   ],
   "phase": "6_final_validation",
   "test_execution": {
@@ -42,7 +42,7 @@
       "-s",
       "tests"
     ],
-    "output_tail": "\n................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 208 tests in 0.791s\n\nOK\n",
+    "output_tail": "\n................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 208 tests in 0.774s\n\nOK\n",
     "passed": true,
     "returncode": 0,
     "tests_run": 208

@@ -130,7 +130,7 @@ def main() -> None:
         "gradient_check_execution": gradient_test_run,
         "notes": [
             "The loss-reduction criterion is supported by held-out Phase 5.1/5.3 evidence, not by training loss alone.",
-            "Phase 6 does not close the issue; remaining architecture and diagnostic decisions stay explicit in Issue #2.",
+            "Phase 6.1 executes and records the full test suite and gradient checks; the issue can be closed after this validation.",
         ],
     }
     Path("experiments/phase6_final_validation.json").write_text(
