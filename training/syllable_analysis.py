@@ -14,7 +14,7 @@ from training.autoregressive import (
     example_to_inputs,
     train_multitask_examples,
 )
-from training.comparison import VARIANTS, prepare_variant_examples
+from training.comparison import CONTROLLED_VARIANTS, prepare_variant_examples
 
 
 PAIR_VARIANTS = {"A_vs_C": ("A", "C"), "B_vs_D": ("B", "D")}
@@ -54,7 +54,7 @@ def run_syllable_gain_analysis(
             vocabulary,
             syllable_unknown_id=syllable_unknown_id,
         )
-        for variant in VARIANTS
+        for variant in CONTROLLED_VARIANTS
     }
     prepared_validation = {
         variant: prepare_variant_examples(
@@ -63,7 +63,7 @@ def run_syllable_gain_analysis(
             vocabulary,
             syllable_unknown_id=syllable_unknown_id,
         )
-        for variant in VARIANTS
+        for variant in CONTROLLED_VARIANTS
     }
     syllable_frequencies: Counter[int] = Counter()
     for example in train_selected:
@@ -76,7 +76,7 @@ def run_syllable_gain_analysis(
         started = time.perf_counter()
         models = {}
         training = {}
-        for variant in VARIANTS:
+        for variant in CONTROLLED_VARIANTS:
             model = AutoregressiveModel(len(vocabulary), syllable_vocab_size, seed=seed)
             training[variant] = train_multitask_examples(
                 model,
@@ -87,9 +87,9 @@ def run_syllable_gain_analysis(
                 syllable_unknown_id=syllable_unknown_id,
             )
             models[variant] = model
-        rows = {variant: [] for variant in VARIANTS}
+        rows = {variant: [] for variant in CONTROLLED_VARIANTS}
         for index, original in enumerate(validation_selected):
-            for variant in VARIANTS:
+            for variant in CONTROLLED_VARIANTS:
                 rows[variant].append(
                     _evaluate_row(
                         index,
@@ -126,7 +126,7 @@ def run_syllable_gain_analysis(
         })
     return {
         "phase": "5.3_syllable_gain_analysis",
-        "variants": list(VARIANTS),
+        "variants": list(CONTROLLED_VARIANTS),
         "seeds": seeds.copy(),
         "epochs": epochs,
         "learning_rate": learning_rate,

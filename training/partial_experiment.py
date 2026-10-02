@@ -14,7 +14,7 @@ from training.autoregressive import (
     train_multitask_examples,
 )
 from training.comparison import (
-    VARIANTS as BASE_VARIANTS,
+    CONTROLLED_VARIANTS as BASE_VARIANTS,
     count_trainable_parameters,
     prepare_variant_examples,
 )

@@ -33,6 +33,7 @@ class PartialSyllableExperimentTests(unittest.TestCase):
             max_examples=1,
         )
 
+        self.assertEqual(PARTIAL_VARIANTS, ("A", "B", "C", "D", "E", "F"))
         self.assertEqual(report["variants"], list(PARTIAL_VARIANTS))
         self.assertIn("E", report["aggregates"])
         self.assertIn("F", report["aggregates"])

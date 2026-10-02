@@ -2,12 +2,18 @@ import unittest
 import json
 import tempfile
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from language.vocabulary import CharacterVocabulary
 from training import comparison
 from training.comparison import (
-    VARIANTS,
+    BASELINE_VARIANTS,
+    CONTROLLED_VARIANTS,
+    DEFAULT_VARIANTS,
+    OPTIONAL_ABLATION_VARIANTS,
+    PRIMARY_VARIANTS,
+    SUPPORTED_VARIANTS,
     count_trainable_parameters,
     prepare_variant_examples,
     run_controlled_experiments,
@@ -29,6 +35,165 @@ class ControlledComparisonTests(unittest.TestCase):
             }
         ]
 
+    def _run_historical(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        kwargs.setdefault("variants", CONTROLLED_VARIANTS)
+        return run_controlled_experiments(*args, **kwargs)
+
+    def test_variant_constants_separate_defaults_from_supported_controls(self) -> None:
+        self.assertEqual(SUPPORTED_VARIANTS, ("A", "B", "C", "D"))
+        self.assertEqual(CONTROLLED_VARIANTS, SUPPORTED_VARIANTS)
+        self.assertEqual(DEFAULT_VARIANTS, ("A", "C", "D"))
+        self.assertEqual(BASELINE_VARIANTS, ("A",))
+        self.assertEqual(PRIMARY_VARIANTS, ("C", "D"))
+        self.assertEqual(OPTIONAL_ABLATION_VARIANTS, ("B",))
+
+    def test_runner_defaults_to_primary_variants(self) -> None:
+        report = run_controlled_experiments(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            syllable_vocab_size=5,
+            seeds=[7],
+            epochs=1,
+            learning_rate=0.05,
+            max_examples=1,
+        )
+
+        self.assertEqual(report["variants"], list(DEFAULT_VARIANTS))
+        self.assertEqual(list(report["runs"]), list(DEFAULT_VARIANTS))
+        self.assertEqual(report["completed_runs"], len(DEFAULT_VARIANTS))
+
+    def test_runner_prepares_and_executes_only_requested_variant(self) -> None:
+        with (
+            patch.object(
+                comparison,
+                "prepare_variant_examples",
+                wraps=comparison.prepare_variant_examples,
+            ) as prepare,
+            patch.object(
+                comparison,
+                "train_multitask_examples",
+                wraps=comparison.train_multitask_examples,
+            ) as train,
+        ):
+            report = run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                max_examples=1,
+                variants=("D",),
+            )
+
+        self.assertEqual([call.args[1] for call in prepare.call_args_list], ["D", "D"])
+        self.assertEqual(train.call_count, 1)
+        self.assertEqual(report["variants"], ["D"])
+        self.assertEqual(list(report["runs"]), ["D"])
+        self.assertEqual(list(report["aggregates"]), ["D"])
+        self.assertEqual(list(report["parameter_counts"]), ["D"])
+        self.assertEqual(list(report["input_usage"]), ["D"])
+        self.assertEqual(report["completed_runs"], 1)
+        self.assertEqual(report["total_runs"], 1)
+
+    def test_runner_rejects_empty_variant_selection(self) -> None:
+        with self.assertRaisesRegex(ValueError, "variants não pode ser vazio"):
+            run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                variants=(),
+            )
+
+    def test_runner_rejects_unknown_variant(self) -> None:
+        with self.assertRaisesRegex(ValueError, "variante desconhecida: Z"):
+            run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                variants=("Z",),
+            )
+
+    def test_runner_rejects_duplicate_variants(self) -> None:
+        with self.assertRaisesRegex(ValueError, "variants não pode conter duplicatas"):
+            run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                variants=("A", "A"),
+            )
+
+    def test_checkpoint_records_selection_and_rejects_incompatible_resume(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "selected.json"
+            report = run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                max_examples=1,
+                checkpoint_path=checkpoint,
+                variants=("D",),
+            )
+            persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
+
+            self.assertEqual(report["variants"], ["D"])
+            self.assertEqual(persisted["variants"], ["D"])
+            self.assertEqual(list(persisted["runs"]), ["D"])
+            with self.assertRaisesRegex(ValueError, "checkpoint incompatível"):
+                run_controlled_experiments(
+                    self.examples,
+                    self.examples,
+                    self.vocabulary,
+                    syllable_vocab_size=5,
+                    seeds=[7],
+                    epochs=1,
+                    learning_rate=0.05,
+                    max_examples=1,
+                    checkpoint_path=checkpoint,
+                    resume=True,
+                    variants=("C", "D"),
+                )
+
+    def test_parallel_runner_respects_selected_variants(self) -> None:
+        report = run_controlled_experiments(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            syllable_vocab_size=5,
+            seeds=[7],
+            epochs=1,
+            learning_rate=0.05,
+            max_examples=1,
+            workers=2,
+            variants=("D",),
+        )
+
+        self.assertEqual(report["variants"], ["D"])
+        self.assertEqual(list(report["runs"]), ["D"])
+        self.assertEqual(report["completed_runs"], 1)
+        self.assertEqual(report["total_runs"], 1)
+        self.assertEqual(list(report["aggregates"]), ["D"])
+        self.assertEqual(list(report["parameter_counts"]), ["D"])
+        self.assertEqual(list(report["input_usage"]), ["D"])
+
     def test_all_variants_keep_context_shape_and_only_mask_channels(self) -> None:
         prepared = {
             name: prepare_variant_examples(
@@ -37,7 +202,7 @@ class ControlledComparisonTests(unittest.TestCase):
                 self.vocabulary,
                 syllable_unknown_id=0,
             )[0]
-            for name in VARIANTS
+            for name in CONTROLLED_VARIANTS
         }
 
         self.assertEqual(prepared["A"]["context_ids"], [0, 3])
@@ -51,7 +216,7 @@ class ControlledComparisonTests(unittest.TestCase):
 
     def test_variants_have_equal_trainable_parameter_counts(self) -> None:
         counts = []
-        for _ in VARIANTS:
+        for _ in CONTROLLED_VARIANTS:
             model = AutoregressiveModel(5, 5, seed=7)
             counts.append(count_trainable_parameters(model))
 
@@ -59,7 +224,7 @@ class ControlledComparisonTests(unittest.TestCase):
         self.assertGreater(counts[0], 0)
 
     def test_runner_reports_each_variant_and_seed(self) -> None:
-        report = run_controlled_experiments(
+        report = self._run_historical(
             self.examples,
             self.examples,
             self.vocabulary,
@@ -70,7 +235,7 @@ class ControlledComparisonTests(unittest.TestCase):
             max_examples=1,
         )
 
-        self.assertEqual(set(report["runs"]), set(VARIANTS))
+        self.assertEqual(set(report["runs"]), set(CONTROLLED_VARIANTS))
         self.assertEqual(len(report["runs"]["A"]), 1)
         self.assertIn("mean", report["aggregates"]["A"])
         self.assertIn("char_accuracy", report["aggregates"]["A"]["mean"])
@@ -82,7 +247,7 @@ class ControlledComparisonTests(unittest.TestCase):
     def test_runner_persists_each_run_and_resumes_completed_seeds(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             checkpoint = Path(directory) / "phase5.json"
-            first = run_controlled_experiments(
+            first = self._run_historical(
                 self.examples,
                 self.examples,
                 self.vocabulary,
@@ -99,7 +264,7 @@ class ControlledComparisonTests(unittest.TestCase):
             persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
             self.assertEqual(persisted["completed_runs"], 4)
 
-            resumed = run_controlled_experiments(
+            resumed = self._run_historical(
                 self.examples,
                 self.examples,
                 self.vocabulary,
@@ -113,7 +278,7 @@ class ControlledComparisonTests(unittest.TestCase):
             )
             self.assertEqual(resumed["status"], "completed")
             self.assertEqual(resumed["completed_runs"], 8)
-            for variant in VARIANTS:
+            for variant in CONTROLLED_VARIANTS:
                 self.assertEqual([run["seed"] for run in resumed["runs"][variant]], [7, 8])
 
     def test_runner_records_failed_run_without_discarding_checkpoint(self) -> None:
@@ -123,7 +288,7 @@ class ControlledComparisonTests(unittest.TestCase):
                 "training.comparison.train_multitask_examples",
                 side_effect=RuntimeError("synthetic training failure"),
             ):
-                report = run_controlled_experiments(
+                report = self._run_historical(
                     self.examples,
                     self.examples,
                     self.vocabulary,
@@ -142,7 +307,7 @@ class ControlledComparisonTests(unittest.TestCase):
             self.assertTrue(checkpoint.exists())
 
     def test_parallel_runner_records_worker_pid_and_completed_status(self) -> None:
-        report = run_controlled_experiments(
+        report = self._run_historical(
             self.examples,
             self.examples,
             self.vocabulary,
@@ -156,7 +321,7 @@ class ControlledComparisonTests(unittest.TestCase):
 
         self.assertEqual(report["workers"], 2)
         self.assertEqual(report["completed_runs"], 4)
-        for variant in VARIANTS:
+        for variant in CONTROLLED_VARIANTS:
             run = report["runs"][variant][0]
             self.assertEqual(run["status"], "completed")
             self.assertIsInstance(run["pid"], int)
@@ -166,7 +331,7 @@ class ControlledComparisonTests(unittest.TestCase):
 
     def test_workers_must_be_positive(self) -> None:
         with self.assertRaises(ValueError):
-            run_controlled_experiments(
+            self._run_historical(
                 self.examples,
                 self.examples,
                 self.vocabulary,
@@ -188,9 +353,9 @@ class ControlledComparisonTests(unittest.TestCase):
             "learning_rate": 0.05,
             "max_examples": 1,
         }
-        sequential = run_controlled_experiments(**common, workers=1)
-        parallel = run_controlled_experiments(**common, workers=2)
-        for variant in VARIANTS:
+        sequential = self._run_historical(**common, workers=1)
+        parallel = self._run_historical(**common, workers=2)
+        for variant in CONTROLLED_VARIANTS:
             self.assertEqual(
                 sequential["aggregates"][variant]["mean"],
                 parallel["aggregates"][variant]["mean"],
@@ -225,7 +390,7 @@ class ControlledComparisonTests(unittest.TestCase):
         with patch.object(comparison.concurrent.futures, "ProcessPoolExecutor", FakeExecutor), patch.object(
             comparison.concurrent.futures, "as_completed", side_effect=lambda futures: futures
         ):
-            report = run_controlled_experiments(
+            report = self._run_historical(
                 self.examples,
                 self.examples,
                 self.vocabulary,
@@ -239,7 +404,7 @@ class ControlledComparisonTests(unittest.TestCase):
 
         self.assertEqual(report["failed_runs"], 4)
         self.assertEqual(report["completed_runs"], 4)
-        for variant in VARIANTS:
+        for variant in CONTROLLED_VARIANTS:
             statuses = [run["status"] for run in report["runs"][variant]]
             self.assertEqual(statuses, ["failed", "completed"])
 
@@ -252,7 +417,7 @@ class ControlledComparisonTests(unittest.TestCase):
                 snapshots.append(json.loads(json.dumps(report)))
 
             with patch("training.comparison._persist_checkpoint", side_effect=capture):
-                run_controlled_experiments(
+                self._run_historical(
                     self.examples,
                     self.examples,
                     self.vocabulary,
