@@ -799,3 +799,20 @@ critérios finais:
 
 Isso valida o estado atual sem encerrar a Issue: a decisão de manter ou alterar
 a arquitetura deve continuar baseada nos diagnósticos já registrados.
+
+### Fase 7 — Consolidação estrutural
+
+A Fase 7 consolidou a execução experimental sem alterar a matemática do modelo:
+
+- `ExperimentConfig` separa configuração matemática de `ExecutionConfig`;
+- `RunRecord` e `JobStatus` formalizam estados e metadados por seed;
+- `training.runner_common` centraliza checkpoint atômico, resume e agregação;
+- `training.multi_seed_runner` centraliza execução serial/multiprocessada,
+  expansão de seeds, retry e persistência incremental;
+- `workers=1` permanece a referência determinística;
+- os runners 5.3, 5.4 e 5.5 são mantidos como adaptadores históricos.
+
+As invariantes de causalidade, dimensões, loss, parâmetros, avaliação e
+checkpoints estão documentadas em `docs/phase7-invariants.md`. A equivalência
+matemática antes/depois da consolidação e entre `workers=1`/`workers=2` está
+registrada em `experiments/phase7_deterministic_validation.json`.
