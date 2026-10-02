@@ -169,6 +169,41 @@ class LinearStepTests(unittest.TestCase):
         self.assertAlmostEqual(layer.bias[0], -0.05)
         self.assertAlmostEqual(layer.bias[1], -0.3)
 
+        learning_rate = 0.05
+        for output_size in (51, 3932):
+            with self.subTest(output_size=output_size):
+                layer = Linear(input_size=26, output_size=output_size, seed=7)
+                inputs = [((index % 13) - 6) / 13.0 for index in range(26)]
+                grad_output = [((index % 19) - 9) / 19.0 for index in range(output_size)]
+                layer.forward(inputs)
+                layer.backward(grad_output)
+
+                expected_weights = [
+                    [
+                        weight - float(learning_rate) * gradient
+                        for weight, gradient in zip(row, gradient_row)
+                    ]
+                    for row, gradient_row in zip(layer.weights, layer.grad_weights)
+                ]
+                expected_bias = [
+                    bias - float(learning_rate) * gradient
+                    for bias, gradient in zip(layer.bias, layer.grad_bias)
+                ]
+                old_weights = layer.weights
+                old_rows = layer.weights.copy()
+                old_bias = layer.bias
+
+                layer.step(learning_rate)
+
+                self.assertEqual(layer.weights, expected_weights)
+                self.assertEqual(layer.bias, expected_bias)
+                self.assertFalse(layer._has_backward)
+                self.assertIsNot(layer.weights, old_weights)
+                self.assertTrue(
+                    all(new_row is not old_row for new_row, old_row in zip(layer.weights, old_rows))
+                )
+                self.assertIsNot(layer.bias, old_bias)
+
     def test_step_before_backward_and_twice_are_rejected(self) -> None:
         layer = Linear(input_size=2, output_size=2, seed=7)
         layer.forward([1.0, 1.0])

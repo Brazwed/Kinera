@@ -101,15 +101,16 @@ class Linear:
         if not self._has_backward:
             raise RuntimeError("step exige um backward anterior")
 
+        rate = float(learning_rate)
         self.weights = [
             [
-                weight - float(learning_rate) * gradient
+                weight - rate * gradient
                 for weight, gradient in zip(row, gradient_row)
             ]
             for row, gradient_row in zip(self.weights, self.grad_weights)
         ]
         self.bias = [
-            bias - float(learning_rate) * gradient
+            bias - rate * gradient
             for bias, gradient in zip(self.bias, self.grad_bias)
         ]
         self._has_backward = False
