@@ -120,10 +120,17 @@
     "runtime_limits": {
       "measured": "Duas sessões curtas permaneceram ativas durante os testes e o handoff; ambas foram encerradas intencionalmente. Não foi medido o tempo máximo de vida de uma sessão.",
       "documented": {
-        "source": "Google Colab FAQ — Limites de recurso",
-        "source_url": "https://research.google.com/colaboratory/intl/pt-BR/faq.html",
+        "source": "Google Colab FAQ — Resource Limits / How long can notebooks run",
+        "source_url": "https://research.google.com/colaboratory/faq.html",
         "retrieved_date": "2026-10-02",
-        "summary": "Os limites de uso, timeouts de inatividade, ciclo de vida de VMs e tipos de GPU variam e não são publicados como garantia. A FAQ informa até 12 horas para notebooks no nível gratuito, dependendo da disponibilidade e dos padrões de uso; o limite aplicável depende do plano e do saldo.",
+        "summary": "Os limites de uso, timeouts de inatividade, vida máxima de VM e disponibilidade de hardware variam; o Google não publica esses limites como garantia.",
+        "general_notebook_max_hours": 12,
+        "general_limit_condition": "Depende da disponibilidade e dos padrões de uso.",
+        "free_tier_max_hours": 12,
+        "free_tier_limit_condition": "Depende da disponibilidade e dos padrões de uso.",
+        "pro_plus_continuous_max_hours": 24,
+        "pro_plus_requires_sufficient_compute_units": true,
+        "idle_timeouts_apply_after_code_execution_terminates": true,
         "account_plan_used": "not observed"
       }
     }
