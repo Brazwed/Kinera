@@ -833,15 +833,25 @@ A primeira otimização aprovada troca o generator expression do produto interno
 por `sum(map(operator.mul, row, inputs))` em `Linear.forward()`. O microbenchmark
 pareado confirmou igualdade exata e B mais rápida em todos os blocos. No workload
 D, o tempo foi de **256,01 s para 180,31 s** (−75,70 s; **29,57%**), com todas
-as métricas e a contagem de **139.432 parâmetros** exatamente iguais. Os gradient
-checks passaram (6/6), e a suíte completa passou (225/225). O RSS foi de
-53.548 KiB no baseline para 54.020 KiB na comparação principal (+472 KiB;
-+0,88%); uma repetição com profiling marcou 53.612 KiB (+64 KiB; +0,12%).
+as métricas e a contagem de **139.432 parâmetros** exatamente iguais. Na validação
+dessa mudança, os 6 gradient checks e os 225 testes passaram.
 
-O reprofile após a mudança reposiciona os maiores estágios: backward 37,78%,
-avaliação 22,26%, atualização do otimizador 15,82% e forward 14,40%. Portanto,
-o próximo candidato deve ser escolhido a partir deste perfil atualizado, não do
-perfil antigo.
+A segunda otimização aprovada aplica C ao backward: converte `grad_output` uma
+vez e materializa as colunas dos pesos por chamada antes de usar
+`sum(map(operator.mul, column, grad_output_float))`. Os testes permanentes comparam
+`grad_inputs`, `grad_weights` e `grad_bias` exatamente com a referência generator
+nos shapes `51×26` e `3932×26`. Dois pares completos separados (A1/C1 e C2/A2)
+reduziram o workload D em **19,08%** e **17,33%**, respectivamente; as métricas
+completas e os **139.432 parâmetros** ficaram idênticos. A suíte passou com
+**226 testes**, incluindo **6 gradient checks**. O RSS aumentou **964 KiB (1,80%)**
+no primeiro par e **616 KiB (1,16%)** no segundo. Os 819.624 bytes atribuídos à
+transposição são apenas o tamanho superficial dos containers; o RSS de processo
+é a medida prática registrada nos pares.
+
+O reprofile pós-commit da alteração de backward levou **149,50 s**. A avaliação
+voltou a ser o maior estágio (**28,01%**), seguida de backward (**21,04%**),
+atualização do otimizador (**20,10%**), forward (**19,27%**) e loss (**10,95%**).
+O próximo alvo deve ser escolhido a partir desse perfil atualizado.
 
 Relatórios versionados:
 
@@ -851,7 +861,16 @@ experiments/phase7_1_linear_dot_microbenchmark.json
 experiments/phase7_1_linear_dot_candidate.json
 experiments/phase7_1_linear_dot_comparison.json
 experiments/phase7_1_linear_dot_post_profile.json
+experiments/phase7_1_linear_backward_microbenchmark.json
+experiments/phase7_1_linear_backward_microbenchmark_round2.json
+experiments/phase7_1_linear_backward_comparison.json
+experiments/phase7_1_linear_backward_full_D_A1.json
+experiments/phase7_1_linear_backward_full_D_C1.json
+experiments/phase7_1_linear_backward_full_D_C2.json
+experiments/phase7_1_linear_backward_full_D_A2.json
+experiments/phase7_1_linear_backward_paired_validation.json
+experiments/phase7_1_linear_backward_post_commit_profile.json
 ```
 
-A otimização foi validada contra a matemática, testes e benchmark real; isso não
-conclui as demais oportunidades da Fase 7.1.
+As duas otimizações passaram igualdade matemática, testes e benchmark do workload
+real. Isso ainda não conclui as demais oportunidades da Fase 7.1.
