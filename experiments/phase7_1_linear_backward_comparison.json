@@ -1,0 +1,75 @@
+{
+  "phase": "7.1_linear_backward_candidate_investigation",
+  "shape": {"input_size": 26, "output_size": 3932},
+  "reference": "A: current production Linear.backward()",
+  "candidates": {
+    "B": "Convert grad_output to floats once; keep row-major generator sum.",
+    "C": "Convert grad_output once; transpose weights on each call; map(operator.mul) over columns. Transpose is included in timed calls."
+  },
+  "microbenchmark_reports": [
+    "experiments/phase7_1_linear_backward_microbenchmark.json",
+    "experiments/phase7_1_linear_backward_microbenchmark_round2.json"
+  ],
+  "microbenchmark_summary": {
+    "round1": {
+      "iterations_per_sample": 10,
+      "warmups_per_variant": 2,
+      "blocks": 6,
+      "median_A_over_B_wall": 1.233230255769703,
+      "median_A_over_B_cpu": 1.236665214842975,
+      "median_A_over_C_wall": 1.4484934684367836,
+      "median_A_over_C_cpu": 1.447224705778073,
+      "median_B_over_C_wall": 1.1682906347158877,
+      "median_B_over_C_cpu": 1.1698927049420305,
+      "C_faster_than_A_in_all_blocks": true,
+      "C_faster_than_B_in_all_blocks": true,
+      "C_exact_grad_inputs_and_grad_weights": true
+    },
+    "round2": {
+      "iterations_per_sample": 50,
+      "warmups_per_variant": 3,
+      "blocks": 6,
+      "median_A_over_B_wall": 1.2351480880713877,
+      "median_A_over_B_cpu": 1.236424740736446,
+      "median_A_over_C_wall": 1.5362104358726452,
+      "median_A_over_C_cpu": 1.535558651419364,
+      "median_B_over_C_wall": 1.2256613503925435,
+      "median_B_over_C_cpu": 1.2246540904801533,
+      "C_faster_than_A_in_all_blocks": true,
+      "C_faster_than_B_in_all_blocks": true,
+      "C_exact_grad_inputs_and_grad_weights": true
+    },
+    "transpose_cost_C_round2": {
+      "wall_ns_per_materialization": 2190283,
+      "cpu_ns_per_materialization": 2192592,
+      "shallow_container_bytes": 819624
+    }
+  },
+  "temporary_full_workload_report": "experiments/phase7_1_linear_backward_candidate_D.json",
+  "temporary_full_workload_trial": {
+    "implementation": "C monkeypatched onto Linear.backward only for this Python process; nn/linear.py unchanged",
+    "baseline_report": "experiments/phase7_1_linear_dot_post_profile.json",
+    "baseline_seconds": 183.520887841,
+    "candidate_seconds": 144.442495841,
+    "seconds_saved": 39.07839199999998,
+    "improvement_percent": 21.293702564177313,
+    "baseline_peak_rss_kb": 53612,
+    "candidate_peak_rss_kb": 54556,
+    "rss_delta_kb": 944,
+    "rss_delta_percent": 1.7607998209356115,
+    "workload_exactly_equal": true,
+    "initial_validation_exactly_equal": true,
+    "training_history_exactly_equal": true,
+    "final_validation_exactly_equal": true,
+    "parameter_count_baseline": 139432,
+    "parameter_count_candidate": 139432,
+    "trial_count": 1
+  },
+  "production_code_changed": false,
+  "decision": "C_is_microbenchmark_winner_and_promising_D_trial; no_production_change_applied",
+  "notes": [
+    "Both timer sources agreed, and C beat A and B in every paired block across both rounds.",
+    "C wins despite including per-call weight transpose; the measured standalone transpose was about 2.19 ms and 819,624 shallow container bytes.",
+    "The full D result is a single temporary-monkeypatch trial, not production acceptance. Confirm with a production patch, focused equivalence tests, gradient checks, and a final same-workload comparison before retaining it."
+  ]
+}
