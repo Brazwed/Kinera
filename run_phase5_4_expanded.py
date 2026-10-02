@@ -12,7 +12,7 @@ from pathlib import Path
 
 from language.dataset import load_jsonl
 from language.vocabulary import CharacterVocabulary, SyllableVocabulary
-from training.experiment_types import ExperimentConfig
+from training.experiment_types import ExecutionConfig, ExperimentConfig
 from training.partial_experiment import run_partial_comparison
 from training.runner_common import aggregate_run_dicts, write_json_checkpoint
 
@@ -84,15 +84,18 @@ def main() -> None:
     args = parser.parse_args()
     if args.workers < 1:
         raise SystemExit('--workers deve ser positivo')
-    config = ExperimentConfig(
+    experiment_config = ExperimentConfig(
         phase='5.4_expanded_partial_syllable',
         variants=('A', 'B', 'C', 'D', 'E', 'F'),
         seeds=tuple(args.seeds),
         epochs=args.epochs,
         learning_rate=args.learning_rate,
         max_examples=args.max_examples,
-        workers=args.workers,
-    ).to_dict()
+    )
+    config = {
+        **experiment_config.to_dict(),
+        **ExecutionConfig(workers=args.workers).to_dict(),
+    }
     if args.resume:
         if not args.checkpoint.exists():
             raise SystemExit('checkpoint inexistente')

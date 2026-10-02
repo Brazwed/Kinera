@@ -30,6 +30,18 @@ class RunnerCommonTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 load_seed_checkpoint(path, {"phase": "b"}, [7])
 
+    def test_workers_are_operational_and_do_not_block_resume(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "checkpoint.json"
+            write_json_checkpoint(
+                path,
+                {"phase": "test", "workers": 3, "seeds": [7], "runs": []},
+            )
+
+            loaded = load_seed_checkpoint(path, {"phase": "test"}, [7, 42])
+
+        self.assertEqual(loaded["workers"], 3)
+
 
 if __name__ == "__main__":
     unittest.main()

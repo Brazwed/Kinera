@@ -12,7 +12,7 @@ from pathlib import Path
 
 from language.dataset import load_jsonl
 from language.vocabulary import CharacterVocabulary, SyllableVocabulary
-from training.experiment_types import ExperimentConfig
+from training.experiment_types import ExecutionConfig, ExperimentConfig
 from training.orthographic_analysis import run_orthographic_class_analysis
 from training.runner_common import aggregate_run_dicts, write_json_checkpoint
 
@@ -64,15 +64,18 @@ def main() -> None:
     parser.add_argument('--checkpoint', type=Path, required=True)
     parser.add_argument('--resume', action='store_true')
     args = parser.parse_args()
-    config = ExperimentConfig(
+    experiment_config = ExperimentConfig(
         phase='5.5_orthographic_class_analysis',
         variants=('A', 'B', 'C', 'D'),
         seeds=tuple(args.seeds),
         epochs=args.epochs,
         learning_rate=args.learning_rate,
         max_examples=args.max_examples,
-        workers=args.workers,
-    ).to_dict()
+    )
+    config = {
+        **experiment_config.to_dict(),
+        **ExecutionConfig(workers=args.workers).to_dict(),
+    }
     if args.resume:
         report = json.loads(args.checkpoint.read_text(encoding='utf-8'))
         if any(report.get(key) != value for key, value in config.items() if key != 'seeds'):

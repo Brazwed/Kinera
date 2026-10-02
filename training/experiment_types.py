@@ -18,7 +18,6 @@ class ExperimentConfig:
     learning_rate: float
     max_examples: int | None
     context_size: int = 8
-    workers: int = 1
     top_examples: int | None = None
 
     def __post_init__(self) -> None:
@@ -43,8 +42,6 @@ class ExperimentConfig:
             raise ValueError("max_examples deve ser inteiro positivo ou None")
         if isinstance(self.context_size, bool) or not isinstance(self.context_size, int) or self.context_size <= 0:
             raise ValueError("context_size deve ser inteiro positivo")
-        if isinstance(self.workers, bool) or not isinstance(self.workers, int) or self.workers <= 0:
-            raise ValueError("workers deve ser inteiro positivo")
         if self.top_examples is not None and (
             isinstance(self.top_examples, bool)
             or not isinstance(self.top_examples, int)
@@ -61,11 +58,24 @@ class ExperimentConfig:
             "learning_rate": self.learning_rate,
             "max_examples": self.max_examples,
             "context_size": self.context_size,
-            "workers": self.workers,
         }
         if self.top_examples is not None:
             result["top_examples"] = self.top_examples
         return result
+
+
+@dataclass(frozen=True)
+class ExecutionConfig:
+    """Controles operacionais que não alteram a matemática do experimento."""
+
+    workers: int = 1
+
+    def __post_init__(self) -> None:
+        if isinstance(self.workers, bool) or not isinstance(self.workers, int) or self.workers <= 0:
+            raise ValueError("workers deve ser inteiro positivo")
+
+    def to_dict(self) -> dict[str, int]:
+        return {"workers": self.workers}
 
 
 @dataclass
@@ -138,3 +148,24 @@ def mean_std(values: list[float]) -> dict[str, float]:
     mean = sum(values) / len(values)
     variance = sum((value - mean) ** 2 for value in values) / len(values)
     return {"mean": mean, "std": math.sqrt(variance)}
+
+
+def aggregate_metric_paths(
+    records: list[dict[str, Any]],
+    paths: dict[str, tuple[str, ...]],
+) -> dict[str, Any]:
+    """Agrega métricas aninhadas somente de registros concluídos."""
+    completed = [record for record in records if record.get("status") == "completed"]
+    metrics: dict[str, dict[str, float]] = {}
+    for name, path in paths.items():
+        values: list[float] = []
+        for record in completed:
+            value: Any = record
+            for key in path:
+                value = value[key]
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise TypeError(f"métrica {name} não é numérica")
+            values.append(float(value))
+        if values:
+            metrics[name] = mean_std(values)
+    return {"completed_runs": len(completed), "metrics": metrics}

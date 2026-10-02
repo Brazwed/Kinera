@@ -13,7 +13,7 @@ from typing import Any
 
 from language.dataset import load_jsonl
 from language.vocabulary import CharacterVocabulary, SyllableVocabulary
-from training.experiment_types import ExperimentConfig
+from training.experiment_types import ExecutionConfig, ExperimentConfig
 from training.runner_common import aggregate_run_dicts, write_json_checkpoint
 from training.syllable_analysis import run_syllable_gain_analysis
 
@@ -89,7 +89,7 @@ def main() -> None:
     if args.workers < 1:
         raise SystemExit("--workers deve ser positivo")
 
-    configuration = ExperimentConfig(
+    experiment_config = ExperimentConfig(
         phase="5.3_expanded_analysis",
         variants=("A", "B", "C", "D"),
         seeds=tuple(args.seeds),
@@ -97,8 +97,11 @@ def main() -> None:
         learning_rate=args.learning_rate,
         max_examples=args.max_examples,
         top_examples=args.top_examples,
-        workers=args.workers,
-    ).to_dict()
+    )
+    configuration = {
+        **experiment_config.to_dict(),
+        **ExecutionConfig(workers=args.workers).to_dict(),
+    }
     if args.resume:
         if not args.checkpoint.exists():
             raise SystemExit("--resume exige checkpoint existente")

@@ -1,8 +1,10 @@
 import unittest
 
 from training.experiment_types import (
+    ExecutionConfig,
     ExperimentConfig,
     RunRecord,
+    aggregate_metric_paths,
     aggregate_run_status,
     mean_std,
 )
@@ -18,12 +20,13 @@ class ExperimentTypesTests(unittest.TestCase):
             learning_rate=0.05,
             max_examples=1000,
             context_size=8,
-            workers=2,
         )
+        execution = ExecutionConfig(workers=2)
 
         self.assertEqual(config.to_dict()["variants"], ["A", "C"])
         self.assertEqual(config.to_dict()["seeds"], [7, 42])
-        self.assertEqual(config.to_dict()["workers"], 2)
+        self.assertNotIn("workers", config.to_dict())
+        self.assertEqual(execution.workers, 2)
 
     def test_run_record_round_trip_and_status_aggregation(self) -> None:
         records = [
@@ -47,6 +50,18 @@ class ExperimentTypesTests(unittest.TestCase):
 
     def test_mean_std_uses_population_dispersion(self) -> None:
         self.assertEqual(mean_std([1.0, 2.0, 3.0]), {"mean": 2.0, "std": 0.816496580927726})
+
+    def test_nested_metric_aggregation_ignores_failed_runs(self) -> None:
+        records = [
+            {"status": "completed", "metrics": {"loss": 1.0}},
+            {"status": "completed", "metrics": {"loss": 3.0}},
+            {"status": "failed", "metrics": {"loss": 100.0}},
+        ]
+
+        report = aggregate_metric_paths(records, {"loss": ("metrics", "loss")})
+
+        self.assertEqual(report["completed_runs"], 2)
+        self.assertEqual(report["metrics"]["loss"], {"mean": 2.0, "std": 1.0})
 
 
 if __name__ == "__main__":
