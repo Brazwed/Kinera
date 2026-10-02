@@ -517,6 +517,17 @@ D = caracteres + features + sílabas causais
 As sílabas usadas em C/D são somente as sílabas já completamente observadas.
 O runner registra média e desvio entre seeds, além da contagem de parâmetros.
 
+Na Fase 7.2, a classificação é explícita: A é o baseline mínimo, B é uma
+ablação opcional, e C/D são as variantes principais. `run_comparison.py` aceita
+`--variants` (choices A/B/C/D) e, em novas execuções, usa A/C/D por padrão.
+Por exemplo, `--variants D` executa somente D e `--variants A B C D`
+reproduz a comparação controlada histórica completa. A lista escolhida fica no
+relatório/checkpoint; `--resume` rejeita uma seleção diferente.
+
+E/F são variantes experimentais históricas da Fase 5.4. Elas não são suportadas
+por `run_comparison.py` nem entram nos novos treinos por padrão; a reprodução
+A/B/C/D/E/F continua disponível deliberadamente em `run_phase5_4_expanded.py`.
+
 Para a Fase 5.1 expandida:
 
 ```bash
@@ -526,6 +537,7 @@ python run_comparison.py \
   --train data/processed/autoregressive_train.jsonl \
   --validation data/processed/autoregressive_validation.jsonl \
   --seeds 7 42 123 --epochs 2 --learning-rate 0.05 \
+  --variants A B C D \
   --max-examples 1000 \
   --checkpoint experiments/phase5_1_checkpoint.json \
   --workers 2
@@ -546,6 +558,7 @@ python run_comparison.py \
   --train data/processed/autoregressive_train.jsonl \
   --validation data/processed/autoregressive_validation.jsonl \
   --seeds 7 42 123 --epochs 2 --learning-rate 0.05 \
+  --variants A B C D \
   --max-examples 1000 \
   --checkpoint experiments/phase5_1_checkpoint.json \
   --workers 2 \
@@ -697,6 +710,10 @@ A sílaba parcial é construída somente com os caracteres observados desde a
 última sílaba concluída. IDs de sílabas concluídas são preservados; prefixos
 parciais usam buckets determinísticos dentro da mesma tabela de embeddings,
 mantendo a contagem de parâmetros controlada.
+
+`run_phase5_4_expanded.py` continua sendo o runner histórico para reprodução
+explícita da comparação A/B/C/D/E/F. E/F não são movidas para `run_comparison.py`
+e não entram no default A/C/D da Fase 7.2.
 
 Smoke test registrado em `experiments/phase5_4_partial_syllable_smoke.json`.
 O runner ampliado e retomável é:
@@ -959,4 +976,22 @@ experiments/phase7_1_validated_loss_helpers_post_commit_profile.json
 
 **Fase 7.1 encerrada.** No workload D de referência, o baseline de **256,01 s** foi a **116,61 s** (**−54,45%**), com matemática e **139.432 parâmetros** preservados, suítes de testes e gradient checks aprovados e as cinco otimizações sustentadas por comparação pareada. Novas otimizações só serão retomadas após profiling em workloads maiores; os ganhos restantes não justificam aumentar complexidade sem nova evidência.
 
-A próxima etapa é a Fase 7.2: A como baseline mínimo, C/D como variantes principais, E/F como históricas e seleção explícita para evitar treinos desnecessários. A execução da 7.2 começa em branch independente depois da integração desta unidade.
+### Fase 7.2 — Consolidação dos experimentos principais
+
+A seleção do runner controlado é explícita: A é o baseline mínimo, B é uma
+ablação opcional, e C/D são as variantes principais. `run_comparison.py` executa
+A/C/D por padrão; `--variants A B C D` reproduz a comparação controlada
+histórica completa. A lista escolhida é registrada nos relatórios/checkpoints e
+uma retomada com seleção incompatível é rejeitada.
+
+E/F permanecem como variantes experimentais históricas da Fase 5.4. Não entram
+em novos treinos do runner controlado; a reprodução A/B/C/D/E/F continua no
+`run_phase5_4_expanded.py`.
+
+A validação autocontida em `experiments/phase7_2_final_validation.json` compara o
+runner pré-7.2 (default A/B/C/D) com a seleção pós-7.2 explícita, usando a mesma
+seed/configuração e um exemplo determinístico. `initial_validation`,
+histórico de treino, `final_validation` e contagens de parâmetros foram
+idênticos. O mesmo relatório confirma o default A/C/D, a seleção D-only e a
+preservação histórica A/B/C/D/E/F. É uma equivalência funcional em fixture
+pequena, não uma conclusão de qualidade ou performance no dataset completo.
