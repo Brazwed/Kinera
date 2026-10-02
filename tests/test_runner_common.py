@@ -42,6 +42,18 @@ class RunnerCommonTests(unittest.TestCase):
 
         self.assertEqual(loaded["workers"], 3)
 
+    def test_resume_allows_expanding_seed_set(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "checkpoint.json"
+            write_json_checkpoint(
+                path,
+                {"phase": "test", "seeds": [7], "runs": []},
+            )
+
+            loaded = load_seed_checkpoint(path, {"phase": "test", "seeds": [7, 42]}, [7, 42])
+
+        self.assertEqual(loaded["seeds"], [7])
+
 
 if __name__ == "__main__":
     unittest.main()

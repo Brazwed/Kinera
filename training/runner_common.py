@@ -34,6 +34,8 @@ def load_seed_checkpoint(
         raise ValueError("checkpoint inexistente")
     report = json.loads(source.read_text(encoding="utf-8"))
     for key, value in configuration.items():
+        if key == "seeds":
+            continue
         if report.get(key) != value:
             raise ValueError("checkpoint incompatível com a configuração")
     if not set(report.get("seeds", [])) <= set(seeds):
