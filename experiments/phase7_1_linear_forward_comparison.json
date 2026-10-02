@@ -1,0 +1,190 @@
+{
+  "after": {
+    "metrics": {
+      "final_validation": {
+        "boundary_accuracy": 0.547,
+        "boundary_f1": 0.707175177763413,
+        "boundary_loss": 0.6848011780147428,
+        "boundary_precision": 0.547,
+        "boundary_recall": 1.0,
+        "boundary_target_distribution": {
+          "0": 453,
+          "1": 547
+        },
+        "char_accuracy": 0.312,
+        "char_loss": 2.390993508810895,
+        "examples": 1000,
+        "syllable_accuracy": 0.199,
+        "syllable_accuracy_all": 0.199,
+        "syllable_accuracy_known": 0.11396648044692738,
+        "syllable_loss": 5.843601166806794,
+        "total_loss": 6.686954678980064
+      },
+      "initial_validation": {
+        "boundary_accuracy": 0.552,
+        "boundary_f1": 0.4455445544554456,
+        "boundary_loss": 0.6931061239046192,
+        "boundary_precision": 0.6896551724137931,
+        "boundary_recall": 0.3290676416819013,
+        "boundary_target_distribution": {
+          "0": 453,
+          "1": 547
+        },
+        "char_accuracy": 0.0,
+        "char_loss": 3.9250538277474947,
+        "examples": 1000,
+        "syllable_accuracy": 0.0,
+        "syllable_accuracy_all": 0.0,
+        "syllable_accuracy_known": 0.0,
+        "syllable_loss": 8.271293601869802,
+        "total_loss": 9.92289118622772
+      },
+      "training": {
+        "epochs": 1,
+        "examples": 1000,
+        "history": [
+          {
+            "boundary_accuracy": 0.581,
+            "boundary_f1": 0.734977862112587,
+            "boundary_loss": 0.6659616283215016,
+            "boundary_precision": 0.581,
+            "boundary_recall": 1.0,
+            "boundary_target_distribution": {
+              "0": 419,
+              "1": 581
+            },
+            "char_accuracy": 0.327,
+            "char_loss": 2.462833662370699,
+            "syllable_accuracy": 0.242,
+            "syllable_accuracy_all": 0.242,
+            "syllable_accuracy_known": 0.15862068965517243,
+            "syllable_loss": 4.836018948500853,
+            "total_loss": 6.047835414817754
+          }
+        ]
+      }
+    },
+    "peak_rss_kb": 53988,
+    "source": "/codex/.hermes/cache/scratch/phase7_1_linear_after.json",
+    "stage_seconds": {
+      "backward": 73.449467061,
+      "data_preparation": 0.169008298,
+      "evaluation": 73.605063163,
+      "forward": 60.078366177,
+      "loss": 16.676242151,
+      "optimizer_update": 32.233839478,
+      "preparation_features": 0.216140244,
+      "unattributed_overhead": 0.52134028
+    },
+    "total_seconds": 256.949466852
+  },
+  "before": {
+    "metrics": {
+      "final_validation": {
+        "boundary_accuracy": 0.547,
+        "boundary_f1": 0.707175177763413,
+        "boundary_loss": 0.6848011780147428,
+        "boundary_precision": 0.547,
+        "boundary_recall": 1.0,
+        "boundary_target_distribution": {
+          "0": 453,
+          "1": 547
+        },
+        "char_accuracy": 0.312,
+        "char_loss": 2.390993508810895,
+        "examples": 1000,
+        "syllable_accuracy": 0.199,
+        "syllable_accuracy_all": 0.199,
+        "syllable_accuracy_known": 0.11396648044692738,
+        "syllable_loss": 5.843601166806794,
+        "total_loss": 6.686954678980064
+      },
+      "initial_validation": {
+        "boundary_accuracy": 0.552,
+        "boundary_f1": 0.4455445544554456,
+        "boundary_loss": 0.6931061239046192,
+        "boundary_precision": 0.6896551724137931,
+        "boundary_recall": 0.3290676416819013,
+        "boundary_target_distribution": {
+          "0": 453,
+          "1": 547
+        },
+        "char_accuracy": 0.0,
+        "char_loss": 3.9250538277474947,
+        "examples": 1000,
+        "syllable_accuracy": 0.0,
+        "syllable_accuracy_all": 0.0,
+        "syllable_accuracy_known": 0.0,
+        "syllable_loss": 8.271293601869802,
+        "total_loss": 9.92289118622772
+      },
+      "training": {
+        "epochs": 1,
+        "examples": 1000,
+        "history": [
+          {
+            "boundary_accuracy": 0.581,
+            "boundary_f1": 0.734977862112587,
+            "boundary_loss": 0.6659616283215016,
+            "boundary_precision": 0.581,
+            "boundary_recall": 1.0,
+            "boundary_target_distribution": {
+              "0": 419,
+              "1": 581
+            },
+            "char_accuracy": 0.327,
+            "char_loss": 2.462833662370699,
+            "syllable_accuracy": 0.242,
+            "syllable_accuracy_all": 0.242,
+            "syllable_accuracy_known": 0.15862068965517243,
+            "syllable_loss": 4.836018948500853,
+            "total_loss": 6.047835414817754
+          }
+        ]
+      }
+    },
+    "peak_rss_kb": 53548,
+    "source": "experiments/phase7_1_performance_baseline.json",
+    "stage_seconds": {
+      "backward": 68.455173431,
+      "data_preparation": 0.271647595,
+      "evaluation": 78.085971326,
+      "forward": 63.561522681,
+      "loss": 16.231698758,
+      "optimizer_update": 28.603220117,
+      "preparation_features": 0.235226872,
+      "unattributed_overhead": 0.562400599
+    },
+    "total_seconds": 256.006861379
+  },
+  "conclusion": "reverted_no_measurable_gain",
+  "delta": {
+    "peak_rss_kb": 440,
+    "total_percent": 0.3681953944213001,
+    "total_seconds": 0.9426054730000146
+  },
+  "gates": {
+    "full_tests_count": 224,
+    "full_tests_passed": true,
+    "gradient_checks_count": 6,
+    "gradient_checks_passed": true,
+    "same_metrics_and_model": true,
+    "same_parameter_count": true,
+    "same_workload": true
+  },
+  "optimization": {
+    "change": "Removido o reset redundante de grad_weights e grad_bias em Linear.forward().",
+    "file": "nn/linear.py",
+    "mathematical_rationale": "backward() sobrescreve ambos os gradientes antes de qualquer step; forward() mantém _has_backward=False."
+  },
+  "phase": "7.1_linear_forward_optimization_comparison",
+  "workload": {
+    "context_size": 8,
+    "epochs": 1,
+    "learning_rate": 0.05,
+    "max_examples": 1000,
+    "seed": 7,
+    "variant": "D",
+    "workers": 1
+  }
+}
