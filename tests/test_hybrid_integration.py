@@ -1,5 +1,6 @@
 import json
 import math
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -7,68 +8,85 @@ from language.hybrid_inputs import record_to_hybrid_inputs
 from language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from nn.embedding import Embedding
 from nn.hybrid import HybridRepresentation
+from scripts.build_syllable_vocabulary import build_syllable_vocabulary
 
 
 class HybridIntegrationTests(unittest.TestCase):
-    def test_real_vocabulary_artifact_has_expected_metadata(self) -> None:
-        root = Path(__file__).parents[1]
-        vocabulary = json.loads(
-            (root / "data/processed/syllable_vocabulary.json").read_text(
-                encoding="utf-8"
+    def test_syllable_vocabulary_builder_writes_artifacts_for_fixture(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "records.jsonl"
+            vocabulary_path = root / "syllable_vocabulary.json"
+            report_path = root / "syllable_vocabulary_report.json"
+            records = (
+                {"syllables": ["ca", "sa"]},
+                {"syllables": ["pa", "to"]},
             )
-        )
-        report = json.loads(
-            (root / "data/processed/syllable_vocabulary_report.json").read_text(
-                encoding="utf-8"
+            source_path.write_text(
+                "".join(json.dumps(record, ensure_ascii=False) + "\n" for record in records),
+                encoding="utf-8",
             )
-        )
+
+            report = build_syllable_vocabulary(
+                source_path,
+                vocabulary_path,
+                report_path,
+            )
+            vocabulary = json.loads(vocabulary_path.read_text(encoding="utf-8"))
+            persisted_report = json.loads(report_path.read_text(encoding="utf-8"))
 
         self.assertEqual(vocabulary["version"], 1)
         self.assertEqual(vocabulary["tokens"][0], "<UNK_SYL>")
-        self.assertEqual(report["records_read"], 181560)
+        self.assertEqual(report["records_read"], 2)
         self.assertEqual(report["invalid_records"], 0)
         self.assertEqual(report["vocabulary_size"], len(vocabulary["tokens"]))
+        self.assertEqual(persisted_report, report)
 
-    def test_real_annotated_records_run_through_hybrid_pipeline(self) -> None:
-        root = Path(__file__).parents[1]
-        char_vocabulary = CharacterVocabulary.from_dict(
-            json.loads(
-                (root / "data/processed/vocabulary.json").read_text(
-                    encoding="utf-8"
-                )
-            )
-        )
-        syllable_vocabulary = SyllableVocabulary.from_dict(
-            json.loads(
-                (root / "data/processed/syllable_vocabulary.json").read_text(
-                    encoding="utf-8"
-                )
-            )
-        )
+    def test_fixture_annotated_record_runs_through_hybrid_pipeline(self) -> None:
+        record = {
+            "word_normalized": "a-b",
+            "syllables": ["a", "b"],
+            "characters": [
+                {
+                    "char": "a",
+                    "syllable_index": 0,
+                    "is_vowel": True,
+                    "is_alpha": True,
+                },
+                {"char": "-", "syllable_index": None, "is_separator": True},
+                {
+                    "char": "b",
+                    "syllable_index": 1,
+                    "is_consonant": True,
+                    "is_alpha": True,
+                },
+            ],
+        }
+        char_vocabulary = CharacterVocabulary.from_records([record])
+        syllable_vocabulary = SyllableVocabulary.from_records([record])
         representation = HybridRepresentation(
             Embedding(len(char_vocabulary), 4, seed=7),
             Embedding(len(syllable_vocabulary), 4, seed=8),
             feature_dim=10,
         )
-        processed_positions = 0
-        with (root / "data/processed/annotated_syllable_records.jsonl").open(
-            encoding="utf-8"
-        ) as handle:
-            for line_number, line in enumerate(handle):
-                if line_number >= 64:
-                    break
-                record = json.loads(line)
-                inputs = record_to_hybrid_inputs(
-                    record, char_vocabulary, syllable_vocabulary
-                )
-                output = representation.forward(*inputs)
-                representation.backward(
-                    [[0.001] * representation.output_dim for _ in output]
-                )
-                representation.step(0.0001)
-                processed_positions += len(output)
 
-        self.assertGreater(processed_positions, 64)
+        inputs = record_to_hybrid_inputs(
+            record,
+            char_vocabulary,
+            syllable_vocabulary,
+        )
+        char_ids, syllable_ids, feature_vectors = inputs
+        output = representation.forward(*inputs)
+        representation.backward(
+            [[0.001] * representation.output_dim for _ in output]
+        )
+        representation.step(0.0001)
+
+        self.assertEqual(len(char_ids), 3)
+        self.assertEqual(syllable_ids[1], syllable_vocabulary.unk_id)
+        self.assertEqual(len(feature_vectors), 3)
+        self.assertTrue(all(len(vector) == 10 for vector in feature_vectors))
+        self.assertEqual(len(output), 3)
         self.assertEqual(representation.output_dim, 18)
 
 
