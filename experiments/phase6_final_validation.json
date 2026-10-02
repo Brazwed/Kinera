@@ -13,6 +13,18 @@
     "validation_does_not_change_parameters": true
   },
   "evaluation_snapshot_unchanged": true,
+  "gradient_check_execution": {
+    "command": [
+      "tests.test_gradient_checking",
+      "tests.test_multitask_loss.MultiTaskGradientCheckingTests",
+      "tests.test_hybrid_integration.HybridGradientTests",
+      "tests.test_linear.LinearGradientCheckingTests"
+    ],
+    "output_tail": "\n......\n----------------------------------------------------------------------\nRan 6 tests in 0.001s\n\nOK\n",
+    "passed": true,
+    "returncode": 0,
+    "tests_run": 6
+  },
   "micro_overfit": {
     "epochs": 120,
     "final_char_accuracy": 0.6666666666666666,
@@ -24,5 +36,16 @@
     "Phase 6 does not close the issue; remaining architecture and diagnostic decisions stay explicit in Issue #2."
   ],
   "phase": "6_final_validation",
+  "test_execution": {
+    "command": [
+      "discover",
+      "-s",
+      "tests"
+    ],
+    "output_tail": "\n................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 208 tests in 0.791s\n\nOK\n",
+    "passed": true,
+    "returncode": 0,
+    "tests_run": 208
+  },
   "trained_model_snapshot_size": 8
 }

@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import re
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +46,25 @@ def examples() -> tuple[CharacterVocabulary, list[dict[str, Any]]]:
     return vocabulary, data
 
 
+def run_unittest_command(arguments: list[str]) -> dict[str, Any]:
+    root = Path(__file__).resolve().parent
+    process = subprocess.run(
+        [sys.executable, "-m", "unittest", *arguments],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    output = f"{process.stdout}\n{process.stderr}"
+    match = re.search(r"Ran (\d+) tests?", output)
+    return {
+        "command": arguments,
+        "returncode": process.returncode,
+        "tests_run": 0 if match is None else int(match.group(1)),
+        "passed": process.returncode == 0,
+        "output_tail": output[-2000:],
+    }
+
+
 def main() -> None:
     vocabulary, data = examples()
     model = AutoregressiveModel(len(vocabulary), 3, char_embedding_dim=2, syllable_embedding_dim=2, seed=7)
@@ -71,16 +93,24 @@ def main() -> None:
         learning_rate=0.1,
     )
 
+    full_test_run = run_unittest_command(["discover", "-s", "tests"])
+    gradient_test_run = run_unittest_command([
+        "tests.test_gradient_checking",
+        "tests.test_multitask_loss.MultiTaskGradientCheckingTests",
+        "tests.test_hybrid_integration.HybridGradientTests",
+        "tests.test_linear.LinearGradientCheckingTests",
+    ])
+
     phase51 = json.loads(Path("experiments/phase5_1_expanded_comparison.json").read_text(encoding="utf-8"))
     phase53 = json.loads(Path("experiments/phase5_3_expanded_analysis.json").read_text(encoding="utf-8"))
     report = {
         "phase": "6_final_validation",
         "criteria": {
-            "all_tests_passed": True,
+            "all_tests_passed": full_test_run["passed"] and full_test_run["tests_run"] > 0,
             "small_subset_overfit": final["total_loss"] < initial["total_loss"],
             "validation_does_not_change_parameters": before_eval == after_eval,
             "same_seed_reproducible": reproducible_a == reproducible_b,
-            "gradient_checks": True,
+            "gradient_checks": gradient_test_run["passed"] and gradient_test_run["tests_run"] > 0,
             "hybrid_loss_reduction_evidence": {
                 "C_vs_A_char_loss": phase51["aggregates"]["C"]["mean"]["char_loss"] < phase51["aggregates"]["A"]["mean"]["char_loss"],
                 "D_vs_B_char_loss": phase51["aggregates"]["D"]["mean"]["char_loss"] < phase51["aggregates"]["B"]["mean"]["char_loss"],
@@ -96,6 +126,8 @@ def main() -> None:
         },
         "evaluation_snapshot_unchanged": before_eval == after_eval,
         "trained_model_snapshot_size": len(after_training),
+        "test_execution": full_test_run,
+        "gradient_check_execution": gradient_test_run,
         "notes": [
             "The loss-reduction criterion is supported by held-out Phase 5.1/5.3 evidence, not by training loss alone.",
             "Phase 6 does not close the issue; remaining architecture and diagnostic decisions stay explicit in Issue #2.",
