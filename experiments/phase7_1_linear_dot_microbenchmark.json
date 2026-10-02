@@ -1,0 +1,90 @@
+{
+  "protocol": "7.1 microbenchmark",
+  "python": "3.14.7 (main, Sep  1 2026, 14:18:09) [Clang 22.1.3 ]",
+  "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.43",
+  "first_round": {
+    "warmups_per_version_per_shape": 3,
+    "iterations_per_measurement": 25,
+    "execution_order": ["A1", "B1", "B2", "A2", "A3", "B3"],
+    "shapes": {
+      "3932x26": {
+        "exact_output_equality": true,
+        "samples": {
+          "A": [
+            {"label": "A1", "elapsed_ns": 159568128, "ns_per_iteration": 6382725.12},
+            {"label": "A2", "elapsed_ns": 158514689, "ns_per_iteration": 6340587.56},
+            {"label": "A3", "elapsed_ns": 144421979, "ns_per_iteration": 5776879.16}
+          ],
+          "B": [
+            {"label": "B1", "elapsed_ns": 75266657, "ns_per_iteration": 3010666.28},
+            {"label": "B2", "elapsed_ns": 79859614, "ns_per_iteration": 3194384.56},
+            {"label": "B3", "elapsed_ns": 81659818, "ns_per_iteration": 3266392.72}
+          ]
+        },
+        "median_ns_per_iteration": {"A": 6340587.56, "B": 3194384.56},
+        "population_cv_percent": {"A": 4.478918469169395, "B": 3.4103260897296996},
+        "gain_percent": 49.62005445438561
+      },
+      "51x26": {
+        "exact_output_equality": true,
+        "samples": {
+          "A": [
+            {"label": "A1", "elapsed_ns": 2523935, "ns_per_iteration": 100957.4},
+            {"label": "A2", "elapsed_ns": 2273228, "ns_per_iteration": 90929.12},
+            {"label": "A3", "elapsed_ns": 2579850, "ns_per_iteration": 103194.0}
+          ],
+          "B": [
+            {"label": "B1", "elapsed_ns": 1278088, "ns_per_iteration": 51123.52},
+            {"label": "B2", "elapsed_ns": 1066808, "ns_per_iteration": 42672.32},
+            {"label": "B3", "elapsed_ns": 1058487, "ns_per_iteration": 42339.48}
+          ]
+        },
+        "median_ns_per_iteration": {"A": 100957.4, "B": 42672.32},
+        "population_cv_percent": {"A": 5.422207097041321, "B": 8.957242506198257},
+        "gain_percent": 57.73235047653763
+      }
+    },
+    "decision": "repeat_microbenchmark"
+  },
+  "second_round": {
+    "warmups_per_version_per_shape": 3,
+    "iterations_per_block": 25,
+    "block_order": ["AB", "BA", "AB", "BA", "AB"],
+    "clock_sources": ["perf_counter_ns", "process_time_ns"],
+    "ratio_definition": "speedup_A_over_B = elapsed_A / elapsed_B; values >1 favor candidate B",
+    "shapes": {
+      "3932x26": {
+        "exact_output_equality": true,
+        "blocks": [
+          {"A":{"wall_ns":147925455,"cpu_ns":147681252},"B":{"wall_ns":86300897,"cpu_ns":86308109},"speedup_A_over_B_wall":1.7140662512464964,"speedup_A_over_B_cpu":1.7110935891319319},
+          {"B":{"wall_ns":110744226,"cpu_ns":110519396},"A":{"wall_ns":188862531,"cpu_ns":188588180},"speedup_A_over_B_wall":1.7053939317793416,"speedup_A_over_B_cpu":1.7063808419655135},
+          {"A":{"wall_ns":212491211,"cpu_ns":211892237},"B":{"wall_ns":108579241,"cpu_ns":108549501},"speedup_A_over_B_wall":1.957015070680039,"speedup_A_over_B_cpu":1.9520332663712567},
+          {"B":{"wall_ns":86201168,"cpu_ns":85954549},"A":{"wall_ns":196566952,"cpu_ns":196001656},"speedup_A_over_B_wall":2.280328173743539,"speedup_A_over_B_cpu":2.280294158718697},
+          {"A":{"wall_ns":200330438,"cpu_ns":200052586},"B":{"wall_ns":98350142,"cpu_ns":97118646},"speedup_A_over_B_wall":2.036910511018886,"speedup_A_over_B_cpu":2.059878244183923}
+        ],
+        "median_speedup_wall":1.957015070680039,
+        "median_speedup_cpu":1.9520332663712567,
+        "all_blocks_favor_candidate":true,
+        "wall_ratio_range_percent":29.378120310765652,
+        "cpu_ratio_range_percent":29.400795910617994
+      },
+      "51x26": {
+        "exact_output_equality": true,
+        "blocks": [
+          {"A":{"wall_ns":2371868,"cpu_ns":2372160},"B":{"wall_ns":1131587,"cpu_ns":1134512},"speedup_A_over_B_wall":2.0960544792402174,"speedup_A_over_B_cpu":2.0909078088200035},
+          {"B":{"wall_ns":1188632,"cpu_ns":1190597},"A":{"wall_ns":2369563,"cpu_ns":2372632},"speedup_A_over_B_wall":1.9935211234427477,"speedup_A_over_B_cpu":1.9928086497782205},
+          {"A":{"wall_ns":2172768,"cpu_ns":2175806},"B":{"wall_ns":1107852,"cpu_ns":1110457},"speedup_A_over_B_wall":1.9612439206681036,"speedup_A_over_B_cpu":1.9593788863503945},
+          {"B":{"wall_ns":1158166,"cpu_ns":1159921},"A":{"wall_ns":2370136,"cpu_ns":2349956},"speedup_A_over_B_wall":2.0464562074866643,"speedup_A_over_B_cpu":2.025962112937002},
+          {"A":{"wall_ns":2348231,"cpu_ns":2350437},"B":{"wall_ns":1161663,"cpu_ns":1163256},"speedup_A_over_B_wall":2.021439092060262,"speedup_A_over_B_cpu":2.020567269801316}
+        ],
+        "median_speedup_wall":2.021439092060262,
+        "median_speedup_cpu":2.020567269801316,
+        "all_blocks_favor_candidate":true,
+        "wall_ratio_range_percent":6.669038859573755,
+        "cpu_ratio_range_percent":6.509504753214296
+      }
+    },
+    "decision": "advance_to_full_benchmark"
+  },
+  "decision_rule_note": "No fixed CV <3% gate; second-round paired ratios, block consistency, exact equality, and wall/CPU agreement support advancing. This authorizes only the full workload benchmark, not retaining the optimization."
+}

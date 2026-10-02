@@ -817,9 +817,9 @@ checkpoints estão documentadas em `docs/phase7-invariants.md`. A equivalência
 matemática antes/depois da consolidação e entre `workers=1`/`workers=2` está
 registrada em `experiments/phase7_deterministic_validation.json`.
 
-### Fase 7.1 — Baseline de performance
+### Fase 7.1 — Otimização do produto interno de `Linear.forward`
 
-O primeiro passo da Fase 7.1 mede, sem otimizar, a variante D com:
+O baseline foi medido na variante D com:
 
 ```text
 seed=7, workers=1, epochs=1, max_examples=1000, context_size=8
@@ -827,16 +827,31 @@ seed=7, workers=1, epochs=1, max_examples=1000, context_size=8
 
 O runner `run_phase7_1_performance_baseline.py` separa preparação/features,
 `forward`, loss, backward, atualização do otimizador e avaliação. Também registra
-tempo total, percentual por etapa, pico de RSS e os hotspots do `cProfile`.
+tempo total, percentual por etapa, pico de RSS e hotspots do `cProfile`.
 
-Relatório versionado:
+A primeira otimização aprovada troca o generator expression do produto interno
+por `sum(map(operator.mul, row, inputs))` em `Linear.forward()`. O microbenchmark
+pareado confirmou igualdade exata e B mais rápida em todos os blocos. No workload
+D, o tempo foi de **256,01 s para 180,31 s** (−75,70 s; **29,57%**), com todas
+as métricas e a contagem de **139.432 parâmetros** exatamente iguais. Os gradient
+checks passaram (6/6), e a suíte completa passou (225/225). O RSS foi de
+53.548 KiB no baseline para 54.020 KiB na comparação principal (+472 KiB;
++0,88%); uma repetição com profiling marcou 53.612 KiB (+64 KiB; +0,12%).
+
+O reprofile após a mudança reposiciona os maiores estágios: backward 37,78%,
+avaliação 22,26%, atualização do otimizador 15,82% e forward 14,40%. Portanto,
+o próximo candidato deve ser escolhido a partir deste perfil atualizado, não do
+perfil antigo.
+
+Relatórios versionados:
 
 ```text
 experiments/phase7_1_performance_baseline.json
+experiments/phase7_1_linear_dot_microbenchmark.json
+experiments/phase7_1_linear_dot_candidate.json
+experiments/phase7_1_linear_dot_comparison.json
+experiments/phase7_1_linear_dot_post_profile.json
 ```
 
-Nesta primeira medição, o workload levou aproximadamente 256,01 s e o pico de
-RSS foi 53.548 KiB. Os maiores componentes medidos foram avaliação (30,50%),
-backward (26,74%) e forward (24,83%). Esses números são apenas baseline; nenhuma
-otimização foi aplicada. As próximas mudanças devem ser justificadas por esse
-perfil e revalidadas contra os invariantes matemáticos.
+A otimização foi validada contra a matemática, testes e benchmark real; isso não
+conclui as demais oportunidades da Fase 7.1.
