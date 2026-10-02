@@ -817,7 +817,7 @@ checkpoints estão documentadas em `docs/phase7-invariants.md`. A equivalência
 matemática antes/depois da consolidação e entre `workers=1`/`workers=2` está
 registrada em `experiments/phase7_deterministic_validation.json`.
 
-### Fase 7.1 — Otimização do produto interno de `Linear.forward`
+### Fase 7.1 — Performance sem alterar a matemática
 
 O baseline foi medido na variante D com:
 
@@ -888,19 +888,31 @@ O reprofile pós-commit de `Embedding.forward()` marcou **131,20 s**. Os estági
 foram avaliação **38,82 s (29,59%)**, backward **31,26 s (23,83%)**, forward
 **23,15 s (17,64%)**, atualização **20,29 s (15,46%)** e loss **16,75 s (12,76%)**.
 `evaluate_multitask_examples()` manteve tempo próprio baixo (**0,20 s**, 57,99 s
-cumulativos). O profile ainda mostra custo relevante em `_validate_logits` (**8,90 s próprios**),
-`losses._validate_number` (**8,68 s**) e `losses._validate_outputs` (**6,49 s**). A
-investigação A/B seguinte ficou restrita ao harness: B chama helpers aritméticos
-internos somente após `_validate_outputs()` e a validação dos targets; as APIs
-públicas permanecem inalteradas. Em seis blocos pareados (3 warmups, 25 chamadas
-por amostra), B venceu A em 6/6 para `MultiTaskLoss.forward()` e `backward()`, com
-speedups medianos de **1,558×**, **1,713×** e **1,554×** combinados. Valores de
-forward e gradientes foram exatamente iguais. A bateria comparou exceções de 64
-casos inválidos das APIs públicas e 42 casos por método do `MultiTaskLoss`
-(NaN/inf, bool, string, logits vazios, targets inválidos etc.); tipos e mensagens
-foram preservados, e todos os casos inválidos foram rejeitados. Essa evidência só
-justifica avançar para um trial D separado: nenhum workload D foi rodado e nenhum
-código de produção foi alterado neste passo.
+cumulativos). O profile ainda mostrava custo em `_validate_logits` (**8,90 s
+próprios**), `losses._validate_number` (**8,68 s**) e `losses._validate_outputs`
+(**6,49 s**). A investigação A/B separada manteve as APIs públicas validadas e
+fez `MultiTaskLoss` chamar helpers aritméticos internos depois de validar outputs
+e targets. O microbenchmark exato e a bateria de exceções estão em
+`experiments/phase7_1_validated_loss_helpers_microbenchmark.json`.
+
+O trial temporário D passou nos dois pares frescos: A1→B1 caiu de **134,21 para
+111,93 s (−16,60%)** e B2→A2 de **136,04 para 116,88 s (−14,09%)**. Os quatro runs
+preservaram exatamente `initial_validation`, `training.history`, `final_validation`,
+configuração e **139.432 parâmetros**. RSS: **+196 KiB (+0,36%)** no primeiro par;
+**−28 KiB (−0,05%)** no segundo. Em ambos os pares, o estágio `loss` caiu de
+**16,67/16,84 s** para **11,39/11,45 s**. A implementação permanente mantém
+`softmax()`, `cross_entropy()` e `cross_entropy_gradient()` públicos com validação;
+`MultiTaskLoss` usa os helpers internos após seus próprios checks. Foram adicionados
+testes permanentes de tipos e mensagens de erro. Suíte: **229/229**; gradient
+checks: **6/6**. Implementação/testes: commit `9f3c7e7`.
+
+O reprofile pós-commit marcou **116,61 s**, com evaluation **33,94 s (29,11%)**,
+backward **25,80 s (22,13%)**, forward **24,24 s (20,79%)**, atualização
+**19,91 s (17,07%)** e loss **11,76 s (10,08%)**. `_validate_logits` não aparece
+entre os hotspots principais reportados; permanecem `_validate_outputs`
+(**6,57 s próprios**) e `_validate_number` (**8,71 s**), ainda necessários no
+contrato atual. Qualquer tentativa de reduzir esses checks exige uma investigação
+separada e não está incluída nesta otimização.
 
 Relatórios versionados:
 
@@ -937,6 +949,12 @@ experiments/phase7_1_embedding_forward_full_D_A2.json
 experiments/phase7_1_embedding_forward_paired_validation.json
 experiments/phase7_1_embedding_forward_post_commit_profile.json
 experiments/phase7_1_validated_loss_helpers_microbenchmark.json
+experiments/phase7_1_validated_loss_helpers_full_D_A1.json
+experiments/phase7_1_validated_loss_helpers_full_D_B1.json
+experiments/phase7_1_validated_loss_helpers_full_D_B2.json
+experiments/phase7_1_validated_loss_helpers_full_D_A2.json
+experiments/phase7_1_validated_loss_helpers_paired_full_D.json
+experiments/phase7_1_validated_loss_helpers_post_commit_profile.json
 ```
 
-As quatro otimizações aprovadas passaram igualdade matemática, testes e benchmark do workload real. Isso ainda não conclui as demais oportunidades da Fase 7.1.
+As cinco otimizações aprovadas passaram igualdade matemática, testes e benchmark do workload real. Isso ainda não conclui as demais oportunidades da Fase 7.1.

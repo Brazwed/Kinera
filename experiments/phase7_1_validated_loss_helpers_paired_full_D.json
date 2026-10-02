@@ -1,0 +1,230 @@
+{
+  "phase": "7.1_validated_loss_helpers_paired_full_D_trial",
+  "control_commit": "ea4073c960b75023d8c7dcbed2751d11d3cbc5a4",
+  "candidate": "B: process-local MultiTaskLoss.forward/backward replacement; validate outputs/targets once, then internal arithmetic helpers; public APIs unchanged",
+  "pair_order": [
+    "A1",
+    "B1",
+    "B2",
+    "A2"
+  ],
+  "workload": {
+    "context_size": 8,
+    "epochs": 1,
+    "learning_rate": 0.05,
+    "max_examples": 1000,
+    "seed": 7,
+    "variant": "D",
+    "workers": 1
+  },
+  "raw_runs": {
+    "A1": "experiments/phase7_1_validated_loss_helpers_full_D_A1.json",
+    "B1": "experiments/phase7_1_validated_loss_helpers_full_D_B1.json",
+    "B2": "experiments/phase7_1_validated_loss_helpers_full_D_B2.json",
+    "A2": "experiments/phase7_1_validated_loss_helpers_full_D_A2.json"
+  },
+  "pairs": [
+    {
+      "pair": [
+        "A1",
+        "B1"
+      ],
+      "total_seconds": {
+        "A": 134.207751344,
+        "B": 111.930285713,
+        "saved": 22.277465631,
+        "gain_pct": 16.599239170544344,
+        "speedup_A_over_B": 1.199029829050214
+      },
+      "peak_rss_kb": {
+        "A": 54060,
+        "B": 54256,
+        "delta_B_minus_A": 196,
+        "delta_pct": 0.36256011838697744
+      },
+      "stages_seconds": {
+        "backward": {
+          "A": 32.343240477,
+          "B": 25.262896045
+        },
+        "data_preparation": {
+          "A": 0.20838871,
+          "B": 0.207545949
+        },
+        "evaluation": {
+          "A": 38.581037477,
+          "B": 32.005840307
+        },
+        "forward": {
+          "A": 24.8299922,
+          "B": 22.712652144
+        },
+        "loss": {
+          "A": 16.666167189,
+          "B": 11.394499977
+        },
+        "optimizer_update": {
+          "A": 20.756040696,
+          "B": 19.536238307
+        },
+        "preparation_features": {
+          "A": 0.243487369,
+          "B": 0.233767798
+        },
+        "unattributed_overhead": {
+          "A": 0.579397226,
+          "B": 0.576845186
+        }
+      },
+      "exact_checks": {
+        "initial_validation": true,
+        "training_history": true,
+        "final_validation": true,
+        "workload_controls": true,
+        "parameter_count": true,
+        "candidate_wins": true
+      }
+    },
+    {
+      "pair": [
+        "A2",
+        "B2"
+      ],
+      "total_seconds": {
+        "A": 136.042991593,
+        "B": 116.877474571,
+        "saved": 19.165517022000017,
+        "gain_pct": 14.087838555724737,
+        "speedup_A_over_B": 1.1639795614368573
+      },
+      "peak_rss_kb": {
+        "A": 53860,
+        "B": 53832,
+        "delta_B_minus_A": -28,
+        "delta_pct": -0.051986632008911994
+      },
+      "stages_seconds": {
+        "backward": {
+          "A": 32.804916544,
+          "B": 27.195986135
+        },
+        "data_preparation": {
+          "A": 0.217253921,
+          "B": 0.17243818
+        },
+        "evaluation": {
+          "A": 38.444785957,
+          "B": 32.319396027
+        },
+        "forward": {
+          "A": 25.516397381,
+          "B": 24.295515376
+        },
+        "loss": {
+          "A": 16.841802076,
+          "B": 11.452481678
+        },
+        "optimizer_update": {
+          "A": 21.444399016,
+          "B": 20.731771548
+        },
+        "preparation_features": {
+          "A": 0.252062915,
+          "B": 0.227054532
+        },
+        "unattributed_overhead": {
+          "A": 0.521373783,
+          "B": 0.482831095
+        }
+      },
+      "exact_checks": {
+        "initial_validation": true,
+        "training_history": true,
+        "final_validation": true,
+        "workload_controls": true,
+        "parameter_count": true,
+        "candidate_wins": true
+      }
+    }
+  ],
+  "median_speedup_ratio_A_over_B": 1.1815046952435355,
+  "all_runs_exact_metrics_workload_and_parameter_count": true,
+  "both_pairs_won": true,
+  "all_pair_exact_checks_passed": true,
+  "rss_summary": "Pair 1 +196 KiB (+0.36%); pair 2 -28 KiB (-0.05%); no consistent increase.",
+  "microbenchmark_contract_gate": "experiments/phase7_1_validated_loss_helpers_microbenchmark.json",
+  "decision": "accept_B_in_production",
+  "production_code_changed_during_trial": false,
+  "production_commit": "9f3c7e7636c8902e756711db70fd54442a4e3674",
+  "production_tests": {
+    "full_unittest_suite": {
+      "passed": 229,
+      "total": 229,
+      "command": "python -m unittest discover -s tests -q"
+    },
+    "gradient_checks": {
+      "passed": 6,
+      "total": 6,
+      "command": "python -m unittest tests.test_gradient_checking tests.test_multitask_loss.MultiTaskGradientCheckingTests tests.test_hybrid_integration.HybridGradientTests tests.test_linear.LinearGradientCheckingTests -q"
+    },
+    "permanent_error_contract_tests": [
+      "public probability APIs preserve exact exception type/message for invalid logits and targets, including losses-module aliases",
+      "MultiTaskLoss.forward/backward preserve exact exception type/message for invalid output containers, NaN/inf, bool/string logits, empty logits, and out-of-range targets"
+    ]
+  },
+  "post_commit_profile": {
+    "path": "experiments/phase7_1_validated_loss_helpers_post_commit_profile.json",
+    "total_seconds": 116.61103012,
+    "peak_rss_kb": 54360,
+    "parameter_count": 139432,
+    "stages": {
+      "backward": {
+        "seconds": 25.804052425,
+        "percent": 22.128311874482222
+      },
+      "data_preparation": {
+        "seconds": 0.202890505,
+        "percent": 0.1739891198896134
+      },
+      "evaluation": {
+        "seconds": 33.94057735,
+        "percent": 29.105803554837852
+      },
+      "forward": {
+        "seconds": 24.238141456,
+        "percent": 20.785462087983827
+      },
+      "loss": {
+        "seconds": 11.75955082,
+        "percent": 10.084424095987053
+      },
+      "optimizer_update": {
+        "seconds": 19.907721311,
+        "percent": 17.071902452549914
+      },
+      "preparation_features": {
+        "seconds": 0.251079191,
+        "percent": 0.2153134148130103
+      },
+      "unattributed_overhead": {
+        "seconds": 0.507017062,
+        "percent": 0.4347933994565076
+      }
+    },
+    "metrics_exact_vs_temporary_B1_and_B2": true,
+    "validation_hotspots": [
+      {
+        "function": "losses.py:128(_validate_outputs)",
+        "self_seconds": 6.5673040920000005,
+        "cumulative_seconds": 20.983804228
+      },
+      {
+        "function": "losses.py:158(_validate_number)",
+        "self_seconds": 8.709987639000001,
+        "cumulative_seconds": 14.341923223
+      }
+    ],
+    "public_logits_validator_in_top_hotspots": false
+  },
+  "production_code_changed_after_gate": true
+}
