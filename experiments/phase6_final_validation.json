@@ -1,0 +1,28 @@
+{
+  "criteria": {
+    "all_tests_passed": true,
+    "gradient_checks": true,
+    "hybrid_loss_reduction_evidence": {
+      "A_vs_C_mean_delta_loss": 0.12580112598471885,
+      "B_vs_D_mean_delta_loss": 0.15521344017065616,
+      "C_vs_A_char_loss": true,
+      "D_vs_B_char_loss": true
+    },
+    "same_seed_reproducible": true,
+    "small_subset_overfit": true,
+    "validation_does_not_change_parameters": true
+  },
+  "evaluation_snapshot_unchanged": true,
+  "micro_overfit": {
+    "epochs": 120,
+    "final_char_accuracy": 0.6666666666666666,
+    "final_total_loss": 0.5139215109415282,
+    "initial_total_loss": 2.6360476850895274
+  },
+  "notes": [
+    "The loss-reduction criterion is supported by held-out Phase 5.1/5.3 evidence, not by training loss alone.",
+    "Phase 6 does not close the issue; remaining architecture and diagnostic decisions stay explicit in Issue #2."
+  ],
+  "phase": "6_final_validation",
+  "trained_model_snapshot_size": 8
+}

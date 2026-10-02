@@ -782,3 +782,20 @@ vogais acentuadas e os 7 separadores. O resultado não autoriza generalizar o
 benefício para todos os targets.
 
 Relatório: `experiments/phase5_5_orthographic_class_analysis.json`.
+
+### Fase 6 — Validação final
+
+O relatório `experiments/phase6_final_validation.json` registra a validação dos
+critérios finais:
+
+- todos os testes existentes passam;
+- o micro-overfit reduziu `total_loss` de `2,636048` para `0,513922`;
+- `char_accuracy` final do subconjunto: `66,67%`;
+- avaliação não altera parâmetros;
+- mesma seed produz o mesmo histórico;
+- gradient checks existentes continuam válidos;
+- evidência held-out das Fases 5.1/5.3 confirma redução de `char_loss` em C vs
+  A e D vs B.
+
+Isso valida o estado atual sem encerrar a Issue: a decisão de manter ou alterar
+a arquitetura deve continuar baseada nos diagnósticos já registrados.
