@@ -13,6 +13,7 @@ from pathlib import Path
 from language.dataset import load_jsonl
 from language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from training.orthographic_analysis import run_orthographic_class_analysis
+from training.runner_common import write_json_checkpoint
 
 
 def run_seed(payload: dict) -> dict:
@@ -46,13 +47,6 @@ def run_seed(payload: dict) -> dict:
             'wall_time_seconds': time.perf_counter() - started,
             'traceback': traceback.format_exc(),
         }
-
-
-def write_checkpoint(path: Path, report: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temp = path.with_name(f'.{path.name}.tmp')
-    temp.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + '\n', encoding='utf-8')
-    os.replace(temp, path)
 
 
 def main() -> None:
@@ -90,7 +84,7 @@ def main() -> None:
     for seed in pending:
         results.append({'seed': seed, 'status': 'pending', 'worker_pid': None})
     report = {**config, 'workers': args.workers, 'runs': results, 'status': 'running'}
-    write_checkpoint(args.checkpoint, report)
+    write_json_checkpoint(args.checkpoint, report)
     payloads = [{
         'vocabulary': str(args.vocabulary),
         'syllable_vocabulary': str(args.syllable_vocabulary),
@@ -107,7 +101,7 @@ def main() -> None:
             entry = next(item for item in results if item['seed'] == payload['seed'])
             entry['status'] = 'running'
             futures[pool.submit(run_seed, payload)] = payload['seed']
-        write_checkpoint(args.checkpoint, report)
+        write_json_checkpoint(args.checkpoint, report)
         for future in concurrent.futures.as_completed(futures):
             seed = futures[future]
             try:
@@ -117,11 +111,11 @@ def main() -> None:
             entry = next(item for item in results if item['seed'] == seed)
             entry.clear(); entry.update(result)
             report = {**config, 'workers': args.workers, 'runs': results, 'status': 'running'}
-            write_checkpoint(args.checkpoint, report)
+            write_json_checkpoint(args.checkpoint, report)
     report['completed_runs'] = sum(item.get('status') == 'completed' for item in results)
     report['failed_runs'] = sum(item.get('status') == 'failed' for item in results)
     report['status'] = 'failed' if report['failed_runs'] else 'completed'
-    write_checkpoint(args.checkpoint, report)
+    write_json_checkpoint(args.checkpoint, report)
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
 
 

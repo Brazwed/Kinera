@@ -13,6 +13,7 @@ from typing import Any
 
 from language.dataset import load_jsonl
 from language.vocabulary import CharacterVocabulary, SyllableVocabulary
+from training.runner_common import write_json_checkpoint
 from training.syllable_analysis import run_syllable_gain_analysis
 
 
@@ -69,13 +70,6 @@ def _aggregate(runs: list[dict[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _write_checkpoint(path: Path, report: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.tmp")
-    temporary.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(temporary, path)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--vocabulary", type=Path, required=True)
@@ -115,7 +109,7 @@ def main() -> None:
     else:
         results = []
         report = {**configuration, "runs": results, "status": "running"}
-        _write_checkpoint(args.checkpoint, report)
+        write_json_checkpoint(args.checkpoint, report)
 
     completed_seeds = {item["seed"] for item in results if item.get("status") == "completed"}
     pending = [seed for seed in args.seeds if seed not in completed_seeds]
@@ -136,7 +130,7 @@ def main() -> None:
     for seed in pending:
         results.append({"seed": seed, "status": "pending", "worker_pid": None})
     report = {**configuration, "runs": results, "status": "running", "workers": args.workers}
-    _write_checkpoint(args.checkpoint, report)
+    write_json_checkpoint(args.checkpoint, report)
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=args.workers) as executor:
         futures = {}
@@ -145,7 +139,7 @@ def main() -> None:
             entry["status"] = "running"
             future = executor.submit(_run_seed, payload)
             futures[future] = payload["seed"]
-        _write_checkpoint(args.checkpoint, report)
+        write_json_checkpoint(args.checkpoint, report)
         for future in concurrent.futures.as_completed(futures):
             seed = futures[future]
             try:
@@ -164,13 +158,13 @@ def main() -> None:
                 "aggregates": _aggregate(results),
                 "status": "running",
             }
-            _write_checkpoint(args.checkpoint, report)
+            write_json_checkpoint(args.checkpoint, report)
 
     report["completed_runs"] = sum(item.get("status") == "completed" for item in results)
     report["failed_runs"] = sum(item.get("status") == "failed" for item in results)
     report["aggregates"] = _aggregate(results)
     report["status"] = "failed" if report["failed_runs"] else "completed"
-    _write_checkpoint(args.checkpoint, report)
+    write_json_checkpoint(args.checkpoint, report)
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
 
 
