@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from training.experiment_types import RunRecord, aggregate_run_status
+
 
 def write_json_checkpoint(path: str | Path, report: dict[str, Any]) -> Path:
     """Escreve JSON de checkpoint com substituição atômica."""
@@ -45,3 +47,11 @@ def pending_seeds(results: list[dict[str, Any]], seeds: list[int] | tuple[int, .
     """Retorna seeds ainda não concluídas, preservando a ordem solicitada."""
     completed = {item.get("seed") for item in results if item.get("status") == "completed"}
     return [seed for seed in seeds if seed not in completed]
+
+
+def aggregate_run_dicts(records: list[dict[str, Any]]) -> dict[str, int | str]:
+    """Agrega status de registros JSON sem duplicar lógica nos runners."""
+    normalized = []
+    for record in records:
+        normalized.append({**record, "payload": record.get("payload", record.get("run", {}))})
+    return aggregate_run_status([RunRecord.from_dict(record) for record in normalized])

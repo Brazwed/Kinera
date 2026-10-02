@@ -13,7 +13,8 @@ from typing import Any
 
 from language.dataset import load_jsonl
 from language.vocabulary import CharacterVocabulary, SyllableVocabulary
-from training.runner_common import write_json_checkpoint
+from training.experiment_types import ExperimentConfig
+from training.runner_common import aggregate_run_dicts, write_json_checkpoint
 from training.syllable_analysis import run_syllable_gain_analysis
 
 
@@ -88,15 +89,16 @@ def main() -> None:
     if args.workers < 1:
         raise SystemExit("--workers deve ser positivo")
 
-    configuration = {
-        "phase": "5.3_expanded_analysis",
-        "variants": ["A", "B", "C", "D"],
-        "seeds": args.seeds,
-        "epochs": args.epochs,
-        "learning_rate": args.learning_rate,
-        "max_examples": args.max_examples,
-        "top_examples": args.top_examples,
-    }
+    configuration = ExperimentConfig(
+        phase="5.3_expanded_analysis",
+        variants=("A", "B", "C", "D"),
+        seeds=tuple(args.seeds),
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        max_examples=args.max_examples,
+        top_examples=args.top_examples,
+        workers=args.workers,
+    ).to_dict()
     if args.resume:
         if not args.checkpoint.exists():
             raise SystemExit("--resume exige checkpoint existente")
@@ -160,8 +162,7 @@ def main() -> None:
             }
             write_json_checkpoint(args.checkpoint, report)
 
-    report["completed_runs"] = sum(item.get("status") == "completed" for item in results)
-    report["failed_runs"] = sum(item.get("status") == "failed" for item in results)
+    report.update(aggregate_run_dicts(results))
     report["aggregates"] = _aggregate(results)
     report["status"] = "failed" if report["failed_runs"] else "completed"
     write_json_checkpoint(args.checkpoint, report)

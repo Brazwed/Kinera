@@ -12,8 +12,9 @@ from pathlib import Path
 
 from language.dataset import load_jsonl
 from language.vocabulary import CharacterVocabulary, SyllableVocabulary
+from training.experiment_types import ExperimentConfig
 from training.orthographic_analysis import run_orthographic_class_analysis
-from training.runner_common import write_json_checkpoint
+from training.runner_common import aggregate_run_dicts, write_json_checkpoint
 
 
 def run_seed(payload: dict) -> dict:
@@ -63,13 +64,15 @@ def main() -> None:
     parser.add_argument('--checkpoint', type=Path, required=True)
     parser.add_argument('--resume', action='store_true')
     args = parser.parse_args()
-    config = {
-        'phase': '5.5_orthographic_class_analysis',
-        'seeds': args.seeds,
-        'epochs': args.epochs,
-        'learning_rate': args.learning_rate,
-        'max_examples': args.max_examples,
-    }
+    config = ExperimentConfig(
+        phase='5.5_orthographic_class_analysis',
+        variants=('A', 'B', 'C', 'D'),
+        seeds=tuple(args.seeds),
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        max_examples=args.max_examples,
+        workers=args.workers,
+    ).to_dict()
     if args.resume:
         report = json.loads(args.checkpoint.read_text(encoding='utf-8'))
         if any(report.get(key) != value for key, value in config.items() if key != 'seeds'):
@@ -112,8 +115,7 @@ def main() -> None:
             entry.clear(); entry.update(result)
             report = {**config, 'workers': args.workers, 'runs': results, 'status': 'running'}
             write_json_checkpoint(args.checkpoint, report)
-    report['completed_runs'] = sum(item.get('status') == 'completed' for item in results)
-    report['failed_runs'] = sum(item.get('status') == 'failed' for item in results)
+    report.update(aggregate_run_dicts(results))
     report['status'] = 'failed' if report['failed_runs'] else 'completed'
     write_json_checkpoint(args.checkpoint, report)
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
