@@ -1,0 +1,78 @@
+{
+  "issue": 10,
+  "phase": "8.0_refactor_baseline",
+  "captured_at": "2026-10-03",
+  "baseline_commit": "a6c278a71d94790b4f73122cc844f20292c3c87c",
+  "worktree_branch": "refactor/issue-10-backend-architecture",
+  "runtime": {
+    "python": "3.14.7",
+    "operating_mode": "CPU reference; no CUDA execution"
+  },
+  "test_suite": {
+    "command": "python3 -m unittest discover -s tests -v",
+    "result": "passed",
+    "tests_run": 241,
+    "elapsed_seconds": 1.172
+  },
+  "cpu_oracle_fixtures": [
+    {
+      "path": "experiments/phase7_2_final_validation.json",
+      "sha256": "38907592221e3b17b40549d9bbb411ad6d23377ed2da6185df5f5b1628abe684",
+      "scope": "one train and one validation example; seed 7; one epoch; workers=1; variants A/B/C/D; exact initial/final validation, training history, and parameter counts",
+      "normalized_report_sha256": "cdd2eaf2e53d02476f7ac6afb458e46c59fb71740ee5812281eb77e2b9f751ac",
+      "parameters_per_variant": 377
+    },
+    {
+      "path": "experiments/phase7_deterministic_validation.json",
+      "sha256": "6b7a305d275a9a39f11907524b430f42f047dc4ac0ea50d06ce7775da90248cb",
+      "scope": "historical/consolidated CPU equivalence and workers=1/workers=2 deterministic comparison"
+    },
+    {
+      "path": "docs/phase7-invariants.md",
+      "sha256": "588c6f4441266357b670c3315b0390d20a27bfa351ef5bc4c2abd85fcccc529e",
+      "scope": "causality, model dimensions, loss weights, training/evaluation, checkpoints, and historical-runner invariants"
+    }
+  ],
+  "issue8_frozen_artifact_references": {
+    "verification": "All listed hashes matched the persisted VPS files at baseline capture; these files were not modified.",
+    "artifacts": [
+      {
+        "path": "/home/codex/workspace/kinera-experiments/manifests/issue8_5k_manifest.json",
+        "sha256": "062bd63fb756fa71e5b587ba3c0b14857ebf1d5a8c3a32e39c39064b19ccefc8"
+      },
+      {
+        "path": "/home/codex/workspace/kinera-experiments/manifests/issue8_10k_manifest.json",
+        "sha256": "4326ccd292f3a125f048cfb4006e989e33b1fb4376e2fa6ef4c01c658cacb7e8"
+      },
+      {
+        "path": "/home/codex/workspace/kinera-experiments/reports/issue8-5k/final-5k-report-2026-10-03.json",
+        "sha256": "9bb666ec2547a91e424536ca2470da7c3970709b9dbdbc3dee9069364c322a3f"
+      },
+      {
+        "path": "/home/codex/workspace/kinera-experiments/reports/issue8-10k/final-10k-report.json",
+        "sha256": "b5a5c22d64a32cd64ff9f6d80caf97ad6d18f89c0fd689f65feca19a0470d583"
+      },
+      {
+        "path": "/home/codex/workspace/kinera-experiments/reports/issue8-10k/run-ledger.json",
+        "sha256": "e16f415b7882e9f54510b001bc963acc2b8c35e0ed72edb072abdbb18fc72e40"
+      },
+      {
+        "path": "/home/codex/workspace/kinera-experiments/checkpoints/10k/A_checkpoint.json",
+        "sha256": "8b36d6e5d1f54fb3e7e890ff8cba49c44d1152ae5da94c259c030d2cf55cd5cd"
+      },
+      {
+        "path": "/home/codex/workspace/kinera-experiments/checkpoints/10k/C_checkpoint.json",
+        "sha256": "c539537e770611279198539f95858899950aba63cc009e0d25fa6169cacceb82"
+      },
+      {
+        "path": "/home/codex/workspace/kinera-experiments/checkpoints/10k/D_checkpoint.json",
+        "sha256": "df96e7f08fcd0317ad53f785a12ba7cea98d983061ffa2200c7353ee006fa17a"
+      }
+    ]
+  },
+  "scope_guardrails": [
+    "No training, optimizer, loss, architecture, causality, or parameter-count changes are authorized in this refactor.",
+    "No production CUDA kernels or CPU/GPU benchmarks are included.",
+    "Issue #8 artifacts remain immutable and are referenced by hash only."
+  ]
+}
