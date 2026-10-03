@@ -1,6 +1,7 @@
 """CUDA scaffolding must fail closed until real kernels exist."""
 
 from pathlib import Path
+import tempfile
 import unittest
 
 from kinera.backends import Backend, BackendUnavailableError, get_backend
@@ -19,24 +20,33 @@ class CudaBackendScaffoldTests(unittest.TestCase):
         with self.assertRaisesRegex(BackendUnavailableError, "scaffold only"):
             backend.linear_forward([], [], [])
 
-    def test_runtime_memory_and_bridge_are_explicit_nonfunctional_stubs(self) -> None:
+    def test_missing_runtime_memory_and_library_fail_closed(self) -> None:
         from kinera.backends.cuda.bridge import CudaBridge
         from kinera.backends.cuda.memory import CudaMemoryManager
         from kinera.backends.cuda.runtime import CudaRuntime
 
-        runtime = CudaRuntime()
+        class UnavailableBridge(CudaBridge):
+            def probe_device_count(self) -> int:
+                raise BackendUnavailableError("no native CUDA runtime in this test")
+
+            def device_count(self) -> int:
+                raise BackendUnavailableError("no native CUDA runtime in this test")
+
+        unavailable = UnavailableBridge()
+        runtime = CudaRuntime(bridge=unavailable)
         self.assertFalse(runtime.is_available())
         self.assertEqual(runtime.device_count(), 0)
         with self.assertRaises(BackendUnavailableError):
             runtime.synchronize()
 
-        memory = CudaMemoryManager()
+        memory = CudaMemoryManager(bridge=unavailable)
         with self.assertRaises(BackendUnavailableError):
-            memory.allocate(16)
+            memory.allocate((16,))
 
-        bridge = CudaBridge()
-        with self.assertRaises(BackendUnavailableError):
-            bridge.load()
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            bridge = CudaBridge(library_path=Path(temporary_dir) / "missing.so")
+            with self.assertRaises(BackendUnavailableError):
+                bridge.load()
 
     def test_cuda_source_files_are_placeholders_not_production_kernels(self) -> None:
         source_root = Path(__file__).resolve().parents[1] / "src/kinera/backends/cuda/kernels"

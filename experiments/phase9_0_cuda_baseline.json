@@ -1,0 +1,72 @@
+{
+  "issue": 12,
+  "phase": "9.0_cuda_preimplementation_baseline",
+  "captured_at": "2026-10-03",
+  "baseline_commit": "a64b23730a4604270c0508f173715fe413704acd",
+  "worktree_branch": "feat/issue-12-cuda-linear",
+  "runtime": {
+    "python": "3.14.7",
+    "platform": "Linux",
+    "package_import": "/home/codex/workspace/Kinera/worktrees/issue-12-cuda-linear/src/kinera/__init__.py",
+    "cuda_modules_loaded_by_cpu_import": false,
+    "local_nvidia_smi_available": false,
+    "local_nvcc_available": false
+  },
+  "cpu_baseline": {
+    "oracle": "kinera.backends.cpu.backend.CPUBackend",
+    "install_command": "python -m pip install --no-deps -e .",
+    "test_command": "python -m unittest discover -s tests -v",
+    "result": "passed",
+    "tests_run": 269,
+    "elapsed_seconds": 1.619,
+    "test_log": "/codex/.hermes/cache/scratch/kinera-issue12-baseline-unittest.log"
+  },
+  "github_ci": {
+    "commit": "a64b23730a4604270c0508f173715fe413704acd",
+    "check_run": "tests",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "equivalence_references": [
+    {
+      "path": "tests/test_linear.py",
+      "scope": "Linear.forward/backward/step CPU behavior and finite-difference gradients"
+    },
+    {
+      "path": "tests/test_cpu_reference_equivalence.py",
+      "scope": "frozen CPU A/B/C/D fixture equivalence and parameter counts"
+    },
+    {
+      "path": "experiments/phase8_0_refactor_baseline.json",
+      "scope": "pre-CUDA fixtures and invariants"
+    },
+    {
+      "path": "experiments/phase7_2_final_validation.json",
+      "sha256": "38907592221e3b17b40549d9bbb411ad6d23377ed2da6185df5f5b1628abe684",
+      "normalized_report_sha256": "cdd2eaf2e53d02476f7ac6afb458e46c59fb71740ee5812281eb77e2b9f751ac",
+      "parameters_per_variant": 377
+    },
+    {
+      "path": "experiments/phase7_deterministic_validation.json",
+      "sha256": "6b7a305d275a9a39f11907524b430f42f047dc4ac0ea50d06ce7775da90248cb"
+    },
+    {
+      "path": "docs/phase7-invariants.md",
+      "sha256": "588c6f4441266357b670c3315b0390d20a27bfa351ef5bc4c2abd85fcccc529e"
+    }
+  ],
+  "numeric_policy": {
+    "dtype": "float64",
+    "comparison_rule": "abs(cuda_value - cpu_value) <= atol + rtol * abs(cpu_value)",
+    "atol": 1e-12,
+    "rtol": 1e-12,
+    "max_absolute_error_observed": null,
+    "status": "registered before CUDA kernel validation; observed error pending a real CUDA device"
+  },
+  "scope_guardrails": [
+    "CPU installation and CI must not require a CUDA GPU, driver, toolkit, nvcc, or native library.",
+    "No silent CUDA-to-CPU fallback.",
+    "No 5k/10k retraining, benchmark, embedding/loss kernel, or model-wide CUDA migration was run.",
+    "Issue #8 frozen artifacts remain unchanged."
+  ]
+}
