@@ -1,7 +1,7 @@
 import unittest
 
-from language.vocabulary import CharacterVocabulary
-from training.autoregressive import (
+from kinera.language.vocabulary import CharacterVocabulary
+from kinera.training.autoregressive import (
     AutoregressiveModel,
     evaluate_multitask_examples,
     train_multitask_examples,

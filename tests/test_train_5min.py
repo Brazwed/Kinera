@@ -1,7 +1,7 @@
 import random
 import unittest
 
-from train_5min import build_samples, target_function
+from scripts.legacy.train_5min import build_samples, target_function
 
 
 class TimedTrainingAdapterTests(unittest.TestCase):

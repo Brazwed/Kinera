@@ -1,6 +1,6 @@
 import unittest
 
-from language.vocabulary import CharacterVocabulary, SyllableVocabulary
+from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 
 
 class CharacterVocabularyTests(unittest.TestCase):

@@ -1,13 +1,13 @@
 import unittest
 
-from language.vocabulary import CharacterVocabulary
-from training.autoregressive import (
+from kinera.language.vocabulary import CharacterVocabulary
+from kinera.training.autoregressive import (
     example_to_inputs,
     evaluate_examples,
     generate_text,
     train_examples,
 )
-from training.autoregressive import AutoregressiveModel
+from kinera.training.autoregressive import AutoregressiveModel
 
 
 class AutoregressiveWorkflowTests(unittest.TestCase):

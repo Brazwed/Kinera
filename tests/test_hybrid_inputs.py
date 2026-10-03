@@ -1,7 +1,7 @@
 import unittest
 
-from language.hybrid_inputs import record_to_hybrid_inputs
-from language.vocabulary import CharacterVocabulary, SyllableVocabulary
+from kinera.language.hybrid_inputs import record_to_hybrid_inputs
+from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 
 
 class HybridInputTests(unittest.TestCase):

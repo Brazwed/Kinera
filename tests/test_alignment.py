@@ -1,6 +1,6 @@
 import unittest
 
-from language.alignment import (
+from kinera.language.alignment import (
     align_characters,
     alignment_summary,
     reconstruct_from_alignment,

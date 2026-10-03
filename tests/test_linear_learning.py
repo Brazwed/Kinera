@@ -1,6 +1,6 @@
 import unittest
 
-from nn.linear import Linear
+from kinera.nn.linear import Linear
 
 
 class LinearLearningTests(unittest.TestCase):

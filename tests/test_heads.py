@@ -1,8 +1,9 @@
 import math
 import unittest
 
-from nn.heads import MultiTaskHeads
-from training.autoregressive import AutoregressiveModel
+from kinera.backends.cpu.backend import CPUBackend
+from kinera.nn.heads import MultiTaskHeads
+from kinera.training.autoregressive import AutoregressiveModel
 
 
 class MultiTaskHeadsTests(unittest.TestCase):
@@ -65,6 +66,33 @@ class AutoregressiveHeadIntegrationTests(unittest.TestCase):
         self.assertEqual(len(outputs["syllable"]), 7)
         self.assertEqual(len(outputs["boundary"]), 1)
         self.assertIs(model.output_layer, model.heads.char)
+
+
+class HeadsBackendIntegrationTests(unittest.TestCase):
+    def test_all_heads_share_the_injected_backend(self) -> None:
+        class RecordingBackend(CPUBackend):
+            def __init__(self) -> None:
+                self.linear_forward_calls = 0
+
+            def linear_forward(self, weights, bias, inputs):
+                self.linear_forward_calls += 1
+                return super().linear_forward(weights, bias, inputs)
+
+        backend = RecordingBackend()
+        heads = MultiTaskHeads(
+            input_dim=2,
+            char_vocab_size=3,
+            syllable_vocab_size=4,
+            seed=7,
+            backend=backend,
+        )
+
+        heads.forward([0.1, 0.2])
+
+        self.assertEqual(backend.linear_forward_calls, 3)
+        self.assertIs(heads.char.backend, backend)
+        self.assertIs(heads.syllable.backend, backend)
+        self.assertIs(heads.boundary.backend, backend)
 
 
 if __name__ == "__main__":

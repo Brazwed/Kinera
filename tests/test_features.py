@@ -1,6 +1,6 @@
 import unittest
 
-from language.features import (
+from kinera.language.features import (
     ORTHOGRAPHIC_FEATURE_NAMES,
     annotate_record,
     annotate_word,

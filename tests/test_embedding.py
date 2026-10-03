@@ -1,7 +1,8 @@
 import math
 import unittest
 
-from nn.embedding import Embedding
+from kinera.backends.cpu.backend import CPUBackend
+from kinera.nn.embedding import Embedding
 
 
 class EmbeddingConstructionTests(unittest.TestCase):
@@ -132,6 +133,34 @@ class EmbeddingStepTests(unittest.TestCase):
 
         with self.assertRaises(RuntimeError):
             embedding.step(0.1)
+
+
+class EmbeddingBackendIntegrationTests(unittest.TestCase):
+    def test_embedding_delegates_lookup_gradient_and_update_to_backend(self) -> None:
+        class RecordingBackend(CPUBackend):
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def embedding_forward(self, weights, ids):
+                self.calls.append("forward")
+                return super().embedding_forward(weights, ids)
+
+            def embedding_backward(self, grad_weights, ids, grad_output):
+                self.calls.append("backward")
+                return super().embedding_backward(grad_weights, ids, grad_output)
+
+            def embedding_step(self, weights, grad_weights, learning_rate):
+                self.calls.append("step")
+                return super().embedding_step(weights, grad_weights, learning_rate)
+
+        backend = RecordingBackend()
+        embedding = Embedding(vocab_size=2, embedding_dim=2, seed=7, backend=backend)
+
+        embedding.forward([0])
+        embedding.backward([[1.0, 2.0]])
+        embedding.step(0.01)
+
+        self.assertEqual(backend.calls, ["forward", "backward", "step"])
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import unittest
 
-from language.syllables import (
+from kinera.language.syllables import (
     evaluate_records,
     segment_word,
     syllable_boundaries,

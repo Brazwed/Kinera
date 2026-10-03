@@ -2,9 +2,10 @@ from collections import Counter
 import copy
 import unittest
 
-from nn.neuron import Neuron
-from training.data import generate_samples, split_samples, target_function
-from training.loop import TrainingConfig, fit, train_epoch
+from kinera.nn.layers.neuron import Neuron
+from kinera.experiments.synthetic_data import generate_samples, split_samples, target_function
+from kinera.training.config import TrainingConfig
+from kinera.training.trainer import fit, train_epoch
 
 
 class TrainingDataTests(unittest.TestCase):

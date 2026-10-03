@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.annotate_syllable_dataset import annotate_jsonl
+from kinera.scripts.annotate_syllable_dataset import annotate_jsonl
 
 
 class AnnotationPipelineTests(unittest.TestCase):

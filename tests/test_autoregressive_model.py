@@ -2,9 +2,9 @@ import math
 import unittest
 from typing import Any
 
-import nn.losses as losses_module
-from nn.probability import cross_entropy, cross_entropy_gradient, softmax
-from training.autoregressive import AutoregressiveModel
+import kinera.nn.losses as losses_module
+from kinera.nn.probability import cross_entropy, cross_entropy_gradient, softmax
+from kinera.training.autoregressive import AutoregressiveModel
 
 
 class ProbabilityTests(unittest.TestCase):

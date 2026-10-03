@@ -2,9 +2,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from run_experiment import run_experiment
-from training.checkpoint import load_neuron
-from training.loop import TrainingConfig
+from scripts.legacy.run_experiment import run_experiment
+from kinera.training.checkpoint import load_neuron
+from kinera.training.config import TrainingConfig
 
 
 class CheckpointRunnerTests(unittest.TestCase):

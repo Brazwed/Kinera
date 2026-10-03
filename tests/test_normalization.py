@@ -1,6 +1,6 @@
 import unittest
 
-from language.records import (
+from kinera.language.records import (
     normalize_silabas_row,
     normalize_word,
     parse_syllable_markup,

@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from training.runner_common import (
+from kinera.experiments.runner_common import (
     load_seed_checkpoint,
     write_json_checkpoint,
 )

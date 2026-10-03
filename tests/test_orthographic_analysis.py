@@ -1,8 +1,8 @@
 import unittest
 
-from language.features import character_features
-from language.vocabulary import CharacterVocabulary
-from training.orthographic_analysis import classify_target, run_orthographic_class_analysis
+from kinera.language.features import character_features
+from kinera.language.vocabulary import CharacterVocabulary
+from kinera.diagnostics.orthography import classify_target, run_orthographic_class_analysis
 
 
 class OrthographicAnalysisTests(unittest.TestCase):

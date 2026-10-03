@@ -3,8 +3,8 @@ import json
 import tempfile
 from pathlib import Path
 
-from language.dataset import group_records, split_by_word
-from scripts.build_syllable_dataset import build_dataset
+from kinera.language.dataset import group_records, split_by_word
+from kinera.scripts.build_syllable_dataset import build_dataset
 
 
 class DatasetBuilderTests(unittest.TestCase):

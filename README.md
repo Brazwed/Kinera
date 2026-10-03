@@ -81,7 +81,7 @@ result = fit(neuron, train_samples, validation_samples, config)
 
 O resultado registra loss de treino e validação por época, quantidade de passos, melhor época e motivo da parada. O early stopping restaura os pesos e o bias do melhor resultado de validação. A função `evaluate` não executa `backward` ou `step` e preserva o estado observável do neurônio.
 
-O arquivo `train_5min.py` permanece como adaptador de teste de resistência. Ele reutiliza `train_epoch` e `evaluate`, mas o ciclo normal deve preferir `fit`, com limite de épocas e early stopping.
+O arquivo `scripts/legacy/train_5min.py` permanece como adaptador de teste de resistência. Ele reutiliza `train_epoch` e `evaluate`, mas o ciclo normal deve preferir `fit`, com limite de épocas e early stopping.
 
 ## Dados de treino e validação
 
@@ -110,10 +110,10 @@ A validação serve apenas para medir o modelo. Ela não deve ser enviada para `
 
 ## Experimento com múltiplas seeds
 
-O executor `run_experiment.py` usa o mesmo conjunto de dados e a mesma configuração de treinamento para várias inicializações:
+O executor `scripts/legacy/run_experiment.py` usa o mesmo conjunto de dados e a mesma configuração de treinamento para várias inicializações:
 
 ```bash
-python run_experiment.py
+python scripts/legacy/run_experiment.py
 ```
 
 Por padrão, ele executa as seeds:
@@ -125,7 +125,7 @@ Por padrão, ele executa as seeds:
 Também é possível escolher seeds e parâmetros:
 
 ```bash
-python run_experiment.py \
+python scripts/legacy/run_experiment.py \
     --seeds 1 7 42 \
     --activation leaky_relu \
     --negative-slope 0.01 \
@@ -139,7 +139,7 @@ python run_experiment.py \
 O executor usa `leaky_relu` por padrão. Para reproduzir o baseline original:
 
 ```bash
-python run_experiment.py --activation relu
+python scripts/legacy/run_experiment.py --activation relu
 ```
 
 O módulo `training.experiments` registra cada execução como `converged`, `not_converged` ou `error`. Nenhuma seed é descartada. O relatório inclui ativação, atividade inicial, épocas, passos, melhor loss de validação, pesos finais e taxa de convergência.
@@ -205,7 +205,7 @@ O formato preserva pesos, bias, arquitetura, ativação, `negative_slope` e meta
 Para salvar o modelo de uma seed durante o experimento:
 
 ```bash
-python run_experiment.py \
+python scripts/legacy/run_experiment.py \
     --seeds 7 \
     --checkpoint-seed 7 \
     --checkpoint-path checkpoints/seed-7.json
@@ -447,7 +447,7 @@ O executor treina uma amostra limitada, mede validação sem atualizar pesos e
 faz geração gulosa:
 
 ```bash
-python run_autoregressive.py \
+python scripts/train.py \
     --vocabulary data/processed/vocabulary.json \
     --train data/processed/autoregressive_train.jsonl \
     --validation data/processed/autoregressive_validation.jsonl \
@@ -503,7 +503,7 @@ validation = load_jsonl(
 
 ## Comparação controlada A/B/C/D
 
-O runner `run_comparison.py` mantém a mesma dimensão interna, heads, loss,
+O runner `scripts/compare.py` mantém a mesma dimensão interna, heads, loss,
 split, seeds e configuração de treino. Ele apenas mascara os canais de
 entrada:
 
@@ -518,20 +518,20 @@ As sílabas usadas em C/D são somente as sílabas já completamente observadas.
 O runner registra média e desvio entre seeds, além da contagem de parâmetros.
 
 Na Fase 7.2, a classificação é explícita: A é o baseline mínimo, B é uma
-ablação opcional, e C/D são as variantes principais. `run_comparison.py` aceita
+ablação opcional, e C/D são as variantes principais. `scripts/compare.py` aceita
 `--variants` (choices A/B/C/D) e, em novas execuções, usa A/C/D por padrão.
 Por exemplo, `--variants D` executa somente D e `--variants A B C D`
 reproduz a comparação controlada histórica completa. A lista escolhida fica no
 relatório/checkpoint; `--resume` rejeita uma seleção diferente.
 
 E/F são variantes experimentais históricas da Fase 5.4. Elas não são suportadas
-por `run_comparison.py` nem entram nos novos treinos por padrão; a reprodução
-A/B/C/D/E/F continua disponível deliberadamente em `run_phase5_4_expanded.py`.
+por `scripts/compare.py` nem entram nos novos treinos por padrão; a reprodução
+A/B/C/D/E/F continua disponível deliberadamente em `scripts/legacy/phase5_4_expanded.py`.
 
 Para a Fase 5.1 expandida:
 
 ```bash
-python run_comparison.py \
+python scripts/compare.py \
   --vocabulary data/processed/vocabulary.json \
   --syllable-vocabulary data/processed/syllable_vocabulary.json \
   --train data/processed/autoregressive_train.jsonl \
@@ -552,7 +552,7 @@ atômica. Se o processo for interrompido, a execução pode ser retomada com os
 mesmos parâmetros e `--resume`; combinações concluídas não são repetidas:
 
 ```bash
-python run_comparison.py \
+python scripts/compare.py \
   --vocabulary data/processed/vocabulary.json \
   --syllable-vocabulary data/processed/syllable_vocabulary.json \
   --train data/processed/autoregressive_train.jsonl \
@@ -629,7 +629,7 @@ Relatório completo: `experiments/phase5_1_expanded_comparison.json`.
 
 ### Fase 5.3 — Análise do ganho silábico
 
-O runner `run_syllable_analysis.py` diagnostica o efeito do canal silábico sem
+O runner `scripts/legacy/run_syllable_analysis.py` diagnostica o efeito do canal silábico sem
 alterar a arquitetura. Ele compara A/C e B/D por exemplo, separando posições
 com informação silábica causal ativa das posições que permanecem em
 `<UNK_SYL>`.
@@ -643,7 +643,7 @@ Execução de smoke registrada em
 `experiments/phase5_3_syllable_gain_analysis.json`:
 
 ```bash
-python run_syllable_analysis.py \
+python scripts/legacy/run_syllable_analysis.py \
   --vocabulary data/processed/vocabulary.json \
   --syllable-vocabulary data/processed/syllable_vocabulary.json \
   --train data/processed/autoregressive_train.jsonl \
@@ -666,7 +666,7 @@ exemplos e 3 seeds ainda deve ser feita antes de concluir que o ganho é amplo.
 Para a execução ampliada da Fase 5.3, use o runner retomável por seed:
 
 ```bash
-python run_phase5_3_expanded.py \
+python scripts/legacy/phase5_3.py \
   --vocabulary data/processed/vocabulary.json \
   --syllable-vocabulary data/processed/syllable_vocabulary.json \
   --train data/processed/autoregressive_train.jsonl \
@@ -711,15 +711,15 @@ A sílaba parcial é construída somente com os caracteres observados desde a
 parciais usam buckets determinísticos dentro da mesma tabela de embeddings,
 mantendo a contagem de parâmetros controlada.
 
-`run_phase5_4_expanded.py` continua sendo o runner histórico para reprodução
-explícita da comparação A/B/C/D/E/F. E/F não são movidas para `run_comparison.py`
+`scripts/legacy/phase5_4_expanded.py` continua sendo o runner histórico para reprodução
+explícita da comparação A/B/C/D/E/F. E/F não são movidas para `scripts/compare.py`
 e não entram no default A/C/D da Fase 7.2.
 
 Smoke test registrado em `experiments/phase5_4_partial_syllable_smoke.json`.
 O runner ampliado e retomável é:
 
 ```bash
-python run_phase5_4_expanded.py \
+python scripts/legacy/phase5_4_expanded.py \
   --vocabulary data/processed/vocabulary.json \
   --syllable-vocabulary data/processed/syllable_vocabulary.json \
   --train data/processed/autoregressive_train.jsonl \
@@ -765,7 +765,7 @@ letras na interpretação.
 Runner ampliado e retomável:
 
 ```bash
-python run_phase5_5_expanded.py \
+python scripts/legacy/phase5_5.py \
   --vocabulary data/processed/vocabulary.json \
   --syllable-vocabulary data/processed/syllable_vocabulary.json \
   --train data/processed/autoregressive_train.jsonl \
@@ -842,7 +842,7 @@ O baseline foi medido na variante D com:
 seed=7, workers=1, epochs=1, max_examples=1000, context_size=8
 ```
 
-O runner `run_phase7_1_performance_baseline.py` separa preparação/features,
+O runner `scripts/legacy/phase7_1_performance_baseline.py` separa preparação/features,
 `forward`, loss, backward, atualização do otimizador e avaliação. Também registra
 tempo total, percentual por etapa, pico de RSS e hotspots do `cProfile`.
 
@@ -979,14 +979,14 @@ experiments/phase7_1_validated_loss_helpers_post_commit_profile.json
 ### Fase 7.2 — Consolidação dos experimentos principais
 
 A seleção do runner controlado é explícita: A é o baseline mínimo, B é uma
-ablação opcional, e C/D são as variantes principais. `run_comparison.py` executa
+ablação opcional, e C/D são as variantes principais. `scripts/compare.py` executa
 A/C/D por padrão; `--variants A B C D` reproduz a comparação controlada
 histórica completa. A lista escolhida é registrada nos relatórios/checkpoints e
 uma retomada com seleção incompatível é rejeitada.
 
 E/F permanecem como variantes experimentais históricas da Fase 5.4. Não entram
 em novos treinos do runner controlado; a reprodução A/B/C/D/E/F continua no
-`run_phase5_4_expanded.py`.
+`scripts/legacy/phase5_4_expanded.py`.
 
 A validação autocontida em `experiments/phase7_2_final_validation.json` compara o
 runner pré-7.2 (default A/B/C/D) com a seleção pós-7.2 explícita, usando a mesma
@@ -995,3 +995,21 @@ histórico de treino, `final_validation` e contagens de parâmetros foram
 idênticos. O mesmo relatório confirma o default A/C/D, a seleção D-only e a
 preservação histórica A/B/C/D/E/F. É uma equivalência funcional em fixture
 pequena, não uma conclusão de qualidade ou performance no dataset completo.
+
+## Fase 8 — arquitetura modular e backends
+
+O pacote instalável vive em `src/kinera/`: `language/` prepara representações e datasets, `nn/` mantém a matemática independente de hardware, `backends/` define a execução, `training/` concentra treino/avaliação/checkpoints/configuração, `experiments/` coordena protocolos e `diagnostics/` contém análises e gradient checks. O mapa de migração e os limites do scaffold estão em `docs/architecture.md`.
+
+A CPU permanece como oracle Python e backend padrão. O contrato está em `kinera.backends.base`; `CPUBackend` usa as operações Python existentes. O scaffold CUDA (backend/runtime/memory/bridge e arquivos `.cu`/`.cuh`) falha explicitamente: nenhum kernel é compilado ou executado nesta fase.
+
+Instale o pacote e use os entrypoints atuais:
+
+```bash
+python -m pip install --no-deps -e .
+python -m scripts.train --help
+python -m scripts.compare --help
+python -m scripts.prepare_dataset --help
+python -m unittest discover -s tests -v
+```
+
+Os runners de fases anteriores estão em `scripts/legacy/`; alguns nomes antigos na raiz permanecem apenas como wrappers de compatibilidade. A referência e os hashes CPU usados na equivalência estão registrados em `experiments/phase8_0_refactor_baseline.json`. Os relatórios e checkpoints congelados da Issue #8 não foram regenerados nem alterados. Esta fase não executa treino em escala, benchmark de performance ou CUDA.

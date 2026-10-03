@@ -1,7 +1,8 @@
 import math
 import unittest
 
-from nn.neuron import Neuron
+from kinera.backends.cpu.backend import CPUBackend
+from kinera.nn.neuron import Neuron
 
 
 class NeuronConstructionTests(unittest.TestCase):
@@ -233,6 +234,34 @@ class NeuronStepTests(unittest.TestCase):
             neuron.step(math.nan)
         with self.assertRaises(ValueError):
             neuron.step(math.inf)
+
+
+class NeuronBackendIntegrationTests(unittest.TestCase):
+    def test_neuron_delegates_forward_backward_and_step_to_backend(self) -> None:
+        class RecordingBackend(CPUBackend):
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def neuron_forward(self, *args):
+                self.calls.append("forward")
+                return super().neuron_forward(*args)
+
+            def neuron_backward(self, *args):
+                self.calls.append("backward")
+                return super().neuron_backward(*args)
+
+            def neuron_step(self, *args):
+                self.calls.append("step")
+                return super().neuron_step(*args)
+
+        backend = RecordingBackend()
+        neuron = Neuron(input_size=2, seed=7, activation="linear", backend=backend)
+
+        neuron.forward([1.0, 2.0])
+        neuron.backward(1.0)
+        neuron.step(0.01)
+
+        self.assertEqual(backend.calls, ["forward", "backward", "step"])
 
 
 if __name__ == "__main__":

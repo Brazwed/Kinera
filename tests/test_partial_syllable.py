@@ -1,10 +1,10 @@
 import unittest
 
-from language.partial_syllable import (
+from kinera.language.partial_syllable import (
     CausalPartialSyllableEncoder,
     prepare_partial_variant_examples,
 )
-from language.vocabulary import CharacterVocabulary, SyllableVocabulary
+from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 
 
 class CausalPartialSyllableTests(unittest.TestCase):

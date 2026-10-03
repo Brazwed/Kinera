@@ -1,7 +1,7 @@
 import unittest
 
-from language.dataset import build_autoregressive_examples
-from language.vocabulary import CharacterVocabulary, SyllableVocabulary
+from kinera.language.dataset import build_autoregressive_examples
+from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 
 
 class AutoregressiveDatasetTests(unittest.TestCase):

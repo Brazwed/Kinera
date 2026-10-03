@@ -42,7 +42,7 @@ class RunnerResumeIntegrationTests(unittest.TestCase):
             "context_size": 8, "top_examples": 2, "workers": 3,
             "runs": [{"seed": seed, "status": "completed", "run": {"pair_deltas": {"A_vs_C": {"overall": pair}, "B_vs_D": {"overall": pair}}}} for seed in [7, 42]],
         }
-        self._run_resume("run_phase5_3_expanded.py", report, ["--top-examples", "2"], [7, 42])
+        self._run_resume("scripts/legacy/phase5_3.py", report, ["--top-examples", "2"], [7, 42])
 
     def test_phase54_resume_allows_operational_worker_change(self) -> None:
         metrics = {variant: {"validation": {"char_loss": 1.0, "char_accuracy": 0.0, "total_loss": 1.0}} for variant in "ABCDEF"}
@@ -52,7 +52,7 @@ class RunnerResumeIntegrationTests(unittest.TestCase):
             "context_size": 8, "workers": 3,
             "runs": [{"seed": seed, "status": "completed", "run": {"metrics": metrics}} for seed in [7, 42]],
         }
-        self._run_resume("run_phase5_4_expanded.py", report, [], [7, 42])
+        self._run_resume("scripts/legacy/phase5_4_expanded.py", report, [], [7, 42])
 
     def test_phase55_resume_allows_operational_worker_change(self) -> None:
         report = {
@@ -61,7 +61,7 @@ class RunnerResumeIntegrationTests(unittest.TestCase):
             "context_size": 8, "workers": 3,
             "runs": [{"seed": seed, "status": "completed", "run": {}} for seed in [7, 42]],
         }
-        self._run_resume("run_phase5_5_expanded.py", report, [], [7, 42])
+        self._run_resume("scripts/legacy/phase5_5.py", report, [], [7, 42])
 
 
 if __name__ == "__main__":
