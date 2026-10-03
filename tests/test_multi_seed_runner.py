@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from training.multi_seed_runner import prepare_seed_records, run_seed_jobs
+from kinera.experiments.multi_seed import prepare_seed_records, run_seed_jobs
 
 
 class MultiSeedRunnerTests(unittest.TestCase):

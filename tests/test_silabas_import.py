@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.inspect_silabas_pt import inspect_csv
-from scripts.import_silabas_pt import import_csv
+from kinera.scripts.inspect_silabas_pt import inspect_csv
+from kinera.scripts.import_silabas_pt import import_csv
 
 
 class SilabasImportTests(unittest.TestCase):

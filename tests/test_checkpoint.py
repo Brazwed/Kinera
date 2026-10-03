@@ -3,9 +3,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from nn.linear import Linear
-from nn.neuron import Neuron
-from training.checkpoint import (
+from kinera.nn.linear import Linear
+from kinera.nn.neuron import Neuron
+from kinera.training.checkpoint import (
     CheckpointError,
     load_checkpoint,
     load_linear,
@@ -14,7 +14,7 @@ from training.checkpoint import (
     save_linear,
     save_neuron,
 )
-from training.loop import train_epoch
+from kinera.training.loop import train_epoch
 
 
 class CheckpointSchemaTests(unittest.TestCase):

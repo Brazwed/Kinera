@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.import_portal_lingua import import_export
+from kinera.scripts.import_portal_lingua import import_export
 
 
 class PortalImportTests(unittest.TestCase):

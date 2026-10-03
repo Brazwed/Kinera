@@ -4,11 +4,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from language.hybrid_inputs import record_to_hybrid_inputs
-from language.vocabulary import CharacterVocabulary, SyllableVocabulary
-from nn.embedding import Embedding
-from nn.hybrid import HybridRepresentation
-from scripts.build_syllable_vocabulary import build_syllable_vocabulary
+from kinera.language.hybrid_inputs import record_to_hybrid_inputs
+from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
+from kinera.nn.embedding import Embedding
+from kinera.nn.hybrid import HybridRepresentation
+from kinera.scripts.build_syllable_vocabulary import build_syllable_vocabulary
 
 
 class HybridIntegrationTests(unittest.TestCase):

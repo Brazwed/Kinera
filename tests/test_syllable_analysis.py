@@ -1,7 +1,7 @@
 import unittest
 
-from language.vocabulary import CharacterVocabulary
-from training.syllable_analysis import run_syllable_gain_analysis
+from kinera.language.vocabulary import CharacterVocabulary
+from kinera.diagnostics.syllables import run_syllable_gain_analysis
 
 
 class SyllableGainAnalysisTests(unittest.TestCase):

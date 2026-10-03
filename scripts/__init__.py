@@ -1,1 +1,1 @@
-"""Scripts de aquisição e transformação de datasets."""
+"""Top-level command entrypoints and compatibility shims for Kinera."""

@@ -1,7 +1,7 @@
 import unittest
 
-from nn.embedding import Embedding
-from nn.hybrid import HybridRepresentation
+from kinera.nn.embedding import Embedding
+from kinera.nn.hybrid import HybridRepresentation
 
 
 class HybridRepresentationTests(unittest.TestCase):

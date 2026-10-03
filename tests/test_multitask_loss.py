@@ -2,9 +2,10 @@ import math
 import unittest
 from typing import Any
 
-from nn.heads import MultiTaskHeads
-from nn.losses import MultiTaskLoss, binary_cross_entropy_with_logits
-from training.autoregressive import AutoregressiveModel
+from kinera.backends.cpu.backend import CPUBackend
+from kinera.nn.heads import MultiTaskHeads
+from kinera.nn.losses import MultiTaskLoss, binary_cross_entropy_with_logits
+from kinera.training.autoregressive import AutoregressiveModel
 
 
 class MultiTaskLossTests(unittest.TestCase):
@@ -209,6 +210,100 @@ class MultiTaskModelTests(unittest.TestCase):
         self.assertNotEqual(before["char"], model.heads.char.weights)
         self.assertNotEqual(before["syllable"], model.heads.syllable.weights)
         self.assertNotEqual(before["boundary"], model.heads.boundary.weights)
+
+
+class MultiTaskBackendIntegrationTests(unittest.TestCase):
+    def test_multitask_loss_delegates_probability_operations_to_backend(self) -> None:
+        class RecordingBackend(CPUBackend):
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def cross_entropy(self, logits, target_id):
+                self.calls.append("cross_entropy")
+                return super().cross_entropy(logits, target_id)
+
+            def cross_entropy_gradient(self, logits, target_id):
+                self.calls.append("cross_entropy_gradient")
+                return super().cross_entropy_gradient(logits, target_id)
+
+            def binary_cross_entropy_with_logits(self, logit, target):
+                self.calls.append("binary_cross_entropy_with_logits")
+                return super().binary_cross_entropy_with_logits(logit, target)
+
+            def binary_cross_entropy_with_logits_gradient(self, logit, target):
+                self.calls.append("binary_cross_entropy_with_logits_gradient")
+                return super().binary_cross_entropy_with_logits_gradient(logit, target)
+
+        backend = RecordingBackend()
+        loss = MultiTaskLoss(backend=backend)
+        outputs = {
+            "char": [0.0, 1.0],
+            "syllable": [1.0, 0.0],
+            "boundary": [-1.0],
+        }
+        targets = {"char": 1, "syllable": 0, "boundary": 1.0}
+
+        loss.forward(outputs, targets)
+        loss.backward(outputs, targets)
+
+        self.assertEqual(
+            backend.calls,
+            [
+                "cross_entropy",
+                "cross_entropy",
+                "binary_cross_entropy_with_logits",
+                "cross_entropy_gradient",
+                "cross_entropy_gradient",
+                "binary_cross_entropy_with_logits_gradient",
+            ],
+        )
+
+
+class AutoregressiveModelBackendIntegrationTests(unittest.TestCase):
+    def test_model_injects_one_backend_into_embeddings_heads_and_losses(self) -> None:
+        class RecordingBackend(CPUBackend):
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def linear_forward(self, weights, bias, inputs):
+                self.calls.append("linear_forward")
+                return super().linear_forward(weights, bias, inputs)
+
+            def embedding_forward(self, weights, ids):
+                self.calls.append("embedding_forward")
+                return super().embedding_forward(weights, ids)
+
+            def cross_entropy(self, logits, target_id):
+                self.calls.append("cross_entropy")
+                return super().cross_entropy(logits, target_id)
+
+        backend = RecordingBackend()
+        model = AutoregressiveModel(
+            char_vocab_size=4,
+            syllable_vocab_size=4,
+            char_embedding_dim=2,
+            syllable_embedding_dim=2,
+            feature_dim=2,
+            seed=7,
+            backend=backend,
+        )
+
+        model.multitask_train_step(
+            [0, 1],
+            [0, 1],
+            [[1.0, 0.0], [0.0, 1.0]],
+            targets={"char": 2, "syllable": 3, "boundary": 1.0},
+            learning_rate=0.01,
+        )
+
+        self.assertIs(model.representation.char_embedding.backend, backend)
+        self.assertIs(model.representation.syllable_embedding.backend, backend)
+        self.assertIs(model.heads.char.backend, backend)
+        self.assertIs(model.heads.syllable.backend, backend)
+        self.assertIs(model.heads.boundary.backend, backend)
+        self.assertGreaterEqual(backend.calls.count("linear_forward"), 3)
+        self.assertGreaterEqual(backend.calls.count("embedding_forward"), 2)
+        self.assertGreaterEqual(backend.calls.count("cross_entropy"), 2)
 
 
 if __name__ == "__main__":

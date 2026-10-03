@@ -1,8 +1,9 @@
 import math
 import unittest
 
-from nn.neuron import Neuron
-from nn.linear import Linear
+from kinera.backends.cpu.backend import CPUBackend
+from kinera.nn.neuron import Neuron
+from kinera.nn.linear import Linear
 
 
 class LinearConstructionTests(unittest.TestCase):
@@ -312,6 +313,36 @@ class LinearGradientCheckingTests(unittest.TestCase):
             layer.bias[row_index] = original_bias[row_index]
             numerical = (loss_plus - loss_minus) / (2.0 * epsilon)
             self.assertAlmostEqual(numerical, analytic_bias[row_index], delta=1e-5)
+
+
+class LinearBackendIntegrationTests(unittest.TestCase):
+    def test_linear_delegates_math_operations_to_injected_backend(self) -> None:
+        class RecordingBackend(CPUBackend):
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def linear_forward(self, weights, bias, inputs):
+                self.calls.append("forward")
+                return super().linear_forward(weights, bias, inputs)
+
+            def linear_backward(self, weights, inputs, grad_output):
+                self.calls.append("backward")
+                return super().linear_backward(weights, inputs, grad_output)
+
+            def linear_step(self, weights, bias, grad_weights, grad_bias, learning_rate):
+                self.calls.append("step")
+                return super().linear_step(
+                    weights, bias, grad_weights, grad_bias, learning_rate
+                )
+
+        backend = RecordingBackend()
+        layer = Linear(input_size=2, output_size=1, seed=7, backend=backend)
+
+        layer.forward([1.0, 2.0])
+        layer.backward([1.0])
+        layer.step(0.01)
+
+        self.assertEqual(backend.calls, ["forward", "backward", "step"])
 
 
 if __name__ == "__main__":

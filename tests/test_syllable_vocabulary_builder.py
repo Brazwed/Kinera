@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_syllable_vocabulary import build_syllable_vocabulary
+from kinera.scripts.build_syllable_vocabulary import build_syllable_vocabulary
 
 
 class SyllableVocabularyBuilderTests(unittest.TestCase):

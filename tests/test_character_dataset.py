@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_character_dataset import build_character_dataset
+from kinera.scripts.build_character_dataset import build_character_dataset
 
 
 class CharacterDatasetBuilderTests(unittest.TestCase):

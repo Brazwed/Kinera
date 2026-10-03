@@ -1,8 +1,9 @@
 import unittest
 
-from nn.neuron import Neuron
-from training.data import generate_samples, split_samples
-from training.loop import TrainingConfig, fit
+from kinera.nn.layers.neuron import Neuron
+from kinera.experiments.synthetic_data import generate_samples, split_samples
+from kinera.training.config import TrainingConfig
+from kinera.training.trainer import fit
 
 
 class LearningTests(unittest.TestCase):

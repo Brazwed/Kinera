@@ -1,6 +1,6 @@
 import unittest
 
-from training.experiment_types import (
+from kinera.experiments.config import (
     ExecutionConfig,
     ExperimentConfig,
     RunRecord,

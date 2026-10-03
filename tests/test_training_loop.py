@@ -1,7 +1,7 @@
 import unittest
 
-from nn.neuron import Neuron
-from training.loop import TrainingConfig, evaluate, fit
+from kinera.nn.neuron import Neuron
+from kinera.training.loop import TrainingConfig, evaluate, fit
 
 
 class TrainingLoopTests(unittest.TestCase):

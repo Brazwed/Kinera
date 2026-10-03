@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kinera"
+version = "0.1.0"
+description = "Implementação didática de modelo híbrido para análise silábica"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["kinera*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+"kinera.backends.cuda" = ["kernels/*.cu", "kernels/common/*.cuh"]

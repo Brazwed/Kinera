@@ -1,8 +1,8 @@
 import unittest
 
-from language.partial_syllable import CausalPartialSyllableEncoder
-from language.vocabulary import CharacterVocabulary, SyllableVocabulary
-from training.partial_experiment import PARTIAL_VARIANTS, run_partial_comparison
+from kinera.language.partial_syllable import CausalPartialSyllableEncoder
+from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
+from kinera.experiments.partial import PARTIAL_VARIANTS, run_partial_comparison
 
 
 class PartialSyllableExperimentTests(unittest.TestCase):

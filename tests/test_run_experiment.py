@@ -1,7 +1,7 @@
 import unittest
 
-from run_experiment import DEFAULT_SEEDS, run_experiment
-from training.loop import TrainingConfig
+from scripts.legacy.run_experiment import DEFAULT_SEEDS, run_experiment
+from kinera.training.config import TrainingConfig
 
 
 class ExperimentRunnerTests(unittest.TestCase):

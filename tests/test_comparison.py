@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-from language.vocabulary import CharacterVocabulary
-from training import comparison
-from training.comparison import (
+from kinera.language.vocabulary import CharacterVocabulary
+from kinera.experiments import comparison
+from kinera.experiments.comparison import (
     BASELINE_VARIANTS,
     CONTROLLED_VARIANTS,
     DEFAULT_VARIANTS,
@@ -18,7 +18,7 @@ from training.comparison import (
     prepare_variant_examples,
     run_controlled_experiments,
 )
-from training.autoregressive import AutoregressiveModel
+from kinera.training.autoregressive import AutoregressiveModel
 
 
 class ControlledComparisonTests(unittest.TestCase):
@@ -285,7 +285,7 @@ class ControlledComparisonTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             checkpoint = Path(directory) / "phase5.json"
             with patch(
-                "training.comparison.train_multitask_examples",
+                "kinera.experiments.comparison.train_multitask_examples",
                 side_effect=RuntimeError("synthetic training failure"),
             ):
                 report = self._run_historical(
@@ -416,7 +416,7 @@ class ControlledComparisonTests(unittest.TestCase):
             def capture(path, report):
                 snapshots.append(json.loads(json.dumps(report)))
 
-            with patch("training.comparison._persist_checkpoint", side_effect=capture):
+            with patch("kinera.experiments.comparison._persist_checkpoint", side_effect=capture):
                 self._run_historical(
                     self.examples,
                     self.examples,

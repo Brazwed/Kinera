@@ -21,5 +21,8 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Install Kinera package
+        run: python -m pip install --no-deps -e .
+
       - name: Run test suite
         run: python -m unittest discover -s tests -v

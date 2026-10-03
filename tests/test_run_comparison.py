@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import run_comparison
-from training.comparison import CONTROLLED_VARIANTS, DEFAULT_VARIANTS
+import scripts.compare as run_comparison
+from kinera.experiments.comparison import CONTROLLED_VARIANTS, DEFAULT_VARIANTS
 
 
 class RunComparisonCliTests(unittest.TestCase):

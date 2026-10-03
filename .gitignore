@@ -2,6 +2,12 @@ __pycache__/
 *.py[cod]
 *.log
 
+# Python packaging artifacts
+*.egg-info/
+build/
+dist/
+.venv/
+
 # Generated datasets and local training artifacts
 data/processed/
 data/raw/

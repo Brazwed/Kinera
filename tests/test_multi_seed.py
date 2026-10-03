@@ -1,12 +1,12 @@
 import unittest
 
-from training.experiments import (
+from kinera.experiments.runner import (
     MultiSeedSummary,
     format_multi_seed_report,
     run_multi_seed,
 )
-from training.data import generate_samples, split_samples
-from training.loop import TrainingConfig
+from kinera.experiments.synthetic_data import generate_samples, split_samples
+from kinera.training.config import TrainingConfig
 
 
 class MultiSeedTests(unittest.TestCase):
