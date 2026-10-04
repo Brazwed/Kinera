@@ -128,8 +128,61 @@ class CUDABackend:
             f"CUDA operation {operation} is not available in the current Phase 9 gate"
         )
 
-    def linear_backward(self, *args, **kwargs):
-        self._unavailable("linear_backward")
+    def linear_backward(
+        self, weights: BackendArray, inputs: BackendArray, grad_output: BackendArray
+    ) -> tuple[CudaBuffer, CudaBuffer, CudaBuffer]:
+        """Compute Linear parameter/input gradients without leaving device memory."""
+        weights_buffer = self._require_buffer(weights, "weights", rank=2)
+        inputs_buffer = self._require_buffer(inputs, "inputs", rank=1)
+        gradient_buffer = self._require_buffer(grad_output, "grad_output", rank=1)
+        output_size, input_size = weights_buffer.shape
+        if inputs_buffer.shape != (input_size,):
+            raise ValueError("weights columns must match input length")
+        if gradient_buffer.shape != (output_size,):
+            raise ValueError("grad_output must match the number of Linear outputs")
+        device_ids = {
+            weights_buffer.device_id,
+            inputs_buffer.device_id,
+            gradient_buffer.device_id,
+        }
+        if len(device_ids) != 1:
+            raise BackendError("Linear.backward buffers must reside on the same CUDA device")
+        device_id = inputs_buffer.device_id
+        self.runtime.require_device(device_id)
+
+        allocated: list[CudaBuffer] = []
+        try:
+            grad_weights = self.memory.allocate(
+                (output_size, input_size), dtype="float64", device_id=device_id
+            )
+            allocated.append(grad_weights)
+            grad_bias = self.memory.allocate(
+                (output_size,), dtype="float64", device_id=device_id
+            )
+            allocated.append(grad_bias)
+            grad_inputs = self.memory.allocate(
+                (input_size,), dtype="float64", device_id=device_id
+            )
+            allocated.append(grad_inputs)
+            self.bridge.linear_backward_f64(
+                device_id,
+                weights_buffer.pointer,
+                inputs_buffer.pointer,
+                gradient_buffer.pointer,
+                grad_weights.pointer,
+                grad_bias.pointer,
+                grad_inputs.pointer,
+                input_size,
+                output_size,
+            )
+        except Exception:
+            for buffer in reversed(allocated):
+                try:
+                    self.memory.release(buffer)
+                except Exception:
+                    pass
+            raise
+        return grad_weights, grad_bias, grad_inputs
 
     def linear_step(self, *args, **kwargs):
         self._unavailable("linear_step")

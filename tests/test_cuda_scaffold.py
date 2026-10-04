@@ -24,7 +24,7 @@ class CudaBackendScaffoldTests(unittest.TestCase):
         with self.assertRaisesRegex(BackendUnavailableError, "no native CUDA runtime"):
             backend.buffer_from_host([1.0], shape=(1,))
         with self.assertRaises(BackendUnavailableError):
-            backend.linear_backward(None, None, None)
+            backend.linear_step(None, None, None, None, 0.1)
 
     def test_missing_runtime_memory_and_library_fail_closed(self) -> None:
         from kinera.backends.cuda.bridge import CudaBridge
@@ -54,16 +54,20 @@ class CudaBackendScaffoldTests(unittest.TestCase):
             with self.assertRaises(BackendUnavailableError):
                 bridge.load()
 
-    def test_linear_forward_is_the_only_real_cuda_kernel_in_this_gate(self) -> None:
+    def test_linear_forward_and_backward_are_the_only_real_kernels_in_this_gate(self) -> None:
         source_root = Path(__file__).resolve().parents[1] / "src/kinera/backends/cuda/kernels"
-        forward_source = source_root / "linear_forward.cu"
-        self.assertTrue(forward_source.is_file())
-        forward_text = forward_source.read_text(encoding="utf-8")
-        self.assertIn("__global__", forward_text)
-        self.assertIn("kinera_cuda_linear_forward_f64", forward_text)
+        for filename, symbol in (
+            ("linear_forward.cu", "kinera_cuda_linear_forward_f64"),
+            ("linear_backward.cu", "kinera_cuda_linear_backward_f64"),
+        ):
+            with self.subTest(kernel=filename):
+                source = source_root / filename
+                self.assertTrue(source.is_file())
+                text = source.read_text(encoding="utf-8")
+                self.assertIn("__global__", text)
+                self.assertIn(symbol, text)
 
         placeholders = (
-            "linear_backward.cu",
             "embedding_forward.cu",
             "embedding_backward.cu",
             "activations.cu",

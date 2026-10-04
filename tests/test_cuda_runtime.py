@@ -79,11 +79,19 @@ class FakeLibrary:
         self.kinera_cuda_linear_forward_f64 = FakeFunction(
             callback=self._record_linear_forward
         )
+        self.linear_backward_arguments = None
+        self.kinera_cuda_linear_backward_f64 = FakeFunction(
+            callback=self._record_linear_backward
+        )
         if omit:
             delattr(self, omit)
 
     def _record_linear_forward(self, *args) -> int:
         self.linear_forward_arguments = args
+        return 0
+
+    def _record_linear_backward(self, *args) -> int:
+        self.linear_backward_arguments = args
         return 0
 
     @staticmethod
@@ -191,6 +199,18 @@ class CudaBridgeAbiTests(unittest.TestCase):
         self.assertEqual(
             library.linear_forward_arguments,
             (0, 101, 202, 303, 404, 26, 51),
+        )
+
+    def test_bridge_dispatches_linear_backward_through_versioned_c_symbol(self) -> None:
+        from kinera.backends.cuda.bridge import CudaBridge
+
+        library = FakeLibrary()
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            bridge.linear_backward_f64(0, 101, 202, 303, 404, 505, 606, 3, 2)
+        self.assertEqual(
+            library.linear_backward_arguments,
+            (0, 101, 202, 303, 404, 505, 606, 3, 2),
         )
 
     def test_explicit_load_builds_packaged_shared_library_on_demand(self) -> None:

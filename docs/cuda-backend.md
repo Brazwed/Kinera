@@ -18,15 +18,16 @@ O build sob demanda está habilitado para Linux. Em outras plataformas, deve ser
 
 O ABI C é versionado (`kinera_cuda_abi_version()`, atualmente versão `1`). Cada função retorna um status CUDA inteiro; `kinera_cuda_error_string()` converte falhas em diagnósticos legíveis. `CudaBridge` valida todos os símbolos obrigatórios antes de publicar a biblioteca carregada.
 
-A interface nativa de runtime/memória da versão 1 inclui:
+A interface nativa da versão 1 inclui:
 
 - consulta de versão, erro, quantidade e propriedades de devices;
 - seleção e sincronização explícitas do device;
 - alocação/liberação de memória;
 - cópias explícitas host → device e device → host;
-- `kinera_cuda_linear_forward_f64`, que executa a soma afim em pesos row-major, com um thread por saída e acumulação sequencial em `float64`.
+- `kinera_cuda_linear_forward_f64`, que executa a soma afim em pesos row-major, com um thread por saída e acumulação sequencial em `float64`;
+- `kinera_cuda_linear_backward_f64`, que calcula gradientes de pesos, bias e entrada sem converter buffers para listas.
 
-O wrapper de `Linear.forward` sincroniza a execução e propaga erros CUDA; backward/update continuam indisponíveis até os gates seguintes.
+`Linear.forward` passou a equivalência CUDA↔CPU na Tesla T4. A implementação de `Linear.backward` está na Phase 9.6, mas ainda precisa passar equivalência e finite-difference checks em GPU; `Linear.step/update` continua fail-closed até a Phase 9.7.
 
 ## `CudaBuffer`
 

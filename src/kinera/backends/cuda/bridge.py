@@ -216,6 +216,34 @@ class CudaBridge:
             ),
         )
 
+    def linear_backward_f64(
+        self,
+        device_id: int,
+        weights: int,
+        inputs: int,
+        grad_output: int,
+        grad_weights: int,
+        grad_bias: int,
+        grad_inputs: int,
+        input_size: int,
+        output_size: int,
+    ) -> None:
+        self.load()
+        self._check(
+            "Linear.backward kernels",
+            self._functions["kinera_cuda_linear_backward_f64"](
+                device_id,
+                weights,
+                inputs,
+                grad_output,
+                grad_weights,
+                grad_bias,
+                grad_inputs,
+                input_size,
+                output_size,
+            ),
+        )
+
     def _check(self, operation: str, result: object) -> None:
         status = int(result)
         if status == 0:
@@ -267,6 +295,20 @@ class CudaBridge:
             "kinera_cuda_linear_forward_f64": (
                 [
                     ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_linear_backward_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
                     ctypes.c_void_p,
                     ctypes.c_void_p,
                     ctypes.c_void_p,
