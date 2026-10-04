@@ -1,0 +1,38 @@
+{
+  "phase": "10.6-cpu-wheel-revalidation",
+  "source_commit": "c21aca55211fb3d14299e2e3007be78f7b5a5569",
+  "source_method": "git archive from the exact clean commit",
+  "worktree_clean_at_build": true,
+  "wheel": {
+    "filename": "kinera-0.1.0-py3-none-any.whl",
+    "size_bytes": 129412,
+    "sha256": "4e8f04aacfc6121927751c4ed0e03515aaeaa5f8da4fd869b4a445deacf616ec",
+    "build_status": "passed",
+    "isolated_install_status": "passed",
+    "package_data_present": [
+      "kinera/backends/cuda/native/runtime.cu",
+      "kinera/backends/cuda/kernels/embedding_forward.cu",
+      "kinera/backends/cuda/kernels/embedding_backward.cu",
+      "kinera/backends/cuda/kernels/embedding_step.cu"
+    ]
+  },
+  "cpu_only_smoke": {
+    "status": "passed",
+    "python_version": "3.14.7",
+    "path_contains_nvcc": false,
+    "nvcc_visible": false,
+    "imported_package_from_isolated_target": true,
+    "imported_module_path": "/codex/.hermes/cache/scratch/kinera-phase10-6-wheel-thya5lu1/install-target/kinera/__init__.py",
+    "cuda_backend_modules_imported": false,
+    "operations": "Embedding.forward -> backward -> step using CPUBackend",
+    "result": "CPU_ONLY_WHEEL_SMOKE_OK; 3 output rows"
+  },
+  "full_cpu_suite": {
+    "command": "PYTHONPATH=src python -m unittest discover -s tests -v",
+    "status": "passed",
+    "tests_run": 347,
+    "skipped_cuda_only": 15
+  },
+  "benchmark_or_expanded_training_run": false,
+  "artifact_location": "Hermes scratch; wheel and install target were not added to the repository"
+}

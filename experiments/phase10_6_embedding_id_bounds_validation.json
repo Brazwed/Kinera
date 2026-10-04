@@ -1,0 +1,72 @@
+{
+  "phase": "10.6-review-blocker",
+  "purpose": "Validate bounds for arbitrary resident int32 Embedding IDs before CUDA forward/backward accesses",
+  "source_commit": "c21aca55211fb3d14299e2e3007be78f7b5a5569",
+  "abi_version": 5,
+  "validated_at_utc": "2026-10-04T14:09:37.831326+00:00",
+  "runtime": {
+    "session": "kinera-issue12-phase9",
+    "runtime_fingerprint": "a4827f39aab54432a943a559d41f0d5b",
+    "accelerator": "Tesla T4",
+    "compute_capability": "7.5",
+    "cuda_version": "13.0",
+    "driver_version": "580.82.07",
+    "device_count": 1
+  },
+  "synced_source": {
+    "remote_root": "/content/workspace/kinera-issue15-id-bounds",
+    "file_count": 184,
+    "manifest_sha256": "9dbbb521f9d05004711222d98b70b1ec00077da43c57205a6c20bf8fa3f255fa",
+    "python_bridge_imported_from": "/content/workspace/kinera-issue15-id-bounds/src/kinera/backends/cuda/bridge.py"
+  },
+  "native_probe": {
+    "status": "passed",
+    "loaded_abi": 5,
+    "device_count": 1,
+    "device": "Tesla T4"
+  },
+  "validation_contract": {
+    "id_dtype": "int32",
+    "valid_range": "0 <= id < vocab_size",
+    "validation_precedes_forward_lookup": true,
+    "validation_precedes_backward_accumulation": true,
+    "host_copy_bytes_per_validation": 4,
+    "full_id_vector_copied_to_host": false,
+    "invalid_id_exception": "ValueError",
+    "invalid_backward_leaves_grad_weights_unchanged": true
+  },
+  "invalid_ids_tested_in_both_forward_and_backward": [
+    "-1",
+    "vocab_size",
+    "INT32_MIN",
+    "INT32_MAX"
+  ],
+  "valid_lookup_after_invalid_forward_cases": "passed",
+  "gate": {
+    "command": "KINERA_RUN_CUDA_TESTS=1 python -m unittest discover -s tests -p 'test_cuda_embedding*.py' -v",
+    "status": "passed",
+    "tests_run": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "max_absolute_error": {
+      "forward": 0.0,
+      "backward_gradient_table": 0.0,
+      "integrated_forward_backward_step": 0.0,
+      "step_after_1_update": 0.0,
+      "step_after_8_updates": 0.0,
+      "selected_finite_difference": 1.3377743357523286e-11
+    },
+    "tolerance": {
+      "atol": 1e-12,
+      "rtol": 1e-12
+    }
+  },
+  "cpu_suite": {
+    "command": "PYTHONPATH=src python -m unittest discover -s tests -v",
+    "status": "passed",
+    "tests_run": 347,
+    "skipped_cuda_only": 15
+  },
+  "benchmark_or_expanded_training_run": false
+}
