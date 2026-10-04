@@ -1,0 +1,57 @@
+{
+  "phase": "10.0",
+  "artifact": "CPU Embedding baseline before CUDA migration",
+  "status": "BASELINE_LOCKED",
+  "source_commit": "a02379ca2b6bd2d473740c402b71d4e5c44f5b1b",
+  "source_sha256": {
+    "src/kinera/nn/layers/embedding.py": "d8c2bb7a83a9d883aaeda882a78d06b076bda217ca4d4f50c89264b285694f56",
+    "src/kinera/backends/cpu/ops/embedding.py": "e3bfb8f307e32870ff2042ecf5e012fd8dd5fd90c898016bbcb61906b11b12ab",
+    "tests/test_embedding.py": "5c785ec3663c394453d67870c3ac926e410c88f73ebb294b7fc24bf44cf08c58"
+  },
+  "environment": {
+    "python": "3.14.7",
+    "device": "CPUBackend",
+    "cuda_required": false
+  },
+  "tests": {
+    "full_suite_command": [
+      "python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-v"
+    ],
+    "full_suite_result": "Ran 306 tests; OK (skipped=7)",
+    "embedding_suite_command": [
+      "python",
+      "-m",
+      "unittest",
+      "tests.test_embedding",
+      "-v"
+    ],
+    "embedding_suite_result": "Ran 11 tests; OK"
+  },
+  "oracle_fixture": {
+    "vocab_size": 3,
+    "embedding_dim": 2,
+    "initial_weights": [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]],
+    "ids": [2, 0, 2],
+    "grad_output": [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+    "forward": [[0.5, 0.6], [0.1, 0.2], [0.5, 0.6]],
+    "grad_weights": [[3.0, 4.0], [0.0, 0.0], [6.0, 8.0]],
+    "learning_rate": 0.1,
+    "weights_after_step": [
+      [-0.20000000000000004, -0.2],
+      [0.3, 0.4],
+      [-0.10000000000000009, -0.20000000000000007]
+    ],
+    "shape_metadata": {
+      "vocab_size": 3,
+      "embedding_dim": 2
+    }
+  },
+  "benchmark_run": false,
+  "training_run": false
+}

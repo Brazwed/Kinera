@@ -1,4 +1,4 @@
-# CUDA Runtime, ABI e Buffers — Phase 9
+# CUDA Runtime, ABI e Buffers — Phases 9–10
 
 ## Baseline e limites
 
@@ -34,17 +34,18 @@ A fixture integrada da Phase 9.8 também passou: `forward → backward → step`
 
 ## `CudaBuffer`
 
-A representação CUDA é `CudaBuffer`, um handle próprio para memória contígua em `float64`. Cada instância registra `device`, `device_id`, `shape`, `dtype`, `nbytes`, layout e ownership. Esses metadados são somente leitura.
+A representação CUDA é `CudaBuffer`, um handle próprio para memória contígua tipada: `float64` para parâmetros/intermediários numéricos e `int32` para IDs da Embedding a partir da Phase 10.0. Cada instância registra `device`, `device_id`, `shape`, `dtype`, `nbytes`, layout e ownership. Esses metadados são somente leitura.
 
 O buffer não implementa o protocolo de sequência do Python. Transferências são explícitas por `CudaMemoryManager.copy_to_device(...)` e `copy_to_host(...)` (ou `buffer.to_host()`). Operações CUDA devem aceitar buffers e manter intermediários na VRAM, evitando conversões implícitas para listas entre kernels.
 
 O manager que aloca o buffer é seu owner. `close()` e o context manager liberam a alocação; um segundo `close()` não libera duas vezes, e qualquer uso após liberação gera `BufferReleasedError`. O destrutor é somente uma salvaguarda de melhor esforço; código chamador deve preferir liberar explicitamente.
 
-A versão inicial aceita apenas `float64`, mantendo correspondência com o `float` do oracle Python. Dimensões devem ser positivas e os dados host devem ser retangulares e finitos. O device é selecionado e validado explicitamente.
+As operações numéricas CUDA continuam em `float64`, mantendo correspondência com o `float` do oracle Python. Desde a Phase 10.0, o memory manager também transporta IDs como signed `int32`: bool, floats e valores fora do intervalo são rejeitados sem narrowing silencioso. Para IDs, a fronteira explícita é `CUDABackend.buffer_from_host(ids, shape=(n,), dtype="int32")`; `buffer_to_host`/`to_host()` devolvem inteiros Python sem passar pelo formato `float64`. A camada `Embedding` mantém `_vocab_size` e `_embedding_dim` explícitos e guarda pesos/gradientes como `BackendArray`. O gate de kernels Embedding ainda está pendente. Evidência host-only: [`../experiments/phase10_0_embedding_storage_validation.json`](../experiments/phase10_0_embedding_storage_validation.json).
 
 ## Política numérica registrada antes do kernel
 
-- dtype: `float64`;
+- dtype aritmético: `float64`;
+- dtype de índices da Embedding (Phase 10.0): signed `int32`, sem uso como valor aritmético;
 - tolerância absoluta: `atol=1e-12`;
 - tolerância relativa: `rtol=1e-12`;
 - comparação por elemento: `abs(cuda - cpu) <= atol + rtol * abs(cpu)`.
@@ -58,4 +59,4 @@ O maior erro absoluto observado no gate inicial de `Linear.forward` foi `4.44089
 3. Somente após PASS do forward: `Linear.backward`, depois `Linear.step/update`.
 4. Fixture integrada curta `forward → backward → update` comparada contra CPU.
 
-Até o gate funcional completo, não executar benchmarks, treino 5k/10k, nem migrar Embedding, softmax, losses ou o modelo completo.
+A Phase 9 está funcional e integrada em `main`. A Phase 10 começou pela Embedding: o suporte de buffers `int32` está disponível, mas os gates CUDA de lookup, backward e update ainda precisam passar em sequência antes da conclusão. Não executar benchmark ou treino ampliado até esses gates, a configuração experimental e autorização explícita.
