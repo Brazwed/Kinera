@@ -1,0 +1,15 @@
+{
+  "phase": "11A",
+  "source_commit": "4e04dd3ab895b3d877e277bf7227686477442711",
+  "source_tree": "71d837c4006c7ba2bfcb0814bd966e9e34de0c62",
+  "cpu_test_command": "PYTHONPATH=src python -m unittest discover -s tests -v",
+  "cpu_tests": {
+    "result": "PASS",
+    "ran": 347,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 15,
+    "skip_scope": "CUDA-only tests require KINERA_RUN_CUDA_TESTS=1"
+  },
+  "cuda_gate": "not run as part of the frozen CPU baseline"
+}

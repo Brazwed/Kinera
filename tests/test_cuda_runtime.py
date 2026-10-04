@@ -62,7 +62,7 @@ class FakeFunction:
 
 
 class FakeLibrary:
-    def __init__(self, abi_version: int = 5, omit: str | None = None) -> None:
+    def __init__(self, abi_version: int = 6, omit: str | None = None) -> None:
         self.kinera_cuda_abi_version = FakeFunction(abi_version)
         self.kinera_cuda_error_string = FakeFunction(b"fake CUDA error")
         self.kinera_cuda_get_device_count = FakeFunction(
@@ -101,6 +101,16 @@ class FakeLibrary:
         self.kinera_cuda_embedding_step_f64 = FakeFunction(
             callback=self._record_embedding_step
         )
+        self.hybrid_forward_arguments = None
+        self.kinera_cuda_hybrid_representation_forward_f64 = FakeFunction(
+            callback=self._record_hybrid_forward
+        )
+        self.mean_pool_arguments = None
+        self.kinera_cuda_mean_pool_forward_f64 = FakeFunction(
+            callback=self._record_mean_pool
+        )
+        self.argmax_arguments = None
+        self.kinera_cuda_argmax_f64 = FakeFunction(callback=self._record_argmax)
         if omit:
             delattr(self, omit)
 
@@ -127,6 +137,18 @@ class FakeLibrary:
     def _record_embedding_forward(self, *args) -> int:
         self.embedding_forward_arguments = args
         return self.embedding_forward_status
+
+    def _record_hybrid_forward(self, *args) -> int:
+        self.hybrid_forward_arguments = args
+        return 0
+
+    def _record_mean_pool(self, *args) -> int:
+        self.mean_pool_arguments = args
+        return 0
+
+    def _record_argmax(self, *args) -> int:
+        self.argmax_arguments = args
+        return 0
 
     @staticmethod
     def _set_count(pointer) -> int:
@@ -178,6 +200,35 @@ class CudaRuntimeTests(unittest.TestCase):
         self.assertEqual(bridge.synchronized, [1])
 
 
+class CudaKernelArithmeticContractTests(unittest.TestCase):
+    def test_mean_pool_grid_math_handles_signed_int_max_without_signed_wrap(self) -> None:
+        kernel = (
+            Path(__file__).resolve().parents[1]
+            / "src/kinera/backends/cuda/kernels/mean_pool_forward.cu"
+        )
+        source = kernel.read_text(encoding="utf-8")
+
+        self.assertRegex(
+            source,
+            r"static_assert\(mean_pool_block_count\(INT_MAX\)\s*==\s*16777216U",
+        )
+        self.assertRegex(
+            source,
+            r"const std::size_t feature\s*=\s*mean_pool_feature_index",
+        )
+
+    def test_hybrid_kernel_checks_block_count_before_unsigned_narrowing(self) -> None:
+        kernel = (
+            Path(__file__).resolve().parents[1]
+            / "src/kinera/backends/cuda/kernels/hybrid_representation_forward.cu"
+        )
+        source = kernel.read_text(encoding="utf-8")
+        guard = source.index("if (blocks_wide > static_cast<std::size_t>(INT_MAX))")
+        narrowing = source.index("static_cast<unsigned int>(blocks_wide)")
+
+        self.assertLess(guard, narrowing)
+
+
 class CudaBridgeAbiTests(unittest.TestCase):
     def _load_with_fake_library(self, library: FakeLibrary):
         from kinera.backends.cuda.bridge import CudaBridge
@@ -200,7 +251,7 @@ class CudaBridgeAbiTests(unittest.TestCase):
             self.assertFalse(bridge.is_loaded)
             bridge.load()
             self.assertTrue(bridge.is_loaded)
-            self.assertEqual(bridge.abi_version, 5)
+            self.assertEqual(bridge.abi_version, 6)
             self.assertEqual(bridge.device_count(), 1)
             self.assertIsNotNone(library.kinera_cuda_get_device_count.argtypes)
 
@@ -257,6 +308,38 @@ class CudaBridgeAbiTests(unittest.TestCase):
         self.assertEqual(
             library.linear_step_arguments,
             (0, 101, 202, 303, 404, 0.125, 3, 2),
+        )
+
+    def test_bridge_dispatches_argmax_through_versioned_c_symbol(self) -> None:
+        from kinera.backends.cuda.bridge import CudaBridge
+
+        library = FakeLibrary()
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            bridge.argmax_f64(0, 101, 202, 4)
+        self.assertEqual(library.argmax_arguments, (0, 101, 202, 4))
+
+    def test_bridge_dispatches_mean_pool_forward_through_versioned_c_symbol(self) -> None:
+        from kinera.backends.cuda.bridge import CudaBridge
+
+        library = FakeLibrary()
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            bridge.mean_pool_forward_f64(0, 101, 202, 3, 2, 1)
+        self.assertEqual(library.mean_pool_arguments, (0, 101, 202, 3, 2, 1))
+
+    def test_bridge_dispatches_hybrid_representation_forward_through_versioned_c_symbol(self) -> None:
+        from kinera.backends.cuda.bridge import CudaBridge
+
+        library = FakeLibrary()
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            bridge.hybrid_representation_forward_f64(
+                0, 101, 202, 303, 404, 2, 2, 3, 1
+            )
+        self.assertEqual(
+            library.hybrid_forward_arguments,
+            (0, 101, 202, 303, 404, 2, 2, 3, 1),
         )
 
     def test_bridge_dispatches_embedding_forward_through_versioned_c_symbol(self) -> None:

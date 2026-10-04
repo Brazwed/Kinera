@@ -3,9 +3,16 @@
 from __future__ import annotations
 
 import math
-from typing import Mapping
+from typing import Mapping, cast
 
 from kinera.backends import Backend, resolve_backend
+from kinera.backends.base import (
+    BackendArray,
+    BackendBuffer,
+    BackendError,
+    BackendUnavailableError,
+    release_backend_buffers,
+)
 from kinera.nn.heads.multitask import MultiTaskHeads
 from kinera.nn.layers.embedding import Embedding
 from kinera.nn.layers.hybrid import HybridRepresentation
@@ -51,8 +58,9 @@ class AutoregressiveModel:
             backend=self.backend,
         )
         self.output_layer = self.heads.char
-        self.last_logits: list[float] | None = None
-        self.last_pooled: list[float] | None = None
+        self.last_logits: list[float] | BackendBuffer | None = None
+        self.last_pooled: list[float] | BackendBuffer | None = None
+        self._last_head_logits_backend: dict[str, list[float] | BackendBuffer] = {}
         self.last_context_size: int | None = None
 
     def forward(
@@ -61,13 +69,10 @@ class AutoregressiveModel:
         syllable_ids: list[int],
         feature_vectors: list[list[float]],
     ) -> list[float]:
-        """Calcula logits para o próximo caractere."""
-        self._validate_context(char_ids, syllable_ids, feature_vectors)
-        pooled = self._forward_representation(
-            char_ids, syllable_ids, feature_vectors
+        """Calcula logits para o próximo caractere na fronteira pública do host."""
+        return self._export_vector(
+            self._forward_backend(char_ids, syllable_ids, feature_vectors)
         )
-        self.last_logits = self.output_layer.forward(pooled)
-        return self.last_logits.copy()
 
     def forward_heads(
         self,
@@ -75,34 +80,164 @@ class AutoregressiveModel:
         syllable_ids: list[int],
         feature_vectors: list[list[float]],
     ) -> dict[str, list[float]]:
-        """Calcula logits das cabeças de caractere, sílaba e fronteira."""
-        self._validate_context(char_ids, syllable_ids, feature_vectors)
-        pooled = self._forward_representation(
+        """Calcula e exporta logits das três cabeças para o host."""
+        outputs = self._forward_heads_backend(
             char_ids, syllable_ids, feature_vectors
         )
-        outputs = self.heads.forward(pooled)
-        self.last_logits = outputs["char"].copy()
-        return {name: values.copy() for name, values in outputs.items()}
+        return {
+            name: self._export_vector(values) for name, values in outputs.items()
+        }
 
-    def _forward_representation(
+    def _forward_backend(
         self,
         char_ids: list[int],
         syllable_ids: list[int],
         feature_vectors: list[list[float]],
-    ) -> list[float]:
+    ) -> list[float] | BackendBuffer:
+        """Retorna logits nativos; buffers emprestados até novo forward ou release_forward_state."""
+        self._validate_context(char_ids, syllable_ids, feature_vectors)
+        self.release_forward_state()
+        pooled: list[float] | BackendBuffer | None = None
+        logits: list[float] | BackendBuffer | None = None
+        try:
+            pooled = self._pool_representation_backend(
+                char_ids, syllable_ids, feature_vectors
+            )
+            logits = self.output_layer.forward(pooled)
+        except Exception:
+            release_backend_buffers(pooled, logits)
+            self.release_forward_state()
+            raise
+
+        self.last_pooled = self._retain_vector(pooled)
+        self.last_logits = self._retain_vector(logits)
+        self._last_head_logits_backend = {"char": logits}
+        self.last_context_size = len(char_ids)
+        return logits
+
+    def _forward_heads_backend(
+        self,
+        char_ids: list[int],
+        syllable_ids: list[int],
+        feature_vectors: list[list[float]],
+    ) -> dict[str, list[float] | BackendBuffer]:
+        """Retorna logits de todas as heads; buffers emprestados até novo forward ou release_forward_state."""
+        self._validate_context(char_ids, syllable_ids, feature_vectors)
+        self.release_forward_state()
+        pooled: list[float] | BackendBuffer | None = None
+        outputs: dict[str, list[float] | BackendBuffer] = {}
+        try:
+            pooled = self._pool_representation_backend(
+                char_ids, syllable_ids, feature_vectors
+            )
+            outputs = {
+                "char": self.heads.char.forward(pooled),
+                "syllable": self.heads.syllable.forward(pooled),
+                "boundary": self.heads.boundary.forward(pooled),
+            }
+        except Exception:
+            release_backend_buffers(pooled, *outputs.values())
+            self.release_forward_state()
+            raise
+
+        self.last_pooled = self._retain_vector(pooled)
+        self.last_logits = self._retain_vector(outputs["char"])
+        self._last_head_logits_backend = outputs.copy()
+        self.last_context_size = len(char_ids)
+        return outputs
+
+    def _pool_representation_backend(
+        self,
+        char_ids: list[int],
+        syllable_ids: list[int],
+        feature_vectors: list[list[float]],
+    ) -> list[float] | BackendBuffer:
         vectors = self.representation.forward(
-            char_ids,
-            syllable_ids,
-            feature_vectors,
+            char_ids, syllable_ids, feature_vectors
         )
-        context_size = len(vectors)
-        pooled = [
-            sum(vector[index] for vector in vectors) / context_size
-            for index in range(self.representation.output_dim)
+        pooled: BackendArray | None = None
+        try:
+            mean_pool = getattr(self.backend, "mean_pool_forward", None)
+            if callable(mean_pool):
+                pooled = cast(BackendArray, mean_pool(vectors))
+            elif isinstance(vectors, BackendBuffer):
+                raise BackendUnavailableError(
+                    "backend must provide mean_pool_forward for device buffers"
+                )
+            else:
+                vector_values = cast(list[list[float]], vectors)
+                context_size = len(vector_values)
+                pooled = [
+                    sum(vector[index] for vector in vector_values) / context_size
+                    for index in range(self.representation.output_dim)
+                ]
+            if isinstance(pooled, BackendBuffer):
+                if pooled.closed or pooled.dtype != "float64":
+                    raise BackendError("mean pooling returned an invalid device buffer")
+                if pooled.shape != (self.representation.output_dim,):
+                    raise BackendError("mean pooling returned an invalid buffer shape")
+                return pooled
+            if not isinstance(pooled, list):
+                raise TypeError("mean pooling must return a list or BackendBuffer")
+            if len(pooled) != self.representation.output_dim:
+                raise ValueError("mean pooling returned an invalid vector size")
+            return cast(list[float], pooled)
+        except Exception:
+            release_backend_buffers(pooled)
+            raise
+        finally:
+            if isinstance(vectors, BackendBuffer):
+                self.representation.release_output()
+
+    def release_forward_state(self) -> None:
+        """Fechar caches/ativações retidos; os parâmetros do modelo continuam válidos."""
+        embeddings = (
+            self.representation.char_embedding,
+            self.representation.syllable_embedding,
+        )
+        heads = (self.heads.char, self.heads.syllable, self.heads.boundary)
+        buffers: list[object] = [
+            self.last_pooled,
+            self.last_logits,
+            self.representation.last_output,
+            *self._last_head_logits_backend.values(),
         ]
-        self.last_pooled = pooled.copy()
-        self.last_context_size = context_size
-        return pooled
+        for embedding in embeddings:
+            buffers.extend(
+                (embedding.last_ids, embedding.output, embedding.grad_weights)
+            )
+        for head in heads:
+            buffers.extend((head.last_input, head.output))
+        release_backend_buffers(*buffers)
+
+        self.representation.release_output()
+        for embedding in embeddings:
+            embedding.discard_forward_state()
+        for head in heads:
+            head.last_input = None
+            head.output = None
+            head._has_backward = False
+
+        self.last_logits = None
+        self.last_pooled = None
+        self._last_head_logits_backend = {}
+        self.last_context_size = None
+
+    @staticmethod
+    def _retain_vector(
+        values: list[float] | BackendBuffer,
+    ) -> list[float] | BackendBuffer:
+        if isinstance(values, BackendBuffer):
+            return values
+        return values.copy()
+
+    def _export_vector(self, values: list[float] | BackendBuffer) -> list[float]:
+        host_values = (
+            self.backend.buffer_to_host(values)
+            if isinstance(values, BackendBuffer)
+            else values
+        )
+        return cast(list[float], host_values).copy()
 
     def loss(
         self,
@@ -182,9 +317,17 @@ class AutoregressiveModel:
         syllable_ids: list[int],
         feature_vectors: list[list[float]],
     ) -> int:
-        """Retorna o ID do token com maior logit."""
-        logits = self.forward(char_ids, syllable_ids, feature_vectors)
-        return max(range(len(logits)), key=logits.__getitem__)
+        """Retorna o ID previsto sem exportar os logits ao host."""
+        logits = self._forward_backend(char_ids, syllable_ids, feature_vectors)
+        argmax = getattr(self.backend, "argmax", None)
+        if callable(argmax):
+            return cast(int, argmax(logits))
+        if isinstance(logits, BackendBuffer):
+            raise BackendUnavailableError(
+                "backend must provide argmax for device-resident logits"
+            )
+        logits_values = cast(list[float], logits)
+        return max(range(len(logits_values)), key=logits_values.__getitem__)
 
     def _validate_context(
         self,

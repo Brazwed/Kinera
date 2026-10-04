@@ -15,7 +15,7 @@ from typing import Any, Callable
 from kinera.backends.base import BackendUnavailableError
 
 
-ABI_VERSION = 5
+ABI_VERSION = 6
 # Negative statuses are reserved for Kinera-level validation failures.
 KINERA_CUDA_INVALID_INDEX_STATUS = -1
 _BUILD_FLAGS = (
@@ -344,6 +344,71 @@ class CudaBridge:
             ),
         )
 
+    def hybrid_representation_forward_f64(
+        self,
+        device_id: int,
+        char_vectors: int,
+        feature_vectors: int,
+        syllable_vectors: int,
+        output: int,
+        context_size: int,
+        char_dim: int,
+        feature_dim: int,
+        syllable_dim: int,
+    ) -> None:
+        self.load()
+        self._check(
+            "HybridRepresentation.forward kernel",
+            self._functions["kinera_cuda_hybrid_representation_forward_f64"](
+                device_id,
+                char_vectors,
+                feature_vectors,
+                syllable_vectors,
+                output,
+                context_size,
+                char_dim,
+                feature_dim,
+                syllable_dim,
+            ),
+        )
+
+    def mean_pool_forward_f64(
+        self,
+        device_id: int,
+        vectors: int,
+        output: int,
+        context_size: int,
+        feature_dim: int,
+        compensated_sum: int,
+    ) -> None:
+        self.load()
+        self._check(
+            "mean_pool.forward kernel",
+            self._functions["kinera_cuda_mean_pool_forward_f64"](
+                device_id,
+                vectors,
+                output,
+                context_size,
+                feature_dim,
+                compensated_sum,
+            ),
+        )
+
+    def argmax_f64(
+        self,
+        device_id: int,
+        logits: int,
+        output_id: int,
+        logits_count: int,
+    ) -> None:
+        self.load()
+        self._check(
+            "argmax kernel",
+            self._functions["kinera_cuda_argmax_f64"](
+                device_id, logits, output_id, logits_count
+            ),
+        )
+
     def _check(self, operation: str, result: object) -> None:
         status = int(result)
         if status == 0:
@@ -462,6 +527,40 @@ class CudaBridge:
                     ctypes.c_void_p,
                     ctypes.c_double,
                     ctypes.c_int,
+                    ctypes.c_int,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_hybrid_representation_forward_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_mean_pool_forward_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_argmax_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
                     ctypes.c_int,
                 ],
                 ctypes.c_int,

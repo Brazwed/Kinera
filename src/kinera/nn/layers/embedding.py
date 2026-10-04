@@ -7,7 +7,12 @@ from random import Random
 from typing import cast
 
 from kinera.backends import Backend, resolve_backend
-from kinera.backends.base import BackendArray, BackendBuffer, BackendError
+from kinera.backends.base import (
+    BackendArray,
+    BackendBuffer,
+    BackendError,
+    release_backend_buffers,
+)
 
 
 class Embedding:
@@ -77,22 +82,35 @@ class Embedding:
             if not 0 <= index < vocab_size:
                 raise ValueError(f"ids[{position}] fora do vocabulário")
 
-        prepared_ids: list[int] | BackendBuffer = (
-            cast(
-                list[int] | BackendBuffer,
-                self.backend.buffer_from_host(
-                    ids, shape=(len(ids),), dtype="int32"
-                ),
+        prepared_ids: list[int] | BackendBuffer = []
+        zero_gradients: BackendArray | None = None
+        output: BackendArray | None = None
+        try:
+            prepared_ids = (
+                cast(
+                    list[int] | BackendBuffer,
+                    self.backend.buffer_from_host(
+                        ids, shape=(len(ids),), dtype="int32"
+                    ),
+                )
+                if ids
+                else []
             )
-            if ids
-            else []
+            zero_gradients = self.backend.buffer_from_host(
+                [[0.0] * embedding_dim for _ in range(vocab_size)],
+                shape=(vocab_size, embedding_dim),
+                dtype="float64",
+            )
+            output = self.backend.embedding_forward(self.weights, prepared_ids)
+        except Exception:
+            self._release_buffers(prepared_ids, zero_gradients, output)
+            raise
+
+        previous_buffers = (self.last_ids, self.output, self.grad_weights)
+        self._release_superseded_buffers(
+            previous_buffers,
+            (prepared_ids, zero_gradients, output),
         )
-        zero_gradients = self.backend.buffer_from_host(
-            [[0.0] * embedding_dim for _ in range(vocab_size)],
-            shape=(vocab_size, embedding_dim),
-            dtype="float64",
-        )
-        output = self.backend.embedding_forward(self.weights, prepared_ids)
         self.last_ids = prepared_ids
         self.output = output
         self.grad_weights = zero_gradients
@@ -100,6 +118,17 @@ class Embedding:
         if isinstance(output, BackendBuffer):
             return output
         return [vector.copy() for vector in cast(list[list[float]], output)]
+
+    def release_output_buffer(self) -> None:
+        """Close the lookup output after its last forward consumer is done."""
+        self._release_buffers(self.output)
+
+    def discard_forward_state(self) -> None:
+        """Discard IDs/output after a failed composite forward."""
+        self._release_buffers(self.last_ids, self.output)
+        self.last_ids = None
+        self.output = None
+        self._has_backward = False
 
     def backward(self, grad_output: list[list[float]] | BackendBuffer) -> None:
         """Acumula gradientes por ID; IDs repetidos somam suas contribuições."""
@@ -176,6 +205,21 @@ class Embedding:
             float(learning_rate),
         )
         self._has_backward = False
+
+    @staticmethod
+    def _release_buffers(*buffers: object) -> None:
+        release_backend_buffers(*buffers)
+
+    @classmethod
+    def _release_superseded_buffers(
+        cls,
+        previous: tuple[object, ...],
+        current: tuple[object, ...],
+    ) -> None:
+        current_ids = {id(buffer) for buffer in current}
+        cls._release_buffers(
+            *(buffer for buffer in previous if id(buffer) not in current_ids)
+        )
 
     def _validate_id(self, value: object, name: str) -> None:
         if isinstance(value, bool) or not isinstance(value, int):

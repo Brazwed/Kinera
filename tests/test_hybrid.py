@@ -1,10 +1,70 @@
 import unittest
+from typing import cast
 
+from kinera.backends.base import BackendArray, BackendBuffer, BackendUnavailableError
+from kinera.backends.cpu.backend import CPUBackend
 from kinera.nn.embedding import Embedding
 from kinera.nn.hybrid import HybridRepresentation
 
 
+class NonSequenceBackendBuffer:
+    device = "cuda"
+    device_id = 0
+    dtype = "float64"
+    layout = "C"
+    owns_memory = True
+    closed = False
+
+    def __init__(self, shape: tuple[int, int]) -> None:
+        self.shape = shape
+        self.nbytes = 8 * shape[0] * shape[1]
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class RecordingHybridBackend(CPUBackend):
+    def __init__(self) -> None:
+        self.hybrid_calls: list[
+            tuple[list[list[float]], list[list[float]], list[list[float]]]
+        ] = []
+
+    def hybrid_representation_forward(
+        self,
+        char_vectors: BackendArray,
+        feature_vectors: BackendArray,
+        syllable_vectors: BackendArray,
+    ) -> list[list[float]]:
+        if not all(
+            isinstance(matrix, list)
+            for matrix in (char_vectors, feature_vectors, syllable_vectors)
+        ):
+            raise TypeError("recording CPU backend accepts host matrices only")
+        char_values = cast(list[list[float]], char_vectors)
+        feature_values = cast(list[list[float]], feature_vectors)
+        syllable_values = cast(list[list[float]], syllable_vectors)
+        self.hybrid_calls.append((char_values, feature_values, syllable_values))
+        return [
+            char_vector + feature_vector + syllable_vector
+            for char_vector, feature_vector, syllable_vector in zip(
+                char_values, feature_values, syllable_values
+            )
+        ]
+
+
 class HybridRepresentationTests(unittest.TestCase):
+    def test_cpu_backend_hybrid_forward_preserves_declared_channel_order(self) -> None:
+        output = CPUBackend().hybrid_representation_forward(
+            [[0.1, 0.2], [0.3, 0.4]],
+            [[1.0], [0.0]],
+            [[0.5, 0.6, 0.7], [0.8, 0.9, 1.0]],
+        )
+
+        self.assertEqual(
+            output,
+            [[0.1, 0.2, 1.0, 0.5, 0.6, 0.7], [0.3, 0.4, 0.0, 0.8, 0.9, 1.0]],
+        )
+
     def _representation(self) -> HybridRepresentation:
         char_embedding = Embedding(vocab_size=4, embedding_dim=2, seed=7)
         syllable_embedding = Embedding(vocab_size=3, embedding_dim=3, seed=8)
@@ -24,6 +84,14 @@ class HybridRepresentationTests(unittest.TestCase):
             syllable_embedding,
             feature_dim=2,
         )
+
+    def test_forward_preserves_empty_aligned_inputs(self) -> None:
+        representation = self._representation()
+
+        output = representation.forward([], [], [])
+
+        self.assertEqual(output, [])
+        self.assertEqual(representation.last_output, [])
 
     def test_forward_concatenates_character_features_and_syllable_vectors(self) -> None:
         representation = self._representation()
@@ -83,6 +151,60 @@ class HybridRepresentationTests(unittest.TestCase):
         self.assertNotEqual(
             representation.syllable_embedding.weights[1], original_syllable
         )
+
+    def test_forward_delegates_fusion_to_the_selected_backend(self) -> None:
+        backend = RecordingHybridBackend()
+        char_embedding = Embedding(
+            vocab_size=4, embedding_dim=2, seed=7, backend=backend
+        )
+        syllable_embedding = Embedding(
+            vocab_size=3, embedding_dim=3, seed=8, backend=backend
+        )
+        char_embedding.weights = [
+            [0.1, 0.2],
+            [0.3, 0.4],
+            [0.5, 0.6],
+            [0.7, 0.8],
+        ]
+        syllable_embedding.weights = [
+            [1.0, 1.1, 1.2],
+            [1.3, 1.4, 1.5],
+            [1.6, 1.7, 1.8],
+        ]
+        representation = HybridRepresentation(
+            char_embedding,
+            syllable_embedding,
+            feature_dim=2,
+        )
+
+        output = representation.forward(
+            char_ids=[2],
+            syllable_ids=[1],
+            feature_vectors=[[1.0, 0.0]],
+        )
+
+        self.assertEqual(len(backend.hybrid_calls), 1)
+        char_vectors, features, syllable_vectors = backend.hybrid_calls[0]
+        self.assertEqual(char_vectors, [[0.5, 0.6]])
+        self.assertEqual(features, [[1.0, 0.0]])
+        self.assertEqual(syllable_vectors, [[1.3, 1.4, 1.5]])
+        self.assertEqual(output, [char_vectors[0] + features[0] + syllable_vectors[0]])
+
+    def test_cuda_backward_fails_closed_until_phase_11b(self) -> None:
+        representation = self._representation()
+        representation.last_output = NonSequenceBackendBuffer((2, 7))
+
+        with self.assertRaisesRegex(
+            BackendUnavailableError, "HybridRepresentation.backward"
+        ):
+            representation.backward([[1.0] * 7, [1.0] * 7])
+
+    def test_cpu_backend_mean_pool_matches_python_float_sum_order(self) -> None:
+        rows = [[1e16, 2.0], [1.0, 4.0], [-1e16, 6.0]]
+        pooled = CPUBackend().mean_pool_forward(rows)
+        expected_first = sum(row[0] for row in rows) / len(rows)
+
+        self.assertEqual(pooled, [expected_first, 4.0])
 
     def test_invalid_lengths_are_rejected(self) -> None:
         representation = self._representation()

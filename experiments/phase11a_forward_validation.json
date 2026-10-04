@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "phase": "11A",
+  "baseline_commit": "4e04dd3ab895b3d877e277bf7227686477442711",
+  "package_input_manifest": {
+    "sha256": "b0bd83a1808bb8236c47573b50c8ac866f0f5d8f2fb5535c4156788faf56b7a8",
+    "files": 119,
+    "source": "pyproject.toml and all src/kinera files from the pre-commit wheel snapshot"
+  },
+  "cuda_gate": {
+    "result": "PASS",
+    "device": "T4",
+    "runtime_fingerprint": "a4827f39aab54432a943a559d41f0d5b",
+    "python": "3.13.15",
+    "source_test_manifest_sha256": "0d8c402e06294c316068dfc5f1dd8f0be828660f26aff14a3b464925b34553db",
+    "tests_run": 8,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "numerical_contract": {
+      "dtype": "float64",
+      "atol": 1e-12,
+      "rtol": 1e-12,
+      "result": "all CPU-CUDA fixture assertions passed"
+    },
+    "coverage": [
+      "embedding ownership and replacement",
+      "resident hybrid concatenation and explicit feature H2D",
+      "mean-pool parity and order",
+      "three heads sharing one resident pooled buffer",
+      "resident logits and argmax tie behavior",
+      "prediction copies only one int32 ID",
+      "cleanup on partial head failure"
+    ]
+  },
+  "host_checks": [
+    "empty CPU HybridRepresentation input continues to return an empty list",
+    "oversized hybrid CUDA launch grids fail before allocation and native narrowing",
+    "mean-pool INT_MAX grid arithmetic is covered by compile-time assertions"
+  ],
+  "cpu_suite": {
+    "command": "PYTHONPATH=src python -m unittest discover -s tests -v",
+    "python": "3.14.7",
+    "result": "PASS",
+    "tests_run": 377,
+    "failures": 0,
+    "errors": 0,
+    "cuda_only_skips": 23
+  },
+  "cpu_only_wheel": {
+    "result": "PASS",
+    "wheel": "kinera-0.1.0-py3-none-any.whl",
+    "size_bytes": 137017,
+    "sha256": "1f80fa77cea3cda027eca4258e85c04e18b16467274105a4267546ceb9cca4a5",
+    "package_input_manifest_sha256": "b0bd83a1808bb8236c47573b50c8ac866f0f5d8f2fb5535c4156788faf56b7a8",
+    "build": "PASS",
+    "isolated_target_install": "PASS",
+    "cuda_package_data": {
+      "source_files_included": 13,
+      "required_abi6_runtime_and_three_phase11a_kernels_included": true
+    },
+    "smoke": {
+      "python": "3.14.7",
+      "nvcc_visible_on_path": false,
+      "package_imported_from_isolated_target": true,
+      "cuda_modules_imported": false,
+      "cpu_forward_backward_step": "PASS"
+    }
+  },
+  "scope": {
+    "benchmark_run": false,
+    "training_run": false,
+    "phase11b_started": false
+  }
+}
