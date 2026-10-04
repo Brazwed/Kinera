@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from kinera.backends.base import BackendError
+from kinera.backends.base import BackendError, HostArray
 
 if TYPE_CHECKING:
     from kinera.backends.cuda.memory import CudaMemoryManager
@@ -15,7 +15,7 @@ class BufferReleasedError(BackendError):
 
 
 class CudaBuffer:
-    """A contiguous float64 allocation owned by one CUDA memory manager.
+    """A contiguous float64 or int32 allocation owned by one CUDA memory manager.
 
     Device buffers deliberately do not implement Python's sequence protocol.
     Host/device movement is available only through explicit copy methods.
@@ -99,7 +99,7 @@ class CudaBuffer:
         self._closed = True
         self._pointer = 0
 
-    def to_host(self) -> list[float] | list[list[float]]:
+    def to_host(self) -> HostArray:
         """Explicitly copy this allocation to a Python list structure."""
         self._assert_open()
         return self._manager.copy_to_host(self)

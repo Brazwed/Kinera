@@ -26,6 +26,29 @@ class CudaBackendScaffoldTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "CudaBuffer"):
             backend.linear_step(None, None, None, None, 0.1)
 
+    def test_embedding_forward_rejects_host_weights_instead_of_silently_copying(self) -> None:
+        from kinera.backends.cuda.backend import CUDABackend
+
+        backend = CUDABackend()
+        with self.assertRaisesRegex(TypeError, "Embedding.forward requires weights as a CudaBuffer"):
+            backend.embedding_forward([[1.0]], [])
+
+    def test_embedding_backward_uses_ordered_serial_accumulation_without_atomics(self) -> None:
+        source = (
+            Path(__file__).resolve().parents[1]
+            / "src/kinera/backends/cuda/kernels/embedding_backward.cu"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "double accumulated = grad_weights[gradient_index]",
+            source,
+        )
+        self.assertIn(
+            "for (int position = 0; position < ids_count; ++position)",
+            source,
+        )
+        self.assertIn("accumulated = accumulated + grad_output[output_index]", source)
+        self.assertNotIn("atomicAdd", source)
+
     def test_missing_runtime_memory_and_library_fail_closed(self) -> None:
         from kinera.backends.cuda.bridge import CudaBridge
         from kinera.backends.cuda.memory import CudaMemoryManager
@@ -54,12 +77,15 @@ class CudaBackendScaffoldTests(unittest.TestCase):
             with self.assertRaises(BackendUnavailableError):
                 bridge.load()
 
-    def test_linear_forward_backward_and_step_are_the_real_kernels_in_this_gate(self) -> None:
+    def test_linear_and_embedding_trainable_kernels_are_real_in_this_gate(self) -> None:
         source_root = Path(__file__).resolve().parents[1] / "src/kinera/backends/cuda/kernels"
         for filename, symbol in (
             ("linear_forward.cu", "kinera_cuda_linear_forward_f64"),
             ("linear_backward.cu", "kinera_cuda_linear_backward_f64"),
             ("linear_step.cu", "kinera_cuda_linear_step_f64"),
+            ("embedding_forward.cu", "kinera_cuda_embedding_forward_f64"),
+            ("embedding_backward.cu", "kinera_cuda_embedding_backward_f64"),
+            ("embedding_step.cu", "kinera_cuda_embedding_step_f64"),
         ):
             with self.subTest(kernel=filename):
                 source = source_root / filename
@@ -69,8 +95,6 @@ class CudaBackendScaffoldTests(unittest.TestCase):
                 self.assertIn(symbol, text)
 
         placeholders = (
-            "embedding_forward.cu",
-            "embedding_backward.cu",
             "activations.cu",
             "losses.cu",
         )

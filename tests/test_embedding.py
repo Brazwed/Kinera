@@ -92,6 +92,18 @@ class EmbeddingBackwardTests(unittest.TestCase):
         self.assertEqual(embedding.grad_weights[1], [0.0, 0.0])
         self.assertEqual(embedding.grad_weights[2], [6.0, 8.0])
 
+    def test_repeated_backward_calls_accumulate_until_the_next_forward(self) -> None:
+        embedding = Embedding(vocab_size=3, embedding_dim=2, seed=7)
+        embedding.forward([2, 0, 2])
+
+        embedding.backward([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+        embedding.backward([[2.0, 1.0], [4.0, 3.0], [1.0, 2.0]])
+
+        self.assertEqual(
+            embedding.grad_weights,
+            [[7.0, 7.0], [0.0, 0.0], [9.0, 11.0]],
+        )
+
     def test_backward_rejects_wrong_shape_and_nonfinite_values(self) -> None:
         embedding = Embedding(vocab_size=3, embedding_dim=2, seed=7)
         embedding.forward([1, 2])

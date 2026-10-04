@@ -4,7 +4,7 @@ import ctypes
 import unittest
 
 from kinera.backends.base import BackendError
-from kinera.backends.cuda import CudaBuffer, CudaMemoryManager
+from kinera.backends.cuda import CUDABackend, CudaBuffer, CudaMemoryManager
 
 
 class FakeCudaBridge:
@@ -100,6 +100,43 @@ class CudaBufferOwnershipTests(unittest.TestCase):
 
         self.assertTrue(buffer.closed)
         self.assertEqual(self.bridge.freed, [pointer])
+
+    def test_int32_buffer_roundtrip_preserves_integer_ids_and_uses_four_byte_elements(self) -> None:
+        with self.manager.copy_to_device(
+            [2, 0, 2], shape=(3,), dtype="int32", device_id=0
+        ) as buffer:
+            self.assertEqual(buffer.shape, (3,))
+            self.assertEqual(buffer.dtype, "int32")
+            self.assertEqual(buffer.nbytes, 12)
+            values = self.manager.copy_to_host(buffer)
+            self.assertEqual(values, [2, 0, 2])
+            self.assertTrue(all(type(value) is int for value in values))
+
+    def test_backend_host_boundary_accepts_explicit_int32_index_buffers(self) -> None:
+        backend = CUDABackend(
+            runtime=self.manager.runtime, memory_manager=self.manager
+        )
+        with backend.buffer_from_host(
+            [2, 0, 2], shape=(3,), dtype="int32"
+        ) as buffer:
+            self.assertEqual(buffer.dtype, "int32")
+            self.assertEqual(backend.buffer_to_host(buffer), [2, 0, 2])
+
+    def test_int32_buffer_rejects_bool_float_and_out_of_range_ids(self) -> None:
+        cases = (
+            ([True], TypeError),
+            ([1.0], TypeError),
+            ([2**31], ValueError),
+            ([-(2**31) - 1], ValueError),
+        )
+        for values, error in cases:
+            with self.subTest(values=values):
+                allocations_before = len(self.bridge.allocations)
+                with self.assertRaises(error):
+                    self.manager.copy_to_device(
+                        values, shape=(1,), dtype="int32", device_id=0
+                    )
+                self.assertEqual(len(self.bridge.allocations), allocations_before)
 
     def test_invalid_shapes_values_and_dtype_fail_before_allocation(self) -> None:
         cases = (

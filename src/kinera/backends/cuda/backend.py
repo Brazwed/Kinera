@@ -59,11 +59,9 @@ class CUDABackend:
         if not isinstance(buffer, CudaBuffer):
             raise TypeError("CUDA buffer_to_host requires a CudaBuffer")
         values = self.memory.copy_to_host(buffer)
-        if len(buffer.shape) == 1:
-            return cast(list[float], values)
-        if len(buffer.shape) == 2:
-            return cast(list[list[float]], values)
-        raise ValueError("Phase 9 public host export supports rank 1 or rank 2")
+        if len(buffer.shape) in {1, 2}:
+            return cast(HostArray, values)
+        raise ValueError("CUDA public host export supports rank 1 or rank 2")
 
     def release_buffer(self, buffer: CudaBuffer) -> None:
         """Release a buffer explicitly through its owning memory manager."""
@@ -108,10 +106,16 @@ class CUDABackend:
         return output
 
     @staticmethod
-    def _require_buffer(value: BackendArray, name: str, *, rank: int) -> CudaBuffer:
+    def _require_buffer(
+        value: BackendArray,
+        name: str,
+        *,
+        rank: int,
+        operation: str = "Linear.forward",
+    ) -> CudaBuffer:
         if not isinstance(value, CudaBuffer):
             raise TypeError(
-                f"CUDA Linear.forward requires {name} as a CudaBuffer; "
+                f"CUDA {operation} requires {name} as a CudaBuffer; "
                 "call buffer_from_host explicitly for host data"
             )
         value._assert_open()
@@ -126,7 +130,7 @@ class CUDABackend:
     @staticmethod
     def _unavailable(operation: str) -> NoReturn:
         raise BackendUnavailableError(
-            f"CUDA operation {operation} is not available in the current Phase 9 gate"
+            f"CUDA operation {operation} is not available in the current CUDA gate"
         )
 
     def linear_backward(
@@ -243,14 +247,157 @@ class CUDABackend:
         )
         return weights_buffer, bias_buffer
 
-    def embedding_forward(self, *args, **kwargs):
-        self._unavailable("embedding_forward")
+    def embedding_forward(
+        self, weights: BackendArray, ids: list[int] | BackendBuffer
+    ) -> CudaBuffer | list[list[float]]:
+        """Copy row-major weight rows selected by an owned int32 ID buffer."""
+        weights_buffer = self._require_buffer(
+            weights, "weights", rank=2, operation="Embedding.forward"
+        )
+        self.memory._validate_buffer(weights_buffer)
+        vocab_size, embedding_dim = weights_buffer.shape
+        device_id = weights_buffer.device_id
+        self.runtime.require_device(device_id)
 
-    def embedding_backward(self, *args, **kwargs):
-        self._unavailable("embedding_backward")
+        if isinstance(ids, list):
+            if ids:
+                raise TypeError(
+                    "CUDA Embedding.forward requires IDs in an int32 CudaBuffer; "
+                    "call buffer_from_host explicitly after layer validation"
+                )
+            return []
+        if not isinstance(ids, CudaBuffer):
+            raise TypeError("CUDA Embedding.forward requires IDs as a CudaBuffer")
+        ids._assert_open()
+        if ids.dtype != "int32":
+            raise ValueError("Embedding IDs must use dtype int32")
+        if len(ids.shape) != 1:
+            raise ValueError("Embedding IDs must have rank 1")
+        self.memory._validate_buffer(ids)
+        if ids.device_id != device_id:
+            raise BackendError("Embedding.forward buffers must reside on the same CUDA device")
 
-    def embedding_step(self, *args, **kwargs):
-        self._unavailable("embedding_step")
+        ids_count = ids.shape[0]
+        output = self.memory.allocate(
+            (ids_count, embedding_dim), dtype="float64", device_id=device_id
+        )
+        try:
+            self.bridge.embedding_forward_f64(
+                device_id,
+                weights_buffer.pointer,
+                ids.pointer,
+                output.pointer,
+                vocab_size,
+                embedding_dim,
+                ids_count,
+            )
+        except Exception:
+            self.memory.release(output)
+            raise
+        return output
+
+    def embedding_backward(
+        self,
+        grad_weights: BackendArray,
+        ids: list[int] | BackendBuffer,
+        grad_output: BackendArray,
+    ) -> CudaBuffer | list[list[float]]:
+        """Accumulate Embedding gradients deterministically into the resident table."""
+        gradients_buffer = self._require_buffer(
+            grad_weights, "grad_weights", rank=2, operation="Embedding.backward"
+        )
+        self.memory._validate_buffer(gradients_buffer)
+        vocab_size, embedding_dim = gradients_buffer.shape
+        device_id = gradients_buffer.device_id
+        self.runtime.require_device(device_id)
+
+        if isinstance(ids, list):
+            if ids:
+                raise TypeError(
+                    "CUDA Embedding.backward requires IDs in an int32 CudaBuffer"
+                )
+            if not isinstance(grad_output, list) or grad_output:
+                raise ValueError("empty Embedding IDs require empty grad_output")
+            return gradients_buffer
+        if not isinstance(ids, CudaBuffer):
+            raise TypeError("CUDA Embedding.backward requires IDs as a CudaBuffer")
+        ids._assert_open()
+        if ids.dtype != "int32":
+            raise ValueError("Embedding IDs must use dtype int32")
+        if len(ids.shape) != 1:
+            raise ValueError("Embedding IDs must have rank 1")
+        self.memory._validate_buffer(ids)
+
+        gradient_buffer = self._require_buffer(
+            grad_output, "grad_output", rank=2, operation="Embedding.backward"
+        )
+        self.memory._validate_buffer(gradient_buffer)
+        ids_count = ids.shape[0]
+        if gradient_buffer.shape != (ids_count, embedding_dim):
+            raise ValueError(
+                "grad_output must have shape (len(ids), embedding_dim)"
+            )
+        device_ids = {
+            gradients_buffer.device_id,
+            ids.device_id,
+            gradient_buffer.device_id,
+        }
+        if len(device_ids) != 1:
+            raise BackendError(
+                "Embedding.backward buffers must reside on the same CUDA device"
+            )
+        self.bridge.embedding_backward_f64(
+            device_id,
+            ids.pointer,
+            gradient_buffer.pointer,
+            gradients_buffer.pointer,
+            vocab_size,
+            embedding_dim,
+            ids_count,
+        )
+        return gradients_buffer
+
+    def embedding_step(
+        self,
+        weights: BackendArray,
+        grad_weights: BackendArray,
+        learning_rate: float,
+    ) -> CudaBuffer | list[list[float]]:
+        """Apply gradient descent to the resident Embedding table in place."""
+        weights_buffer = self._require_buffer(
+            weights, "weights", rank=2, operation="Embedding.step"
+        )
+        grad_weights_buffer = self._require_buffer(
+            grad_weights, "grad_weights", rank=2, operation="Embedding.step"
+        )
+        self.memory._validate_buffer(weights_buffer)
+        self.memory._validate_buffer(grad_weights_buffer)
+        if grad_weights_buffer.shape != weights_buffer.shape:
+            raise ValueError("grad_weights must match weights shape")
+        if weights_buffer.device_id != grad_weights_buffer.device_id:
+            raise BackendError("Embedding.step buffers must reside on the same CUDA device")
+        if isinstance(learning_rate, bool) or not isinstance(learning_rate, (int, float)):
+            raise TypeError("learning_rate must be numeric")
+        if not math.isfinite(learning_rate):
+            raise ValueError("learning_rate must be finite")
+        if learning_rate < 0.0:
+            raise ValueError("learning_rate cannot be negative")
+
+        device_id = weights_buffer.device_id
+        self.runtime.require_device(device_id)
+        rate = float(learning_rate)
+        if rate == 0.0:
+            return weights_buffer
+        vocab_size, embedding_dim = weights_buffer.shape
+        self.bridge.embedding_step_f64(
+            device_id,
+            weights_buffer.pointer,
+            grad_weights_buffer.pointer,
+            rate,
+            vocab_size,
+            embedding_dim,
+        )
+        return weights_buffer
 
     def neuron_forward(self, *args, **kwargs):
         self._unavailable("neuron_forward")

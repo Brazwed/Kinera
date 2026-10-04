@@ -15,7 +15,9 @@ from typing import Any, Callable
 from kinera.backends.base import BackendUnavailableError
 
 
-ABI_VERSION = 1
+ABI_VERSION = 5
+# Negative statuses are reserved for Kinera-level validation failures.
+KINERA_CUDA_INVALID_INDEX_STATUS = -1
 _BUILD_FLAGS = (
     "--shared",
     "--cudart=shared",
@@ -270,6 +272,78 @@ class CudaBridge:
             ),
         )
 
+    def embedding_forward_f64(
+        self,
+        device_id: int,
+        weights: int,
+        ids: int,
+        output: int,
+        vocab_size: int,
+        embedding_dim: int,
+        ids_count: int,
+    ) -> None:
+        self.load()
+        status = self._functions["kinera_cuda_embedding_forward_f64"](
+            device_id,
+            weights,
+            ids,
+            output,
+            vocab_size,
+            embedding_dim,
+            ids_count,
+        )
+        self._check_embedding_ids("Embedding.forward kernel", status)
+
+    def embedding_backward_f64(
+        self,
+        device_id: int,
+        ids: int,
+        grad_output: int,
+        grad_weights: int,
+        vocab_size: int,
+        embedding_dim: int,
+        ids_count: int,
+    ) -> None:
+        self.load()
+        status = self._functions["kinera_cuda_embedding_backward_f64"](
+            device_id,
+            ids,
+            grad_output,
+            grad_weights,
+            vocab_size,
+            embedding_dim,
+            ids_count,
+        )
+        self._check_embedding_ids("Embedding.backward kernel", status)
+
+    def _check_embedding_ids(self, operation: str, result: int) -> None:
+        status = int(result)
+        if status == KINERA_CUDA_INVALID_INDEX_STATUS:
+            raise ValueError("Embedding IDs must be within the vocabulary range")
+        self._check(operation, status)
+
+    def embedding_step_f64(
+        self,
+        device_id: int,
+        weights: int,
+        grad_weights: int,
+        learning_rate: float,
+        vocab_size: int,
+        embedding_dim: int,
+    ) -> None:
+        self.load()
+        self._check(
+            "Embedding.step/update kernel",
+            self._functions["kinera_cuda_embedding_step_f64"](
+                device_id,
+                weights,
+                grad_weights,
+                learning_rate,
+                vocab_size,
+                embedding_dim,
+            ),
+        )
+
     def _check(self, operation: str, result: object) -> None:
         status = int(result)
         if status == 0:
@@ -349,6 +423,41 @@ class CudaBridge:
                     ctypes.c_int,
                     ctypes.c_void_p,
                     ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_double,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_embedding_forward_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_embedding_backward_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_embedding_step_f64": (
+                [
+                    ctypes.c_int,
                     ctypes.c_void_p,
                     ctypes.c_void_p,
                     ctypes.c_double,

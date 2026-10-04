@@ -5,9 +5,9 @@ from __future__ import annotations
 import ctypes
 import math
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-from kinera.backends.base import BackendError
+from kinera.backends.base import BackendError, HostArray
 from kinera.backends.cuda.buffer import CudaBuffer
 
 if TYPE_CHECKING:
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class CudaMemoryManager:
-    """Allocate owned device buffers and perform explicit float64 transfers."""
+    """Allocate owned typed CUDA buffers with explicit host/device transfers."""
 
     def __init__(
         self,
@@ -49,7 +49,9 @@ class CudaMemoryManager:
         normalized_shape = self._normalize_shape(shape)
         self._validate_dtype(dtype)
         self._validate_device(device_id)
-        nbytes = math.prod(normalized_shape) * ctypes.sizeof(ctypes.c_double)
+        nbytes = math.prod(normalized_shape) * ctypes.sizeof(
+            ctypes.c_double if dtype == "float64" else ctypes.c_int32
+        )
         pointer = self.bridge.allocate(device_id, nbytes)
         if not pointer:
             raise BackendError("CUDA allocator returned a null pointer")
@@ -70,8 +72,14 @@ class CudaMemoryManager:
         dtype: str = "float64",
         device_id: int = 0,
     ) -> CudaBuffer:
-        """Flatten and copy host numeric data into a newly owned CUDA buffer."""
-        flat_values, inferred_shape = self._flatten_host_values(host_buffer)
+        """Flatten and copy explicitly typed numeric data into a device buffer."""
+        self._validate_dtype(dtype)
+        if dtype == "float64":
+            flat_values, inferred_shape = self._flatten_host_values(host_buffer)
+            array_type = ctypes.c_double
+        else:
+            flat_values, inferred_shape = self._flatten_int32_values(host_buffer)
+            array_type = ctypes.c_int32
         normalized_shape = (
             inferred_shape if shape is None else self._normalize_shape(shape)
         )
@@ -79,9 +87,8 @@ class CudaMemoryManager:
             raise ValueError(
                 f"shape {normalized_shape} does not match host data shape {inferred_shape}"
             )
-        self._validate_dtype(dtype)
         buffer = self.allocate(normalized_shape, dtype=dtype, device_id=device_id)
-        host_array = (ctypes.c_double * len(flat_values))(*flat_values)
+        host_array = (array_type * len(flat_values))(*flat_values)
         try:
             self.bridge.copy_to_device(
                 device_id,
@@ -96,8 +103,8 @@ class CudaMemoryManager:
 
     def copy_to_host(
         self, device_buffer: CudaBuffer, *, device_id: int | None = None
-    ) -> list[float] | list[list[float]]:
-        """Explicitly copy a live CUDA buffer to a nested Python list."""
+    ) -> HostArray:
+        """Explicitly copy a live typed CUDA buffer to nested Python lists."""
         self._validate_buffer(device_buffer)
         selected_device = device_buffer.device_id if device_id is None else device_id
         if selected_device != device_buffer.device_id:
@@ -106,7 +113,10 @@ class CudaMemoryManager:
                 f"not device {selected_device}"
             )
         count = math.prod(device_buffer.shape)
-        host_array = (ctypes.c_double * count)()
+        array_type = (
+            ctypes.c_double if device_buffer.dtype == "float64" else ctypes.c_int32
+        )
+        host_array = (array_type * count)()
         self.bridge.copy_to_host(
             selected_device,
             ctypes.addressof(host_array),
@@ -131,8 +141,8 @@ class CudaMemoryManager:
 
     @staticmethod
     def _validate_dtype(dtype: str) -> None:
-        if dtype != "float64":
-            raise ValueError("Phase 9 CUDA buffers support only dtype='float64'")
+        if dtype not in {"float64", "int32"}:
+            raise ValueError("CUDA buffers support only dtype='float64' or dtype='int32'")
 
     @staticmethod
     def _normalize_shape(shape: Sequence[int]) -> tuple[int, ...]:
@@ -167,12 +177,31 @@ class CudaMemoryManager:
             raise ValueError("CUDA host data must contain only finite values")
         return [number], ()
 
+    @classmethod
+    def _flatten_int32_values(
+        cls, value: object
+    ) -> tuple[list[int], tuple[int, ...]]:
+        if isinstance(value, (list, tuple)):
+            if not value:
+                raise ValueError("host data cannot contain an empty dimension")
+            children = [cls._flatten_int32_values(item) for item in value]
+            child_shape = children[0][1]
+            if any(shape != child_shape for _, shape in children[1:]):
+                raise ValueError("host data must be rectangular")
+            flattened = [number for child, _ in children for number in child]
+            return flattened, (len(value), *child_shape)
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise TypeError("CUDA int32 host data must contain only integer values")
+        if value < -(2**31) or value > (2**31) - 1:
+            raise ValueError("CUDA int32 host data is outside the signed 32-bit range")
+        return [value], ()
+
     @staticmethod
     def _reshape_host_values(
-        values: list[float], shape: tuple[int, ...]
-    ) -> list[float] | list[list[float]]:
+        values: list[float] | list[int], shape: tuple[int, ...]
+    ) -> HostArray:
         if len(shape) == 1:
-            return values
+            return cast(HostArray, values)
         stride = math.prod(shape[1:])
         children = [
             CudaMemoryManager._reshape_host_values(
@@ -180,7 +209,7 @@ class CudaMemoryManager:
             )
             for index in range(shape[0])
         ]
-        return children
+        return cast(HostArray, children)
 
     def _validate_buffer(self, buffer: CudaBuffer) -> None:
         if not isinstance(buffer, CudaBuffer):
@@ -188,3 +217,4 @@ class CudaMemoryManager:
         buffer._assert_open()
         if buffer._manager is not self:
             raise BackendError("CUDA buffer is owned by a different memory manager")
+        self._validate_dtype(buffer.dtype)

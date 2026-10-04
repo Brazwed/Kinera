@@ -62,7 +62,7 @@ class FakeFunction:
 
 
 class FakeLibrary:
-    def __init__(self, abi_version: int = 1, omit: str | None = None) -> None:
+    def __init__(self, abi_version: int = 5, omit: str | None = None) -> None:
         self.kinera_cuda_abi_version = FakeFunction(abi_version)
         self.kinera_cuda_error_string = FakeFunction(b"fake CUDA error")
         self.kinera_cuda_get_device_count = FakeFunction(
@@ -87,6 +87,20 @@ class FakeLibrary:
         self.kinera_cuda_linear_step_f64 = FakeFunction(
             callback=self._record_linear_step
         )
+        self.embedding_forward_arguments = None
+        self.embedding_forward_status = 0
+        self.kinera_cuda_embedding_forward_f64 = FakeFunction(
+            callback=self._record_embedding_forward
+        )
+        self.embedding_backward_arguments = None
+        self.embedding_backward_status = 0
+        self.kinera_cuda_embedding_backward_f64 = FakeFunction(
+            callback=self._record_embedding_backward
+        )
+        self.embedding_step_arguments = None
+        self.kinera_cuda_embedding_step_f64 = FakeFunction(
+            callback=self._record_embedding_step
+        )
         if omit:
             delattr(self, omit)
 
@@ -101,6 +115,18 @@ class FakeLibrary:
     def _record_linear_step(self, *args) -> int:
         self.linear_step_arguments = args
         return 0
+
+    def _record_embedding_step(self, *args) -> int:
+        self.embedding_step_arguments = args
+        return 0
+
+    def _record_embedding_backward(self, *args) -> int:
+        self.embedding_backward_arguments = args
+        return self.embedding_backward_status
+
+    def _record_embedding_forward(self, *args) -> int:
+        self.embedding_forward_arguments = args
+        return self.embedding_forward_status
 
     @staticmethod
     def _set_count(pointer) -> int:
@@ -174,14 +200,14 @@ class CudaBridgeAbiTests(unittest.TestCase):
             self.assertFalse(bridge.is_loaded)
             bridge.load()
             self.assertTrue(bridge.is_loaded)
-            self.assertEqual(bridge.abi_version, 1)
+            self.assertEqual(bridge.abi_version, 5)
             self.assertEqual(bridge.device_count(), 1)
             self.assertIsNotNone(library.kinera_cuda_get_device_count.argtypes)
 
     def test_bridge_rejects_incompatible_abi(self) -> None:
         from kinera.backends.cuda.bridge import CudaBridge
 
-        library = FakeLibrary(abi_version=2)
+        library = FakeLibrary(abi_version=4)
         temporary, bridge = self._load_with_fake_library(library)
         with temporary:
             with self.assertRaisesRegex(BackendUnavailableError, "ABI"):
@@ -231,6 +257,58 @@ class CudaBridgeAbiTests(unittest.TestCase):
         self.assertEqual(
             library.linear_step_arguments,
             (0, 101, 202, 303, 404, 0.125, 3, 2),
+        )
+
+    def test_bridge_dispatches_embedding_forward_through_versioned_c_symbol(self) -> None:
+        from kinera.backends.cuda.bridge import CudaBridge
+
+        library = FakeLibrary()
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            getattr(bridge, "embedding_forward_f64")(0, 101, 202, 303, 3, 2, 3)
+        self.assertEqual(
+            library.embedding_forward_arguments,
+            (0, 101, 202, 303, 3, 2, 3),
+        )
+
+    def test_embedding_forward_maps_invalid_device_ids_to_value_error(self) -> None:
+        library = FakeLibrary()
+        library.embedding_forward_status = -1
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            with self.assertRaisesRegex(ValueError, "vocabulary"):
+                bridge.embedding_forward_f64(0, 101, 202, 303, 3, 2, 3)
+
+    def test_bridge_dispatches_embedding_backward_through_versioned_c_symbol(self) -> None:
+        from kinera.backends.cuda.bridge import CudaBridge
+
+        library = FakeLibrary()
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            getattr(bridge, "embedding_backward_f64")(0, 101, 202, 303, 3, 2, 3)
+        self.assertEqual(
+            library.embedding_backward_arguments,
+            (0, 101, 202, 303, 3, 2, 3),
+        )
+
+    def test_embedding_backward_maps_invalid_device_ids_to_value_error(self) -> None:
+        library = FakeLibrary()
+        library.embedding_backward_status = -1
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            with self.assertRaisesRegex(ValueError, "vocabulary"):
+                bridge.embedding_backward_f64(0, 202, 303, 404, 3, 2, 3)
+
+    def test_bridge_dispatches_embedding_step_through_versioned_c_symbol(self) -> None:
+        from kinera.backends.cuda.bridge import CudaBridge
+
+        library = FakeLibrary()
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            getattr(bridge, "embedding_step_f64")(0, 101, 202, 0.125, 3, 2)
+        self.assertEqual(
+            library.embedding_step_arguments,
+            (0, 101, 202, 0.125, 3, 2),
         )
 
     def test_explicit_load_builds_packaged_shared_library_on_demand(self) -> None:

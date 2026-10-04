@@ -1,0 +1,48 @@
+{
+  "phase": "10.5",
+  "artifact": "CPU-only wheel/install and package smoke validation",
+  "status": "PASS",
+  "source_commit": "853535dda9b0e32d8658c48ab1d9219c09d349b7",
+  "source_tree": "git archive of exact source commit",
+  "wheel": {
+    "filename": "kinera-0.1.0-py3-none-any.whl",
+    "size_bytes": 128527,
+    "sha256": "98457f1936dac409933e31646af2ae00baa7e39eae733fc9dd48fbfb8bf48ed4",
+    "build_command": "python -m pip wheel --no-deps --wheel-dir <scratch-wheel-dir> .",
+    "install_command": "python -m pip install --no-deps --target <scratch-install-dir> <wheel>",
+    "install_result": "success",
+    "optional_cuda_sources_packaged": [
+      "kinera/backends/cuda/native/runtime.cu",
+      "kinera/backends/cuda/kernels/embedding_forward.cu",
+      "kinera/backends/cuda/kernels/embedding_backward.cu",
+      "kinera/backends/cuda/kernels/embedding_step.cu",
+      "kinera/backends/cuda/kernels/common/utils.cuh"
+    ]
+  },
+  "cpu_only_smoke": {
+    "python": "3.14.7",
+    "path": "/usr/bin:/bin",
+    "nvcc_resolves_on_path": false,
+    "operation": "single deterministic CPU Embedding forward/backward/step fixture",
+    "result": "passed",
+    "cuda_modules_imported": false,
+    "large_training_or_benchmark": false
+  },
+  "host_validation": {
+    "full_cpu_suite": "Ran 343 tests; OK (skipped=13)",
+    "compileall": "passed",
+    "git_diff_check": "passed",
+    "github_actions_tests_on_source_commit": "completed/success"
+  },
+  "preceding_gpu_gates": {
+    "phase10_1_forward": "T4 PASS, max absolute error 0.0",
+    "phase10_2_backward": "T4 PASS, gradient-table max absolute error 0.0; finite-difference max absolute error 1.3377743357523286e-11",
+    "phase10_3_step": "T4 PASS, max absolute error after 1 and 8 updates 0.0; learning_rate=0 preserved weights exactly",
+    "phase10_4_integrated": "T4 PASS, 4 tests; Embedding output, gradients, and final weights max absolute error 0.0; lifetime and fail-closed validated"
+  },
+  "authorization_limits": {
+    "benchmark_run": false,
+    "training_run": false,
+    "issue_8_or_issue_9_changed": false
+  }
+}

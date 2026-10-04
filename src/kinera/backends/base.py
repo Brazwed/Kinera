@@ -42,7 +42,9 @@ class BackendBuffer(Protocol):
     def closed(self) -> bool: ...
 
 
-HostArray = list[float] | list[list[float]]
+FloatArray = list[float] | list[list[float]]
+IntArray = list[int] | list[list[int]]
+HostArray = FloatArray | IntArray
 BackendArray = HostArray | BackendBuffer
 
 
@@ -80,22 +82,22 @@ class Backend(Protocol):
     ) -> tuple[BackendArray, BackendArray]: ...
 
     def embedding_forward(
-        self, weights: list[list[float]], ids: list[int]
-    ) -> list[list[float]]: ...
+        self, weights: BackendArray, ids: list[int] | BackendBuffer
+    ) -> BackendArray: ...
 
     def embedding_backward(
         self,
-        grad_weights: list[list[float]],
-        ids: list[int],
-        grad_output: list[list[float]],
-    ) -> list[list[float]]: ...
+        grad_weights: BackendArray,
+        ids: list[int] | BackendBuffer,
+        grad_output: BackendArray,
+    ) -> BackendArray: ...
 
     def embedding_step(
         self,
-        weights: list[list[float]],
-        grad_weights: list[list[float]],
+        weights: BackendArray,
+        grad_weights: BackendArray,
         learning_rate: float,
-    ) -> list[list[float]]: ...
+    ) -> BackendArray: ...
 
     def neuron_forward(
         self,

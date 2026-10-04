@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import math
 from random import Random
+from typing import cast
 
 from kinera.backends import Backend, resolve_backend
+from kinera.backends.base import BackendArray, BackendBuffer, BackendError
 
 
 class Embedding:
@@ -31,27 +33,39 @@ class Embedding:
             raise TypeError("seed deve ser um inteiro ou None")
 
         self.backend = resolve_backend(backend)
+        self._vocab_size = vocab_size
+        self._embedding_dim = embedding_dim
         generator = Random(seed)
-        self.weights = [
+        initial_weights = [
             [float(generator.uniform(-0.1, 0.1)) for _ in range(embedding_dim)]
             for _ in range(vocab_size)
         ]
-        self.grad_weights = [
+        initial_grad_weights = [
             [0.0 for _ in range(embedding_dim)] for _ in range(vocab_size)
         ]
-        self.last_ids: list[int] | None = None
-        self.output: list[list[float]] | None = None
+        self.weights: BackendArray = self.backend.buffer_from_host(
+            initial_weights,
+            shape=(vocab_size, embedding_dim),
+            dtype="float64",
+        )
+        self.grad_weights: BackendArray = self.backend.buffer_from_host(
+            initial_grad_weights,
+            shape=(vocab_size, embedding_dim),
+            dtype="float64",
+        )
+        self.last_ids: list[int] | BackendBuffer | None = None
+        self.output: BackendArray | None = None
         self._has_backward = False
 
     @property
     def vocab_size(self) -> int:
-        return len(self.weights)
+        return self._vocab_size
 
     @property
     def embedding_dim(self) -> int:
-        return len(self.weights[0])
+        return self._embedding_dim
 
-    def forward(self, ids: list[int]) -> list[list[float]]:
+    def forward(self, ids: list[int]) -> list[list[float]] | BackendBuffer:
         """Busca vetores na ordem dos IDs fornecidos."""
         if not isinstance(ids, list):
             raise TypeError("ids deve ser uma lista")
@@ -63,38 +77,89 @@ class Embedding:
             if not 0 <= index < vocab_size:
                 raise ValueError(f"ids[{position}] fora do vocabulário")
 
-        self.last_ids = ids.copy()
-        self.output = self.backend.embedding_forward(self.weights, ids)
-        self.grad_weights = [
-            [0.0] * embedding_dim for _ in range(vocab_size)
-        ]
+        prepared_ids: list[int] | BackendBuffer = (
+            cast(
+                list[int] | BackendBuffer,
+                self.backend.buffer_from_host(
+                    ids, shape=(len(ids),), dtype="int32"
+                ),
+            )
+            if ids
+            else []
+        )
+        zero_gradients = self.backend.buffer_from_host(
+            [[0.0] * embedding_dim for _ in range(vocab_size)],
+            shape=(vocab_size, embedding_dim),
+            dtype="float64",
+        )
+        output = self.backend.embedding_forward(self.weights, prepared_ids)
+        self.last_ids = prepared_ids
+        self.output = output
+        self.grad_weights = zero_gradients
         self._has_backward = False
-        return [vector.copy() for vector in self.output]
+        if isinstance(output, BackendBuffer):
+            return output
+        return [vector.copy() for vector in cast(list[list[float]], output)]
 
-    def backward(self, grad_output: list[list[float]]) -> None:
+    def backward(self, grad_output: list[list[float]] | BackendBuffer) -> None:
         """Acumula gradientes por ID; IDs repetidos somam suas contribuições."""
         if self.last_ids is None or self.output is None:
             raise RuntimeError("backward exige um forward anterior")
-        if not isinstance(grad_output, list):
-            raise TypeError("grad_output deve ser uma lista")
-        if len(grad_output) != len(self.last_ids):
-            raise ValueError("grad_output deve ter o mesmo comprimento dos IDs")
-
-        for position, vector in enumerate(grad_output):
-            if not isinstance(vector, list):
-                raise TypeError(f"grad_output[{position}] deve ser uma lista")
-            if len(vector) != self.embedding_dim:
-                raise ValueError(
-                    f"grad_output[{position}] deve ter dimensão {self.embedding_dim}"
-                )
-            for dimension, value in enumerate(vector):
-                self._validate_number(
-                    value,
-                    f"grad_output[{position}][{dimension}]",
-                )
-        self.grad_weights = self.backend.embedding_backward(
-            self.grad_weights, self.last_ids, grad_output
+        ids_count = (
+            len(self.last_ids)
+            if isinstance(self.last_ids, list)
+            else self.last_ids.shape[0]
         )
+        temporary_grad_output: BackendBuffer | None = None
+        if isinstance(grad_output, list):
+            if len(grad_output) != ids_count:
+                raise ValueError("grad_output deve ter o mesmo comprimento dos IDs")
+            for position, vector in enumerate(grad_output):
+                if not isinstance(vector, list):
+                    raise TypeError(f"grad_output[{position}] deve ser uma lista")
+                if len(vector) != self.embedding_dim:
+                    raise ValueError(
+                        f"grad_output[{position}] deve ter dimensão {self.embedding_dim}"
+                    )
+                for dimension, value in enumerate(vector):
+                    self._validate_number(value, f"grad_output[{position}][{dimension}]")
+            if ids_count == 0:
+                backend_grad_output: BackendArray = []
+            else:
+                backend_grad_output = self.backend.buffer_from_host(
+                    grad_output,
+                    shape=(ids_count, self.embedding_dim),
+                    dtype="float64",
+                )
+                if isinstance(backend_grad_output, BackendBuffer):
+                    temporary_grad_output = backend_grad_output
+        elif isinstance(grad_output, BackendBuffer):
+            if self.backend.name != "cuda" or not isinstance(self.last_ids, BackendBuffer):
+                raise TypeError("device grad_output requires a device-backed Embedding forward")
+            if grad_output.closed or self.last_ids.closed:
+                raise BackendError("Embedding backward received a released buffer")
+            if grad_output.dtype != "float64":
+                raise ValueError("grad_output must use dtype float64")
+            if len(grad_output.shape) != 2:
+                raise ValueError("grad_output must have rank 2")
+            if grad_output.shape != (ids_count, self.embedding_dim):
+                raise ValueError("grad_output must have shape (len(ids), embedding_dim)")
+            if grad_output.device != self.last_ids.device or grad_output.device_id != self.last_ids.device_id:
+                raise BackendError("Embedding backward buffers must reside on the same device")
+            backend_grad_output = grad_output
+        else:
+            raise TypeError("grad_output deve ser uma lista ou BackendBuffer")
+
+        try:
+            updated_grad_weights = self.backend.embedding_backward(
+                self.grad_weights, self.last_ids, backend_grad_output
+            )
+        finally:
+            if temporary_grad_output is not None:
+                close = getattr(temporary_grad_output, "close", None)
+                if callable(close):
+                    close()
+        self.grad_weights = updated_grad_weights
         self._has_backward = True
 
     def step(self, learning_rate: float) -> None:

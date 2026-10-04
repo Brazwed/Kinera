@@ -1,0 +1,43 @@
+{
+  "phase": "10.0",
+  "artifact": "Embedding backend-buffer and typed-ID foundation",
+  "status": "PASS",
+  "base_commit": "a02379ca2b6bd2d473740c402b71d4e5c44f5b1b",
+  "baseline_report": "experiments/phase10_0_embedding_baseline.json",
+  "source_sha256": {
+    "src/kinera/backends/base.py": "f1fbc9f88c9c46ec83e4cc3ab48831569bdea4c2e6267f3a2ac892f302153a21",
+    "src/kinera/backends/cuda/backend.py": "18fe3f6340466453b1726e98bce127485a6a2a27ac2a5490efc9df091a8b86ce",
+    "src/kinera/backends/cuda/buffer.py": "728ae734e913720b99fb16a0070d4f973e9ffe56d4082fda7a56bcb5ecc7f5d5",
+    "src/kinera/backends/cuda/memory.py": "41eb99b103e02c49202926ac602cb4017f1e017b8250f6083d327e12caa3d2ff",
+    "src/kinera/nn/layers/embedding.py": "403d423811f9db38917e3b6fa007bafc634515ca307a5606e0735b5351d695a3",
+    "tests/test_cuda_buffers.py": "6887241678aa92a9fd19b156135fa488cafbf7dbcff3da117e6ede3fd7912abc",
+    "tests/test_cuda_scaffold.py": "374ba47d9a269b1ab455514c24fdc9340b4d8b8740755aa2819f5b3ffd1aff93",
+    "tests/test_embedding_buffers.py": "8b635b05550003af491fbe16adb24b000655c0ab7aa1c57c3aa9df2c14d42012"
+  },
+  "changes": {
+    "embedding_shape_metadata": "_vocab_size and _embedding_dim are explicit; properties do not depend on a sequence-backed weight table",
+    "backend_state": "weights and gradients use BackendArray; constructor initializes both through buffer_from_host; forward returns a BackendBuffer without converting it to Python rows",
+    "cuda_buffer_dtypes": ["float64", "int32"],
+    "index_transfer": "explicit int32 host/device buffer roundtrip; bool, float and values outside signed int32 bounds are rejected",
+    "fail_closed": "Embedding construction with unavailable CUDA raises BackendUnavailableError; no CPU fallback"
+  },
+  "validation": {
+    "environment": {
+      "python": "3.14.7",
+      "target": "CPU-only host and fake CUDA bridge"
+    },
+    "full_cpu_suite": "Ran 315 tests; OK (skipped=7)",
+    "embedding_buffer_contract_tests": "5 passed",
+    "cuda_typed_buffer_tests": "8 passed",
+    "compileall": "passed",
+    "git_diff_check": "passed",
+    "cpu_wheel_build_install": "passed",
+    "wheel_sha256": "8abaf4b8063f1c2be15e5254e510023733ddd3b5934cccffbae3e9b93237f646",
+    "wheel_contains_cuda_sources": true,
+    "cpu_embedding_smoke_after_wheel_install": "passed",
+    "cuda_modules_imported_by_cpu_smoke": false
+  },
+  "cuda_embedding_kernel_gate": "not run; Phase 10.1 is the next gate",
+  "benchmark_run": false,
+  "training_run": false
+}

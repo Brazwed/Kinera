@@ -1,0 +1,82 @@
+{
+  "phase": "10.2",
+  "artifact": "Deterministic Embedding.backward CUDA equivalence gate",
+  "status": "PASS",
+  "source_commit": "86c9a4a8a19557c30e32a2e0692c29a86d1002ea",
+  "base_commit": "a02379ca2b6bd2d473740c402b71d4e5c44f5b1b",
+  "abi_version": 3,
+  "source_sha256": {
+    "src/kinera/backends/cuda/backend.py": "699536906a439adf8f3d8afaa40cc7552c394430054a50baedbf9cf64d779f87",
+    "src/kinera/backends/cuda/bridge.py": "fbe15b5ab8041409a1f32e3a414c5677daab9fcb7f713ce68a4b01586cabf00f",
+    "src/kinera/backends/cuda/kernels/embedding_backward.cu": "8e1ec66a3feef26297a2ae6b5eecfaddea6c97342fc63727a571a255690c663f",
+    "src/kinera/backends/cuda/kernels/embedding_forward.cu": "23fef43b246ed14ebd74d062814bbe238e03047d1f51a2786e683e42d6ade202",
+    "src/kinera/backends/cuda/native/runtime.cu": "7da6ffc79827f1e5629edd817822e64e88a041b91e1a159f505d1c9d360c8501",
+    "src/kinera/backends/cpu/ops/embedding.py": "e3bfb8f307e32870ff2042ecf5e012fd8dd5fd90c898016bbcb61906b11b12ab",
+    "src/kinera/nn/layers/embedding.py": "18ec6d73c964295c40117b97d13511b2cf859b5bd27682f56f0541b1738c9d49",
+    "src/kinera/diagnostics/gradients.py": "5ff75920f89bfcc4cc0d116f096cc99fbd249ab94b62357f381e2d7e5ef9b4aa",
+    "tests/test_cuda_backend_ops.py": "0b5a47b67c0aae233d1d86c545c49e014e0a85c7e23585f5bdb33bdf486a6649",
+    "tests/test_cuda_embedding_forward.py": "79b903deb45c58bd461ce2cece3ec0d3788e7a973bc8dcb5844a2bb35efb0375",
+    "tests/test_cuda_embedding_backward.py": "ab47b54fde18eeca2c9b92cd8952a79b40bc502417c85e70230ccec809c943e7",
+    "tests/test_cuda_runtime.py": "9e743fa35eb2d03f95f6526b0b11741c19e67d63889c05b42e45c32ce2cb246f",
+    "tests/test_cuda_scaffold.py": "3166c4a369e73972c8c0d5fad9844d27940168c1a019ef0817b1a14bc1d56938",
+    "tests/test_embedding.py": "649bdbcf902c2633259d71287736cd0a22fe00d6f54fcc3abae3d56e59caf13d",
+    "tests/test_embedding_buffers.py": "f0b19aa6ab30dc574e48c3cc47064d0c083c16dcd39ba72ce005cb5fc99a53d1"
+  },
+  "kernel_contract": {
+    "dtype": "float64",
+    "index_dtype": "signed int32",
+    "accumulation": "one thread per vocabulary row/dimension; start from resident grad_weights and traverse IDs sequentially in input order",
+    "atomics": false,
+    "in_place_gradient_buffer": true,
+    "atol": 1e-12,
+    "rtol": 1e-12
+  },
+  "gpu_environment": {
+    "device": "Tesla T4",
+    "compute_capability": "7.5",
+    "cuda_toolkit": "13.0",
+    "nvcc": "Build cuda_13.0.r13.0/compiler.36424714_0",
+    "driver": "580.82.07",
+    "python": "3.13.15",
+    "runtime_fingerprint": "a4827f39aab54432a943a559d41f0d5b",
+    "native_abi": 3,
+    "library_built_and_loaded": true
+  },
+  "gpu_gate": {
+    "tests_run": 3,
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0,
+    "max_absolute_gradient_error": 0.0,
+    "finite_difference_selected_parameters": [[2, 1], [0, 2], [1, 0]],
+    "finite_difference_max_absolute_error": 1.3377743357523286e-11,
+    "finite_difference_absolute_tolerance": 1e-8,
+    "finite_difference_relative_tolerance": 1e-5,
+    "fixtures": {
+      "ids": [2, 0, 2, 3],
+      "vocab_size": 4,
+      "embedding_dim": 3,
+      "duplicate_ids_sum_in_order": true,
+      "unused_vocabulary_row_stays_zero": true,
+      "repeated_backward_calls_accumulate_like_cpu": true,
+      "new_forward_resets_gradients": true,
+      "same_fixture_repeats_identically": true
+    }
+  },
+  "host_validation": {
+    "full_cpu_suite": "Ran 334 tests; OK (skipped=10)",
+    "embedding_backward_host_buffer_tests": "passed",
+    "cuda_backend_backward_dispatch_and_validation_tests": "passed",
+    "abi_v3_dispatch_tests": "passed",
+    "ordered_no_atomic_kernel_source_test": "passed",
+    "compileall": "passed",
+    "git_diff_check": "passed",
+    "github_actions_tests_on_source_commit": "completed/success"
+  },
+  "limits": {
+    "embedding_step": "not implemented or tested in this phase",
+    "integrated_training_cycle": "not run",
+    "benchmark_run": false,
+    "training_run": false
+  }
+}
