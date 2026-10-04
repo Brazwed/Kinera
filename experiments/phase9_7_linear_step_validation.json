@@ -1,0 +1,58 @@
+{
+  "phase": "9.7",
+  "operation": "Linear.step/update",
+  "status": "PASS",
+  "base_commit": "59dbbf2fcada0858bb6af40087fa50bc171b30a7",
+  "source_sha256": {
+    "src/kinera/backends/cuda/backend.py": "7dfc147e58f7c69f60bbe3b240b4cd25da934e23977b4cd2db3d259ccefd5943",
+    "src/kinera/backends/cuda/bridge.py": "c29335f7481d0f697e5b4483549134702f078e5719d9a36b1560c3d40c554a1c",
+    "src/kinera/backends/cuda/kernels/linear_step.cu": "375cbfe4fe1c4dae3dd9f14380ef530b187d40644fcc9f5d63039a791749f3ae",
+    "tests/test_cuda_step.py": "721733f4ddf39fc0f5a100668695496b9a1fa7918468f693186abe366cca8636",
+    "tests/test_cuda_backend_ops.py": "54cf390676e3a590d3af3ec4472d3fd834ab7e6254ea99f57ac244cd2b4aa9d8"
+  },
+  "environment": {
+    "python": "3.13.15",
+    "gpu": "NVIDIA Tesla T4",
+    "nvcc": "13.0.88",
+    "runtime_session": "kinera-issue12-phase9"
+  },
+  "cuda_gate": {
+    "command": [
+      "/usr/bin/python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-p",
+      "test_cuda_step.py",
+      "-v"
+    ],
+    "environment": {
+      "KINERA_RUN_CUDA_TESTS": "1",
+      "PYTHONPATH": "/content/workspace/kinera-issue12/src"
+    },
+    "result": "2 tests passed",
+    "dtype": "float64",
+    "atol": 1e-12,
+    "rtol": 1e-12,
+    "learning_rate": 0.025,
+    "consecutive_steps": 8,
+    "max_absolute_error_after_one_step": 0.0,
+    "max_absolute_error_after_eight_steps": 0.0,
+    "parameters_updated_in_place_on_device": true,
+    "implicit_host_device_transfer_during_step": false,
+    "zero_learning_rate_preserved_parameters_exactly": true
+  },
+  "host_validation": {
+    "step_dispatch_tests": "passed",
+    "shape_device_ownership_lifetime_and_invalid_learning_rate_rejections": "passed",
+    "no_native_dispatch_on_invalid_inputs_or_zero_rate": true,
+    "cpu_suite": "Ran 304 tests; OK (skipped=6)",
+    "compileall": "passed",
+    "cpu_wheel_build_install_and_import_without_cuda": "passed",
+    "cpu_wheel_includes_linear_step_cuda_source": true
+  },
+  "benchmark_run": false,
+  "training_run": false
+}

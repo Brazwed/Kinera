@@ -25,9 +25,10 @@ A interface nativa da versão 1 inclui:
 - alocação/liberação de memória;
 - cópias explícitas host → device e device → host;
 - `kinera_cuda_linear_forward_f64`, que executa a soma afim em pesos row-major, com um thread por saída e acumulação sequencial em `float64`;
-- `kinera_cuda_linear_backward_f64`, que calcula gradientes de pesos, bias e entrada sem converter buffers para listas.
+- `kinera_cuda_linear_backward_f64`, que calcula gradientes de pesos, bias e entrada sem converter buffers para listas;
+- `kinera_cuda_linear_step_f64`, que aplica gradient descent diretamente aos buffers de pesos e bias residentes no device.
 
-`Linear.forward` passou a equivalência CUDA↔CPU na Tesla T4. A implementação de `Linear.backward` está na Phase 9.6, mas ainda precisa passar equivalência e finite-difference checks em GPU; `Linear.step/update` continua fail-closed até a Phase 9.7.
+Os gates de `Linear.forward`, `Linear.backward` e `Linear.step/update` passaram na Tesla T4. O update é in-place em `float64`, sem cópias host↔device implícitas; `learning_rate=0` retorna os mesmos buffers sem chamar o kernel. A equivalência CPU↔CUDA ficou com erro absoluto máximo `0.0` após 1 e 8 updates (`atol=rtol=1e-12`). O relatório está em [`../experiments/phase9_7_linear_step_validation.json`](../experiments/phase9_7_linear_step_validation.json). A fixture integrada final continua pendente na Phase 9.8.
 
 ## `CudaBuffer`
 
