@@ -46,6 +46,7 @@ class InMemoryCudaBridge(CudaBridge):
         self._next_pointer = 1
         self.allocations: dict[int, bytearray] = {}
         self.copy_to_device_calls = 0
+        self.copy_to_host_calls = 0
 
     def device_count(self) -> int:
         return 1
@@ -68,6 +69,7 @@ class InMemoryCudaBridge(CudaBridge):
     def copy_to_host(
         self, device_id: int, destination: int, source: int, nbytes: int
     ) -> None:
+        self.copy_to_host_calls += 1
         ctypes.memmove(destination, bytes(self.allocations[source][:nbytes]), nbytes)
 
 
@@ -171,6 +173,140 @@ class EmbeddingCudaStorageTests(unittest.TestCase):
         finally:
             weights.close()
             gradients.close()
+        self.assertEqual(bridge.allocations, {})
+
+    def test_backward_uploads_host_gradients_once_and_keeps_buffers_device_native(self) -> None:
+        bridge = InMemoryCudaBridge()
+        memory = CudaMemoryManager(bridge=bridge)
+        backend = CUDABackend(runtime=memory.runtime, memory_manager=memory)
+        seen_ids: list[list[int] | BackendBuffer] = []
+        seen_outputs: list[CudaBuffer] = []
+        seen_gradients: list[BackendArray] = []
+
+        def embedding_forward(
+            weights: BackendArray, ids: list[int] | BackendBuffer
+        ) -> CudaBuffer:
+            seen_ids.append(ids)
+            weight_buffer = cast(CudaBuffer, weights)
+            count = len(ids) if isinstance(ids, list) else ids.shape[0]
+            output = memory.allocate(
+                (count, weight_buffer.shape[1]),
+                dtype="float64",
+                device_id=weight_buffer.device_id,
+            )
+            seen_outputs.append(output)
+            return output
+
+        def embedding_backward(
+            grad_weights: BackendArray,
+            ids: list[int] | BackendBuffer,
+            grad_output: BackendArray,
+        ) -> BackendArray:
+            seen_gradients.append(grad_output)
+            return grad_weights
+
+        setattr(backend, "embedding_forward", embedding_forward)
+        setattr(backend, "embedding_backward", embedding_backward)
+        embedding = Embedding(vocab_size=3, embedding_dim=2, seed=7, backend=backend)
+        weights = cast(CudaBuffer, embedding.weights)
+        initial_gradients = cast(CudaBuffer, embedding.grad_weights)
+        try:
+            embedding.forward([2, 0, 2])
+            ids_buffer = cast(CudaBuffer, embedding.last_ids)
+            grad_buffer = cast(CudaBuffer, embedding.grad_weights)
+            h2d_before = bridge.copy_to_device_calls
+            d2h_before = bridge.copy_to_host_calls
+
+            embedding.backward([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+
+            self.assertIsInstance(seen_gradients[0], CudaBuffer)
+            grad_output_buffer = cast(CudaBuffer, seen_gradients[0])
+            self.assertEqual(grad_output_buffer.shape, (3, 2))
+            self.assertEqual(grad_output_buffer.dtype, "float64")
+            self.assertEqual(bridge.copy_to_device_calls, h2d_before + 1)
+            self.assertEqual(bridge.copy_to_host_calls, d2h_before)
+            self.assertIs(seen_ids[0], ids_buffer)
+            self.assertIs(embedding.grad_weights, grad_buffer)
+            self.assertTrue(embedding._has_backward)
+        finally:
+            buffers = [
+                weights,
+                initial_gradients,
+                embedding.grad_weights,
+                *seen_ids,
+                *seen_outputs,
+                *seen_gradients,
+            ]
+            for buffer in buffers:
+                if isinstance(buffer, CudaBuffer) and not buffer.closed:
+                    buffer.close()
+        self.assertEqual(bridge.allocations, {})
+
+    def test_backward_uses_existing_device_gradient_buffer_without_roundtrip(self) -> None:
+        bridge = InMemoryCudaBridge()
+        memory = CudaMemoryManager(bridge=bridge)
+        backend = CUDABackend(runtime=memory.runtime, memory_manager=memory)
+        seen_ids: list[list[int] | BackendBuffer] = []
+        seen_gradients: list[BackendArray] = []
+        outputs: list[CudaBuffer] = []
+
+        def embedding_forward(
+            weights: BackendArray, ids: list[int] | BackendBuffer
+        ) -> CudaBuffer:
+            seen_ids.append(ids)
+            weight_buffer = cast(CudaBuffer, weights)
+            count = len(ids) if isinstance(ids, list) else ids.shape[0]
+            output = memory.allocate(
+                (count, weight_buffer.shape[1]),
+                dtype="float64",
+                device_id=weight_buffer.device_id,
+            )
+            outputs.append(output)
+            return output
+
+        def embedding_backward(
+            grad_weights: BackendArray,
+            ids: list[int] | BackendBuffer,
+            grad_output: BackendArray,
+        ) -> BackendArray:
+            seen_gradients.append(grad_output)
+            return grad_weights
+
+        setattr(backend, "embedding_forward", embedding_forward)
+        setattr(backend, "embedding_backward", embedding_backward)
+        embedding = Embedding(vocab_size=3, embedding_dim=2, seed=7, backend=backend)
+        weights = cast(CudaBuffer, embedding.weights)
+        initial_gradients = cast(CudaBuffer, embedding.grad_weights)
+        gradient_buffer = backend.buffer_from_host(
+            [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+            shape=(3, 2),
+            dtype="float64",
+        )
+        try:
+            embedding.forward([2, 0, 2])
+            current_gradients = cast(CudaBuffer, embedding.grad_weights)
+            copies_before = bridge.copy_to_device_calls
+            d2h_before = bridge.copy_to_host_calls
+
+            embedding.backward(gradient_buffer)
+
+            self.assertIs(seen_gradients[0], gradient_buffer)
+            self.assertEqual(bridge.copy_to_device_calls, copies_before)
+            self.assertEqual(bridge.copy_to_host_calls, d2h_before)
+            self.assertIs(embedding.grad_weights, current_gradients)
+        finally:
+            buffers = [
+                weights,
+                initial_gradients,
+                embedding.grad_weights,
+                gradient_buffer,
+                *seen_ids,
+                *outputs,
+                *seen_gradients,
+            ]
+            for buffer in buffers:
+                if isinstance(buffer, CudaBuffer) and not buffer.closed:
+                    buffer.close()
         self.assertEqual(bridge.allocations, {})
 
 

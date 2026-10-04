@@ -19,6 +19,7 @@ class FakeCudaBridge(CudaBridge):
         self.copy_to_device_calls = 0
         self.copy_to_host_calls = 0
         self.embedding_forward_calls: list[tuple[int, ...]] = []
+        self.embedding_backward_calls: list[tuple[int, ...]] = []
 
     def device_count(self) -> int:
         return self._device_count
@@ -103,6 +104,27 @@ class FakeCudaBridge(CudaBridge):
     ) -> None:
         self.embedding_forward_calls.append(
             (device_id, weights, ids, output, vocab_size, embedding_dim, ids_count)
+        )
+    def embedding_backward_f64(
+        self,
+        device_id: int,
+        ids: int,
+        grad_output: int,
+        grad_weights: int,
+        vocab_size: int,
+        embedding_dim: int,
+        ids_count: int,
+    ) -> None:
+        self.embedding_backward_calls.append(
+            (
+                device_id,
+                ids,
+                grad_output,
+                grad_weights,
+                vocab_size,
+                embedding_dim,
+                ids_count,
+            )
         )
 
 
@@ -398,6 +420,115 @@ class CudaBackendEmbeddingForwardDispatchTests(unittest.TestCase):
                 backend.embedding_forward(weights, foreign_ids)
 
         self.assertEqual(bridge.embedding_forward_calls, [])
+
+
+class CudaBackendEmbeddingBackwardDispatchTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bridge = FakeCudaBridge()
+        self.backend = CUDABackend(runtime=CudaRuntime(bridge=self.bridge))
+
+    def test_backward_updates_resident_gradient_buffer_with_deterministic_abi_inputs(self) -> None:
+        with ExitStack() as stack:
+            grad_weights = stack.enter_context(
+                self.backend.buffer_from_host(
+                    [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+                    shape=(3, 2),
+                    dtype="float64",
+                )
+            )
+            ids = stack.enter_context(
+                self.backend.buffer_from_host(
+                    [2, 0, 2], shape=(3,), dtype="int32"
+                )
+            )
+            grad_output = stack.enter_context(
+                self.backend.buffer_from_host(
+                    [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+                    shape=(3, 2),
+                    dtype="float64",
+                )
+            )
+            h2d_before = self.bridge.copy_to_device_calls
+            d2h_before = self.bridge.copy_to_host_calls
+
+            result = self.backend.embedding_backward(grad_weights, ids, grad_output)
+
+            self.assertIs(result, grad_weights)
+            self.assertEqual(grad_weights.shape, (3, 2))
+            self.assertEqual(
+                self.bridge.embedding_backward_calls,
+                [(0, ids.pointer, grad_output.pointer, grad_weights.pointer, 3, 2, 3)],
+            )
+            self.assertEqual(self.bridge.copy_to_device_calls, h2d_before)
+            self.assertEqual(self.bridge.copy_to_host_calls, d2h_before)
+
+
+    def test_backward_rejects_invalid_dtype_shape_and_host_operands(self) -> None:
+        with ExitStack() as stack:
+            grad_weights = stack.enter_context(
+                self.backend.buffer_from_host([[0.0, 0.0]] * 3, shape=(3, 2))
+            )
+            ids = stack.enter_context(
+                self.backend.buffer_from_host([2, 0, 2], shape=(3,), dtype="int32")
+            )
+            grad_output = stack.enter_context(
+                self.backend.buffer_from_host([[1.0, 2.0]] * 3, shape=(3, 2))
+            )
+            float_ids = stack.enter_context(
+                self.backend.buffer_from_host([2, 0, 2], shape=(3,), dtype="float64")
+            )
+            matrix_ids = stack.enter_context(
+                self.backend.buffer_from_host([[2, 0, 2]], shape=(1, 3), dtype="int32")
+            )
+            integer_gradients = stack.enter_context(
+                self.backend.buffer_from_host([[1, 2], [3, 4], [5, 6]], shape=(3, 2), dtype="int32")
+            )
+            wrong_shape = stack.enter_context(
+                self.backend.buffer_from_host([[1.0], [2.0], [3.0]], shape=(3, 1))
+            )
+
+            invalid_cases = (
+                (float_ids, grad_output, ValueError, "dtype int32"),
+                (matrix_ids, grad_output, ValueError, "rank 1"),
+                (ids, integer_gradients, ValueError, "dtype float64"),
+                (ids, wrong_shape, ValueError, "shape"),
+                (ids, [[1.0, 2.0]] * 3, TypeError, "CudaBuffer"),
+            )
+            for case_ids, case_gradients, error_type, message in invalid_cases:
+                with self.subTest(message=message), self.assertRaisesRegex(
+                    error_type, message
+                ):
+                    self.backend.embedding_backward(
+                        grad_weights, case_ids, case_gradients
+                    )
+        self.assertEqual(self.bridge.embedding_backward_calls, [])
+
+    def test_backward_rejects_device_manager_and_lifetime_mismatches(self) -> None:
+        bridge = FakeCudaBridge(device_count=2)
+        backend = CUDABackend(runtime=CudaRuntime(bridge=bridge))
+        other_bridge = FakeCudaBridge(device_count=2)
+        other_backend = CUDABackend(runtime=CudaRuntime(bridge=other_bridge))
+        with ExitStack() as stack:
+            grad_weights = stack.enter_context(
+                backend.buffer_from_host([[0.0, 0.0]], shape=(1, 2))
+            )
+            grad_output = stack.enter_context(
+                backend.buffer_from_host([[1.0, 2.0]], shape=(1, 2))
+            )
+            ids_other_device = stack.enter_context(
+                backend.memory.copy_to_device([0], shape=(1,), dtype="int32", device_id=1)
+            )
+            foreign_ids = stack.enter_context(
+                other_backend.buffer_from_host([0], shape=(1,), dtype="int32")
+            )
+            with self.assertRaisesRegex(BackendError, "same CUDA device"):
+                backend.embedding_backward(grad_weights, ids_other_device, grad_output)
+            with self.assertRaisesRegex(BackendError, "different memory manager"):
+                backend.embedding_backward(grad_weights, foreign_ids, grad_output)
+            ids_other_device.close()
+            with self.assertRaisesRegex(BackendError, "released/closed"):
+                backend.embedding_backward(grad_weights, ids_other_device, grad_output)
+        self.assertEqual(bridge.embedding_backward_calls, [])
 
 
 if __name__ == "__main__":

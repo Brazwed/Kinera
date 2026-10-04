@@ -296,8 +296,66 @@ class CUDABackend:
             raise
         return output
 
-    def embedding_backward(self, *args, **kwargs):
-        self._unavailable("embedding_backward")
+    def embedding_backward(
+        self,
+        grad_weights: BackendArray,
+        ids: list[int] | BackendBuffer,
+        grad_output: BackendArray,
+    ) -> CudaBuffer | list[list[float]]:
+        """Accumulate Embedding gradients deterministically into the resident table."""
+        gradients_buffer = self._require_buffer(
+            grad_weights, "grad_weights", rank=2, operation="Embedding.backward"
+        )
+        self.memory._validate_buffer(gradients_buffer)
+        vocab_size, embedding_dim = gradients_buffer.shape
+        device_id = gradients_buffer.device_id
+        self.runtime.require_device(device_id)
+
+        if isinstance(ids, list):
+            if ids:
+                raise TypeError(
+                    "CUDA Embedding.backward requires IDs in an int32 CudaBuffer"
+                )
+            if not isinstance(grad_output, list) or grad_output:
+                raise ValueError("empty Embedding IDs require empty grad_output")
+            return gradients_buffer
+        if not isinstance(ids, CudaBuffer):
+            raise TypeError("CUDA Embedding.backward requires IDs as a CudaBuffer")
+        ids._assert_open()
+        if ids.dtype != "int32":
+            raise ValueError("Embedding IDs must use dtype int32")
+        if len(ids.shape) != 1:
+            raise ValueError("Embedding IDs must have rank 1")
+        self.memory._validate_buffer(ids)
+
+        gradient_buffer = self._require_buffer(
+            grad_output, "grad_output", rank=2, operation="Embedding.backward"
+        )
+        self.memory._validate_buffer(gradient_buffer)
+        ids_count = ids.shape[0]
+        if gradient_buffer.shape != (ids_count, embedding_dim):
+            raise ValueError(
+                "grad_output must have shape (len(ids), embedding_dim)"
+            )
+        device_ids = {
+            gradients_buffer.device_id,
+            ids.device_id,
+            gradient_buffer.device_id,
+        }
+        if len(device_ids) != 1:
+            raise BackendError(
+                "Embedding.backward buffers must reside on the same CUDA device"
+            )
+        self.bridge.embedding_backward_f64(
+            device_id,
+            ids.pointer,
+            gradient_buffer.pointer,
+            gradients_buffer.pointer,
+            vocab_size,
+            embedding_dim,
+            ids_count,
+        )
+        return gradients_buffer
 
     def embedding_step(self, *args, **kwargs):
         self._unavailable("embedding_step")

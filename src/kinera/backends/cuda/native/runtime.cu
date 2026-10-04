@@ -21,7 +21,7 @@ cudaError_t select_device(int device_id) noexcept {
 }  // namespace
 
 extern "C" KINERA_CUDA_EXPORT int kinera_cuda_abi_version() noexcept {
-  return 2;
+  return 3;
 }
 
 extern "C" KINERA_CUDA_EXPORT const char* kinera_cuda_error_string(
