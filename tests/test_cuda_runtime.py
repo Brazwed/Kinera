@@ -62,7 +62,7 @@ class FakeFunction:
 
 
 class FakeLibrary:
-    def __init__(self, abi_version: int = 1, omit: str | None = None) -> None:
+    def __init__(self, abi_version: int = 2, omit: str | None = None) -> None:
         self.kinera_cuda_abi_version = FakeFunction(abi_version)
         self.kinera_cuda_error_string = FakeFunction(b"fake CUDA error")
         self.kinera_cuda_get_device_count = FakeFunction(
@@ -87,6 +87,10 @@ class FakeLibrary:
         self.kinera_cuda_linear_step_f64 = FakeFunction(
             callback=self._record_linear_step
         )
+        self.embedding_forward_arguments = None
+        self.kinera_cuda_embedding_forward_f64 = FakeFunction(
+            callback=self._record_embedding_forward
+        )
         if omit:
             delattr(self, omit)
 
@@ -100,6 +104,10 @@ class FakeLibrary:
 
     def _record_linear_step(self, *args) -> int:
         self.linear_step_arguments = args
+        return 0
+
+    def _record_embedding_forward(self, *args) -> int:
+        self.embedding_forward_arguments = args
         return 0
 
     @staticmethod
@@ -174,14 +182,14 @@ class CudaBridgeAbiTests(unittest.TestCase):
             self.assertFalse(bridge.is_loaded)
             bridge.load()
             self.assertTrue(bridge.is_loaded)
-            self.assertEqual(bridge.abi_version, 1)
+            self.assertEqual(bridge.abi_version, 2)
             self.assertEqual(bridge.device_count(), 1)
             self.assertIsNotNone(library.kinera_cuda_get_device_count.argtypes)
 
     def test_bridge_rejects_incompatible_abi(self) -> None:
         from kinera.backends.cuda.bridge import CudaBridge
 
-        library = FakeLibrary(abi_version=2)
+        library = FakeLibrary(abi_version=3)
         temporary, bridge = self._load_with_fake_library(library)
         with temporary:
             with self.assertRaisesRegex(BackendUnavailableError, "ABI"):
@@ -231,6 +239,18 @@ class CudaBridgeAbiTests(unittest.TestCase):
         self.assertEqual(
             library.linear_step_arguments,
             (0, 101, 202, 303, 404, 0.125, 3, 2),
+        )
+
+    def test_bridge_dispatches_embedding_forward_through_versioned_c_symbol(self) -> None:
+        from kinera.backends.cuda.bridge import CudaBridge
+
+        library = FakeLibrary()
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            getattr(bridge, "embedding_forward_f64")(0, 101, 202, 303, 3, 2, 3)
+        self.assertEqual(
+            library.embedding_forward_arguments,
+            (0, 101, 202, 303, 3, 2, 3),
         )
 
     def test_explicit_load_builds_packaged_shared_library_on_demand(self) -> None:

@@ -53,7 +53,7 @@ class Embedding:
             shape=(vocab_size, embedding_dim),
             dtype="float64",
         )
-        self.last_ids: list[int] | None = None
+        self.last_ids: list[int] | BackendBuffer | None = None
         self.output: BackendArray | None = None
         self._has_backward = False
 
@@ -77,12 +77,25 @@ class Embedding:
             if not 0 <= index < vocab_size:
                 raise ValueError(f"ids[{position}] fora do vocabulário")
 
-        self.last_ids = ids.copy()
-        output = self.backend.embedding_forward(self.weights, ids)
+        prepared_ids: list[int] | BackendBuffer = (
+            cast(
+                list[int] | BackendBuffer,
+                self.backend.buffer_from_host(
+                    ids, shape=(len(ids),), dtype="int32"
+                ),
+            )
+            if ids
+            else []
+        )
+        zero_gradients = self.backend.buffer_from_host(
+            [[0.0] * embedding_dim for _ in range(vocab_size)],
+            shape=(vocab_size, embedding_dim),
+            dtype="float64",
+        )
+        output = self.backend.embedding_forward(self.weights, prepared_ids)
+        self.last_ids = prepared_ids
         self.output = output
-        self.grad_weights = [
-            [0.0] * embedding_dim for _ in range(vocab_size)
-        ]
+        self.grad_weights = zero_gradients
         self._has_backward = False
         if isinstance(output, BackendBuffer):
             return output
@@ -94,7 +107,12 @@ class Embedding:
             raise RuntimeError("backward exige um forward anterior")
         if not isinstance(grad_output, list):
             raise TypeError("grad_output deve ser uma lista")
-        if len(grad_output) != len(self.last_ids):
+        ids_count = (
+            len(self.last_ids)
+            if isinstance(self.last_ids, list)
+            else self.last_ids.shape[0]
+        )
+        if len(grad_output) != ids_count:
             raise ValueError("grad_output deve ter o mesmo comprimento dos IDs")
 
         for position, vector in enumerate(grad_output):

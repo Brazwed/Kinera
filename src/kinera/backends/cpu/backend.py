@@ -22,10 +22,13 @@ class CPUBackend:
         dtype: str = "float64",
     ) -> HostArray:
         """Copy a validated host array while preserving the CPU list oracle."""
-        if dtype != "float64":
-            raise ValueError("CPU backend supports buffer dtype='float64' in Phase 9")
         normalized_shape = self._normalize_shape(shape)
-        copied, observed_shape = self._copy_host_tree(values)
+        if dtype == "float64":
+            copied, observed_shape = self._copy_host_tree(values)
+        elif dtype == "int32":
+            copied, observed_shape = self._copy_int32_tree(values)
+        else:
+            raise ValueError("CPU backend supports buffer dtypes 'float64' and 'int32'")
         if observed_shape != normalized_shape:
             raise ValueError(
                 f"shape {normalized_shape} does not match host data shape {observed_shape}"
@@ -36,7 +39,10 @@ class CPUBackend:
         """Return an independent Python-list copy of CPU-owned buffer data."""
         if not isinstance(buffer, list):
             raise TypeError("CPUBackend can export only CPU-owned list buffers")
-        copied, shape = self._copy_host_tree(buffer)
+        if self._is_int_tree(buffer):
+            copied, shape = self._copy_int32_tree(buffer)
+        else:
+            copied, shape = self._copy_host_tree(buffer)
         self._normalize_shape(shape)
         return cast(HostArray, copied)
 
@@ -50,6 +56,28 @@ class CPUBackend:
             if dimension <= 0:
                 raise ValueError(f"shape[{axis}] must be positive")
         return shape
+
+    @staticmethod
+    def _is_int_tree(value: object) -> bool:
+        if isinstance(value, list):
+            return bool(value) and all(CPUBackend._is_int_tree(child) for child in value)
+        return isinstance(value, int) and not isinstance(value, bool)
+
+    @classmethod
+    def _copy_int32_tree(cls, value: object) -> tuple[object, tuple[int, ...]]:
+        if isinstance(value, list):
+            if not value:
+                raise ValueError("host data cannot contain an empty dimension")
+            children = [cls._copy_int32_tree(child) for child in value]
+            child_shape = children[0][1]
+            if any(shape != child_shape for _, shape in children[1:]):
+                raise ValueError("host data must be rectangular")
+            return [child for child, _ in children], (len(value), *child_shape)
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise TypeError("int32 host data must contain only integer values")
+        if value < -(2**31) or value > (2**31) - 1:
+            raise ValueError("int32 host data is outside the signed 32-bit range")
+        return value, ()
 
     @classmethod
     def _copy_host_tree(cls, value: object) -> tuple[object, tuple[int, ...]]:

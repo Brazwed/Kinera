@@ -5,7 +5,7 @@ import ctypes
 from typing import cast
 import unittest
 
-from kinera.backends.base import BackendBuffer, BackendUnavailableError, HostArray
+from kinera.backends.base import BackendArray, BackendBuffer, BackendUnavailableError, HostArray
 from kinera.backends.cpu.backend import CPUBackend
 from kinera.backends.cuda.backend import CUDABackend
 from kinera.backends.cuda.buffer import CudaBuffer
@@ -45,6 +45,7 @@ class InMemoryCudaBridge(CudaBridge):
     def __init__(self) -> None:
         self._next_pointer = 1
         self.allocations: dict[int, bytearray] = {}
+        self.copy_to_device_calls = 0
 
     def device_count(self) -> int:
         return 1
@@ -61,6 +62,7 @@ class InMemoryCudaBridge(CudaBridge):
     def copy_to_device(
         self, device_id: int, destination: int, source: int, nbytes: int
     ) -> None:
+        self.copy_to_device_calls += 1
         self.allocations[destination][:nbytes] = ctypes.string_at(source, nbytes)
 
     def copy_to_host(
@@ -90,6 +92,112 @@ class EmbeddingCudaStorageTests(unittest.TestCase):
             self.assertEqual(gradients.nbytes, 48)
 
         self.assertEqual(bridge.allocations, {})
+
+    def test_forward_prepares_typed_ids_and_device_gradients_without_materializing_output(self) -> None:
+        bridge = InMemoryCudaBridge()
+        memory = CudaMemoryManager(bridge=bridge)
+        backend = CUDABackend(runtime=memory.runtime, memory_manager=memory)
+        seen_weights: list[BackendArray] = []
+        seen_ids: list[list[int] | BackendBuffer] = []
+        seen_outputs: list[CudaBuffer] = []
+
+        def embedding_forward(
+            weights: BackendArray, ids: list[int] | BackendBuffer
+        ) -> CudaBuffer:
+            seen_weights.append(weights)
+            seen_ids.append(ids)
+            weight_buffer = cast(CudaBuffer, weights)
+            count = len(ids) if isinstance(ids, list) else ids.shape[0]
+            output = memory.allocate(
+                (count, weight_buffer.shape[1]),
+                dtype="float64",
+                device_id=weight_buffer.device_id,
+            )
+            seen_outputs.append(output)
+            return output
+
+        setattr(backend, "embedding_forward", embedding_forward)
+        embedding = Embedding(vocab_size=3, embedding_dim=2, seed=7, backend=backend)
+        original_weights = cast(CudaBuffer, embedding.weights)
+        original_gradients = cast(CudaBuffer, embedding.grad_weights)
+        try:
+            output = embedding.forward([1, 0])
+            self.assertIsInstance(seen_ids[0], CudaBuffer)
+            ids_buffer = cast(CudaBuffer, seen_ids[0])
+            self.assertEqual(ids_buffer.dtype, "int32")
+            self.assertEqual(ids_buffer.shape, (2,))
+            self.assertEqual(memory.copy_to_host(ids_buffer), [1, 0])
+            self.assertIs(seen_weights[0], original_weights)
+            self.assertIs(output, seen_outputs[0])
+            self.assertIs(embedding.output, output)
+            self.assertIsInstance(embedding.grad_weights, CudaBuffer)
+            gradients = cast(CudaBuffer, embedding.grad_weights)
+            self.assertEqual(gradients.shape, (3, 2))
+        finally:
+            buffers = [
+                original_weights,
+                original_gradients,
+                embedding.grad_weights,
+                *seen_ids,
+                *seen_outputs,
+            ]
+            for buffer in buffers:
+                if isinstance(buffer, CudaBuffer) and not buffer.closed:
+                    buffer.close()
+        self.assertEqual(bridge.allocations, {})
+
+    def test_out_of_vocab_id_fails_before_device_copy_or_kernel_dispatch(self) -> None:
+        bridge = InMemoryCudaBridge()
+        memory = CudaMemoryManager(bridge=bridge)
+        backend = CUDABackend(runtime=memory.runtime, memory_manager=memory)
+        dispatched: list[object] = []
+
+        def should_not_dispatch(
+            weights: BackendArray, ids: list[int] | BackendBuffer
+        ) -> list[list[float]]:
+            dispatched.append((weights, ids))
+            return []
+
+        setattr(backend, "embedding_forward", should_not_dispatch)
+        embedding = Embedding(vocab_size=3, embedding_dim=2, seed=7, backend=backend)
+        weights = cast(CudaBuffer, embedding.weights)
+        gradients = cast(CudaBuffer, embedding.grad_weights)
+        copies_before = bridge.copy_to_device_calls
+        try:
+            with self.assertRaisesRegex(ValueError, "fora do vocabulário"):
+                embedding.forward([3])
+            self.assertEqual(bridge.copy_to_device_calls, copies_before)
+            self.assertEqual(dispatched, [])
+        finally:
+            weights.close()
+            gradients.close()
+        self.assertEqual(bridge.allocations, {})
+
+
+class CpuInt32IndexBoundaryTests(unittest.TestCase):
+    def test_cpu_backend_keeps_int32_ids_as_python_integers(self) -> None:
+        backend = CPUBackend()
+
+        ids = backend.buffer_from_host([2, 0, 2], shape=(3,), dtype="int32")
+
+        self.assertEqual(ids, [2, 0, 2])
+        self.assertTrue(all(type(value) is int for value in ids))
+        host_ids = backend.buffer_to_host(ids)
+        self.assertEqual(host_ids, [2, 0, 2])
+        self.assertTrue(all(type(value) is int for value in host_ids))
+
+    def test_cpu_backend_int32_rejects_bool_float_and_overflow(self) -> None:
+        backend = CPUBackend()
+        invalid_cases = (
+            ([True], TypeError),
+            ([1.0], TypeError),
+            ([2**31], ValueError),
+        )
+        for values, error in invalid_cases:
+            with self.subTest(values=values), self.assertRaises(error):
+                backend.buffer_from_host(
+                    cast(HostArray, values), shape=(1,), dtype="int32"
+                )
 
 
 class UnavailableCudaBridge(CudaBridge):

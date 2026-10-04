@@ -18,6 +18,7 @@ class FakeCudaBridge(CudaBridge):
         self.step_calls: list[tuple[int | float, ...]] = []
         self.copy_to_device_calls = 0
         self.copy_to_host_calls = 0
+        self.embedding_forward_calls: list[tuple[int, ...]] = []
 
     def device_count(self) -> int:
         return self._device_count
@@ -89,6 +90,19 @@ class FakeCudaBridge(CudaBridge):
                 input_size,
                 output_size,
             )
+        )
+    def embedding_forward_f64(
+        self,
+        device_id: int,
+        weights: int,
+        ids: int,
+        output: int,
+        vocab_size: int,
+        embedding_dim: int,
+        ids_count: int,
+    ) -> None:
+        self.embedding_forward_calls.append(
+            (device_id, weights, ids, output, vocab_size, embedding_dim, ids_count)
         )
 
 
@@ -292,6 +306,98 @@ class CudaBackendBackwardDispatchTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "CudaBuffer"):
             self.backend.linear_backward([[1.0]], [1.0], [1.0])
         self.assertEqual(self.bridge.backward_calls, [])
+
+
+class CudaBackendEmbeddingForwardDispatchTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bridge = FakeCudaBridge()
+        self.backend = CUDABackend(runtime=CudaRuntime(bridge=self.bridge))
+
+    def test_forward_allocates_independent_output_and_dispatches_typed_ids(self) -> None:
+        with ExitStack() as stack:
+            weights = stack.enter_context(
+                self.backend.buffer_from_host(
+                    [[0.5, -1.0], [2.0, 0.25], [-0.5, 3.0]],
+                    shape=(3, 2),
+                    dtype="float64",
+                )
+            )
+            ids = stack.enter_context(
+                self.backend.buffer_from_host(
+                    [2, 0, 2], shape=(3,), dtype="int32"
+                )
+            )
+            h2d_before = self.bridge.copy_to_device_calls
+            d2h_before = self.bridge.copy_to_host_calls
+
+            output = self.backend.embedding_forward(weights, ids)
+            stack.enter_context(output)
+
+            self.assertIsInstance(output, CudaBuffer)
+            self.assertEqual(output.shape, (3, 2))
+            self.assertEqual(output.dtype, "float64")
+            self.assertEqual(output.nbytes, 48)
+            self.assertNotEqual(output.pointer, weights.pointer)
+            self.assertNotEqual(output.pointer, ids.pointer)
+            self.assertEqual(
+                self.bridge.embedding_forward_calls,
+                [(0, weights.pointer, ids.pointer, output.pointer, 3, 2, 3)],
+            )
+            self.assertEqual(self.bridge.copy_to_device_calls, h2d_before)
+            self.assertEqual(self.bridge.copy_to_host_calls, d2h_before)
+
+
+    def test_forward_rejects_wrong_id_dtype_rank_host_lists_and_released_buffers(self) -> None:
+        with ExitStack() as stack:
+            weights = stack.enter_context(
+                self.backend.buffer_from_host([[0.5, -1.0], [2.0, 0.25]], shape=(2, 2))
+            )
+            float_ids = stack.enter_context(
+                self.backend.buffer_from_host([1.0], shape=(1,), dtype="float64")
+            )
+            matrix_ids = stack.enter_context(
+                self.backend.buffer_from_host([[1, 0]], shape=(1, 2), dtype="int32")
+            )
+            closed_ids = stack.enter_context(
+                self.backend.buffer_from_host([1], shape=(1,), dtype="int32")
+            )
+
+            with self.assertRaisesRegex(ValueError, "dtype int32"):
+                self.backend.embedding_forward(weights, float_ids)
+            with self.assertRaisesRegex(ValueError, "rank 1"):
+                self.backend.embedding_forward(weights, matrix_ids)
+            with self.assertRaisesRegex(TypeError, "int32 CudaBuffer"):
+                self.backend.embedding_forward(weights, [1])
+            closed_ids.close()
+            with self.assertRaisesRegex(BackendError, "released/closed"):
+                self.backend.embedding_forward(weights, closed_ids)
+
+        self.assertEqual(self.bridge.embedding_forward_calls, [])
+
+    def test_forward_rejects_device_and_memory_owner_mismatches(self) -> None:
+        bridge = FakeCudaBridge(device_count=2)
+        backend = CUDABackend(runtime=CudaRuntime(bridge=bridge))
+        other_bridge = FakeCudaBridge(device_count=2)
+        other_backend = CUDABackend(runtime=CudaRuntime(bridge=other_bridge))
+        with ExitStack() as stack:
+            weights = stack.enter_context(
+                backend.buffer_from_host([[1.0, 2.0]], shape=(1, 2))
+            )
+            ids_other_device = stack.enter_context(
+                backend.memory.copy_to_device(
+                    [0], shape=(1,), dtype="int32", device_id=1
+                )
+            )
+            foreign_ids = stack.enter_context(
+                other_backend.buffer_from_host([0], shape=(1,), dtype="int32")
+            )
+
+            with self.assertRaisesRegex(BackendError, "same CUDA device"):
+                backend.embedding_forward(weights, ids_other_device)
+            with self.assertRaisesRegex(BackendError, "different memory manager"):
+                backend.embedding_forward(weights, foreign_ids)
+
+        self.assertEqual(bridge.embedding_forward_calls, [])
 
 
 if __name__ == "__main__":
