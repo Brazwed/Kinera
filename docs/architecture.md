@@ -20,7 +20,7 @@ A Fase 8 reorganiza o Kinera em um pacote instalável e prepara a fronteira de e
 
 `CPUBackend` é a oracle Python sem dependências numéricas externas. Suas operações ficam em `backends/cpu/ops/` e preservam a aritmética existente de `Linear`, `Embedding`, `Neuron`, ativações e probabilidades.
 
-A Phase 8 criou os pontos de extensão sem carregar biblioteca nativa nem alocar memória CUDA. A Issue #12 implementa runtime, ABI e buffers de forma opcional; o contrato está documentado em [`cuda-backend.md`](cuda-backend.md). `Linear.forward`, `Linear.backward` e `Linear.step/update` agora executam em CUDA e passaram seus gates CPU↔CUDA; backward também passou diferenças finitas, e step permanece em buffers residentes sem round-trip implícito. A fixture integrada `forward → backward → step` ainda está pendente na Phase 9.8. Não foram executados benchmark nem treino 5k/10k.
+A Phase 8 criou os pontos de extensão sem carregar biblioteca nativa nem alocar memória CUDA. A Issue #12 implementa runtime, ABI e buffers de forma opcional; o contrato está documentado em [`cuda-backend.md`](cuda-backend.md). `Linear.forward`, `Linear.backward` e `Linear.step/update` executam em CUDA e passaram seus gates CPU↔CUDA; backward também passou diferenças finitas, e step altera parâmetros em buffers residentes sem round-trip implícito. A fixture integrada `forward → backward → step` da Phase 9.8 passou na Tesla T4 com erro absoluto máximo `0.0`, confirmou liberação dos buffers e erro explícito quando o runtime CUDA não está disponível. Os critérios técnicos da Phase 9 estão verificados; Issue #12 continua aberta e o PR #14 continua draft, aguardando revisão. Não foram executados benchmark nem treino 5k/10k.
 
 
 ## Migração de caminhos
