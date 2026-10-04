@@ -16,9 +16,9 @@ Selecionar ou consultar explicitamente CUDA pode compilar/carregar o runtime nat
 
 O build sob demanda está habilitado para Linux. Em outras plataformas, deve ser fornecida uma biblioteca compatível por `KINERA_CUDA_LIBRARY`; falha ao construir não altera o caminho CPU. A biblioteca é carregada via `ctypes.CDLL` somente após solicitação explícita. O wheel inclui as fontes CUDA, mas não executa `nvcc` durante instalação.
 
-O ABI C é versionado (`kinera_cuda_abi_version()`, atualmente versão `1`). Cada função retorna um status CUDA inteiro; `kinera_cuda_error_string()` converte falhas em diagnósticos legíveis. `CudaBridge` valida todos os símbolos obrigatórios antes de publicar a biblioteca carregada.
+O ABI C é versionado (`kinera_cuda_abi_version()`, atualmente versão `2`). Cada função retorna um status CUDA inteiro; `kinera_cuda_error_string()` converte falhas em diagnósticos legíveis. `CudaBridge` valida todos os símbolos obrigatórios antes de publicar a biblioteca carregada. A ABI 2 adiciona o lookup CUDA de `Embedding.forward`; bibliotecas pré-compiladas ABI 1 são rejeitadas explicitamente.
 
-A interface nativa da versão 1 inclui:
+A interface nativa da versão 2 inclui:
 
 - consulta de versão, erro, quantidade e propriedades de devices;
 - seleção e sincronização explícitas do device;
@@ -26,7 +26,8 @@ A interface nativa da versão 1 inclui:
 - cópias explícitas host → device e device → host;
 - `kinera_cuda_linear_forward_f64`, que executa a soma afim em pesos row-major, com um thread por saída e acumulação sequencial em `float64`;
 - `kinera_cuda_linear_backward_f64`, que calcula gradientes de pesos, bias e entrada sem converter buffers para listas;
-- `kinera_cuda_linear_step_f64`, que aplica gradient descent diretamente aos buffers de pesos e bias residentes no device.
+- `kinera_cuda_linear_step_f64`, que aplica gradient descent diretamente aos buffers de pesos e bias residentes no device;
+- `kinera_cuda_embedding_forward_f64`, que faz lookup row-major de pesos `float64` usando IDs residentes `int32` e escreve uma saída independente também em `float64`.
 
 Os gates de `Linear.forward`, `Linear.backward` e `Linear.step/update` passaram na Tesla T4. O update é in-place em `float64`, sem cópias host↔device implícitas; `learning_rate=0` retorna os mesmos buffers sem chamar o kernel. A equivalência CPU↔CUDA ficou com erro absoluto máximo `0.0` após 1 e 8 updates (`atol=rtol=1e-12`).
 
@@ -40,12 +41,12 @@ O buffer não implementa o protocolo de sequência do Python. Transferências s�
 
 O manager que aloca o buffer é seu owner. `close()` e o context manager liberam a alocação; um segundo `close()` não libera duas vezes, e qualquer uso após liberação gera `BufferReleasedError`. O destrutor é somente uma salvaguarda de melhor esforço; código chamador deve preferir liberar explicitamente.
 
-As operações numéricas CUDA continuam em `float64`, mantendo correspondência com o `float` do oracle Python. Desde a Phase 10.0, o memory manager também transporta IDs como signed `int32`: bool, floats e valores fora do intervalo são rejeitados sem narrowing silencioso. Para IDs, a fronteira explícita é `CUDABackend.buffer_from_host(ids, shape=(n,), dtype="int32")`; `buffer_to_host`/`to_host()` devolvem inteiros Python sem passar pelo formato `float64`. A camada `Embedding` mantém `_vocab_size` e `_embedding_dim` explícitos e guarda pesos/gradientes como `BackendArray`. O gate de kernels Embedding ainda está pendente. Evidência host-only: [`../experiments/phase10_0_embedding_storage_validation.json`](../experiments/phase10_0_embedding_storage_validation.json).
+As operações numéricas CUDA continuam em `float64`, mantendo correspondência com o `float` do oracle Python. Desde a Phase 10.0, o memory manager também transporta IDs como signed `int32`: bool, floats e valores fora do intervalo são rejeitados sem narrowing silencioso. Para IDs, a fronteira explícita é `CUDABackend.buffer_from_host(ids, shape=(n,), dtype="int32")`; `buffer_to_host`/`to_host()` devolvem inteiros Python sem passar pelo formato `float64`. A camada `Embedding` mantém `_vocab_size` e `_embedding_dim` explícitos e guarda pesos/gradientes como `BackendArray`. Na Phase 10.1, `Embedding.forward` passou CPU↔CUDA na Tesla T4: IDs repetidos, caso 1×1 e entrada vazia; erro absoluto máximo `0.0` com `atol=rtol=1e-12`. O output permaneceu independente após liberar os buffers de pesos e IDs. Evidência host-only da 10.0: [`../experiments/phase10_0_embedding_storage_validation.json`](../experiments/phase10_0_embedding_storage_validation.json); gate T4 da 10.1: [`../experiments/phase10_1_embedding_forward_validation.json`](../experiments/phase10_1_embedding_forward_validation.json). `Embedding.backward` e `Embedding.step` ainda aguardam suas fases.
 
 ## Política numérica registrada antes do kernel
 
 - dtype aritmético: `float64`;
-- dtype de índices da Embedding (Phase 10.0): signed `int32`, sem uso como valor aritmético;
+- dtype de índices da Embedding (Phase 10.0/10.1): signed `int32`, sem uso como valor aritmético;
 - tolerância absoluta: `atol=1e-12`;
 - tolerância relativa: `rtol=1e-12`;
 - comparação por elemento: `abs(cuda - cpu) <= atol + rtol * abs(cpu)`.
@@ -59,4 +60,4 @@ O maior erro absoluto observado no gate inicial de `Linear.forward` foi `4.44089
 3. Somente após PASS do forward: `Linear.backward`, depois `Linear.step/update`.
 4. Fixture integrada curta `forward → backward → update` comparada contra CPU.
 
-A Phase 9 está funcional e integrada em `main`. A Phase 10 começou pela Embedding: o suporte de buffers `int32` está disponível, mas os gates CUDA de lookup, backward e update ainda precisam passar em sequência antes da conclusão. Não executar benchmark ou treino ampliado até esses gates, a configuração experimental e autorização explícita.
+A Phase 9 está funcional e integrada em `main`. Na Phase 10, `Embedding.forward` passou equivalência CPU↔CUDA na Tesla T4 (erro absoluto máximo `0.0`, `atol=rtol=1e-12`), incluindo IDs duplicados, vocabulário/dimensão 1×1 e entrada vazia; o resultado continuou utilizável após liberar pesos e IDs. ABI 2 e os testes host-side do despacho também passaram. Ainda faltam `Embedding.backward` determinístico, `Embedding.step` e a fixture integrada; benchmark e treino continuam proibidos até os gates, configuração experimental e autorização explícita.

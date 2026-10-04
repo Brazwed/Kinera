@@ -1,0 +1,86 @@
+{
+  "phase": "10.1",
+  "artifact": "Embedding.forward CUDA lookup equivalence gate",
+  "status": "PASS",
+  "source_commit": "6c8daaceb2793231b3f7dc1e5fbd9d5cdae6d136",
+  "base_commit": "a02379ca2b6bd2d473740c402b71d4e5c44f5b1b",
+  "abi_version": 2,
+  "source_sha256": {
+    "src/kinera/backends/base.py": "f1fbc9f88c9c46ec83e4cc3ab48831569bdea4c2e6267f3a2ac892f302153a21",
+    "src/kinera/backends/cpu/backend.py": "5469c934a76ffba0a36f897852bc724ba890e5e093ed652c4da684eae34b2291",
+    "src/kinera/backends/cpu/ops/embedding.py": "e3bfb8f307e32870ff2042ecf5e012fd8dd5fd90c898016bbcb61906b11b12ab",
+    "src/kinera/backends/cuda/backend.py": "31869cb624f389aff6c9b47713b27ec59beda0afaac849bbf5b3d01b5d142ff8",
+    "src/kinera/backends/cuda/bridge.py": "6169ca4c269e3780edc7b2261ce80799fbcb60912ec52fcd520b777238e4feaa",
+    "src/kinera/backends/cuda/buffer.py": "728ae734e913720b99fb16a0070d4f973e9ffe56d4082fda7a56bcb5ecc7f5d5",
+    "src/kinera/backends/cuda/memory.py": "41eb99b103e02c49202926ac602cb4017f1e017b8250f6083d327e12caa3d2ff",
+    "src/kinera/backends/cuda/native/runtime.cu": "443e72740a78e2fe79b97e8b116134772bb62f45463f5f357d8cf4bb89d96aaf",
+    "src/kinera/backends/cuda/kernels/embedding_forward.cu": "23fef43b246ed14ebd74d062814bbe238e03047d1f51a2786e683e42d6ade202",
+    "src/kinera/nn/layers/embedding.py": "ce9437d67d96fa48ce96a5cf301c9f78177958aebe4904b80bec6300dbe4a6f0",
+    "tests/test_cuda_backend_ops.py": "ee582e2fb3eee890db6bbdbb144b233bc3e85e04d01b1c9492655d449698c2ae",
+    "tests/test_cuda_embedding_forward.py": "79b903deb45c58bd461ce2cece3ec0d3788e7a973bc8dcb5844a2bb35efb0375",
+    "tests/test_cuda_runtime.py": "6a5f338ded60670ae002e1c603300e43b04be75a1ed7cb7578a86a39d38f181a",
+    "tests/test_cuda_scaffold.py": "c5634968e6d5d922788e796c7c898b3e4cde5547e417d3b01aefbbb71ccba472",
+    "tests/test_embedding_buffers.py": "2842a6857695f522895340326cd424b28da4367a97a9f2924711846345f46d87"
+  },
+  "gpu_environment": {
+    "device": "Tesla T4",
+    "compute_capability": "7.5",
+    "cuda_toolkit": "13.0",
+    "nvcc": "Build cuda_13.0.r13.0/compiler.36424714_0",
+    "driver": "580.82.07",
+    "python": "3.13.15",
+    "runtime_fingerprint": "a4827f39aab54432a943a559d41f0d5b",
+    "native_library_built_and_loaded": true
+  },
+  "equivalence": {
+    "oracle": "CPUBackend",
+    "dtype": "float64",
+    "id_dtype": "signed int32",
+    "atol": 1e-12,
+    "rtol": 1e-12,
+    "comparison": "abs(cuda - cpu) <= atol + rtol * abs(cpu)",
+    "gpu_tests": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "max_absolute_errors": [0.0, 0.0],
+    "fixtures": [
+      {
+        "vocab_size": 4,
+        "embedding_dim": 3,
+        "ids": [2, 0, 2, 3],
+        "checks": ["duplicate IDs", "seeded weights", "independent output", "ID buffer ownership"]
+      },
+      {
+        "vocab_size": 1,
+        "embedding_dim": 1,
+        "ids": [0, 0, 0],
+        "checks": ["single-row boundary", "duplicate IDs"]
+      },
+      {
+        "vocab_size": 1,
+        "embedding_dim": 1,
+        "ids": [],
+        "result": [],
+        "matches_cpu": true
+      }
+    ]
+  },
+  "host_validation": {
+    "full_cpu_suite": "Ran 325 tests; OK (skipped=9)",
+    "cuda_forward_backend_dispatch_tests": "3 passed",
+    "cuda_bridge_abi_tests": "8 passed",
+    "cuda_scaffold_tests": "4 passed",
+    "embedding_buffer_contract_tests": "9 passed",
+    "compileall": "passed",
+    "git_diff_check": "passed",
+    "github_actions_tests_on_source_commit": "completed/success"
+  },
+  "limits": {
+    "embedding_backward": "not implemented or tested in this phase",
+    "embedding_step": "not implemented or tested in this phase",
+    "integrated_training_cycle": "not run",
+    "benchmark_run": false,
+    "training_run": false
+  }
+}
