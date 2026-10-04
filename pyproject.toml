@@ -15,4 +15,4 @@ include = ["kinera*"]
 namespaces = false
 
 [tool.setuptools.package-data]
-"kinera.backends.cuda" = ["kernels/*.cu", "kernels/common/*.cuh"]
+"kinera.backends.cuda" = ["native/*.cu", "kernels/*.cu", "kernels/common/*.cuh"]

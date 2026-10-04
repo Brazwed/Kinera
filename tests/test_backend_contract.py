@@ -96,6 +96,29 @@ class CPUBackendTests(unittest.TestCase):
         self.assertEqual(backend.activation_derivative("linear", -2.0), 1.0)
 
 
+class CPUBackendBufferContractTests(unittest.TestCase):
+    def test_host_buffer_roundtrip_preserves_values_and_copies_at_boundary(self) -> None:
+        backend = CPUBackend()
+        source = [[1.0, -2.0], [3.5, 0.0]]
+
+        buffer = backend.buffer_from_host(source, shape=(2, 2), dtype="float64")
+        source[0][0] = 99.0
+        self.assertEqual(buffer, [[1.0, -2.0], [3.5, 0.0]])
+
+        exported = backend.buffer_to_host(buffer)
+        exported[1][0] = -99.0
+        self.assertEqual(buffer, [[1.0, -2.0], [3.5, 0.0]])
+
+    def test_host_buffer_rejects_shape_dtype_and_nonfinite_values(self) -> None:
+        backend = CPUBackend()
+        with self.assertRaises(ValueError):
+            backend.buffer_from_host([1.0, 2.0], shape=(3,), dtype="float64")
+        with self.assertRaises(ValueError):
+            backend.buffer_from_host([1.0], shape=(1,), dtype="float32")
+        with self.assertRaises(ValueError):
+            backend.buffer_from_host([float("inf")], shape=(1,), dtype="float64")
+
+
 class ProbabilityBackendInjectionTests(unittest.TestCase):
     def test_public_probability_apis_use_the_selected_backend(self) -> None:
         class RecordingBackend(CPUBackend):

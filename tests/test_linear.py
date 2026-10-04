@@ -1,4 +1,5 @@
 import math
+from copy import deepcopy
 import unittest
 
 from kinera.backends.cpu.backend import CPUBackend
@@ -343,6 +344,71 @@ class LinearBackendIntegrationTests(unittest.TestCase):
         layer.step(0.01)
 
         self.assertEqual(backend.calls, ["forward", "backward", "step"])
+
+
+class LinearBackendBufferIntegrationTests(unittest.TestCase):
+    class Buffer:
+        def __init__(self, values, shape):
+            self.values = deepcopy(values)
+            self.shape = shape
+            self.dtype = "float64"
+            self.device = "mock"
+            self.device_id = 0
+            self.nbytes = 8 * math.prod(shape)
+            self.layout = "C"
+            self.owns_memory = True
+            self.closed = False
+
+    class BufferBackend(CPUBackend):
+        def __init__(self) -> None:
+            self.host_to_backend = 0
+            self.backend_to_host = 0
+
+        def buffer_from_host(self, values, *, shape, dtype="float64"):
+            self.host_to_backend += 1
+            return LinearBackendBufferIntegrationTests.Buffer(values, shape)
+
+        def buffer_to_host(self, buffer):
+            self.backend_to_host += 1
+            return deepcopy(buffer.values)
+
+        def linear_forward(self, weights, bias, inputs):
+            self.assert_buffers(weights, bias, inputs)
+            output = super().linear_forward(weights.values, bias.values, inputs.values)
+            return LinearBackendBufferIntegrationTests.Buffer(output, (len(output),))
+
+        @staticmethod
+        def assert_buffers(*buffers) -> None:
+            if not all(isinstance(buffer, LinearBackendBufferIntegrationTests.Buffer) for buffer in buffers):
+                raise TypeError("backend operations require backend-owned buffers")
+
+    def test_forward_keeps_backend_result_resident_until_explicit_export(self) -> None:
+        backend = self.BufferBackend()
+        layer = Linear(input_size=2, output_size=1, seed=7, backend=backend)
+        layer.weights = backend.buffer_from_host([[2.0, -1.0]], shape=(1, 2))
+        layer.bias = backend.buffer_from_host([0.25], shape=(1,))
+        copies_before_forward = backend.host_to_backend
+
+        output = layer.forward([4.0, 2.0])
+
+        self.assertIsInstance(output, self.Buffer)
+        self.assertEqual(backend.host_to_backend, copies_before_forward + 1)
+        self.assertEqual(backend.backend_to_host, 0)
+        self.assertEqual(backend.buffer_to_host(output), [6.25])
+
+    def test_forward_accepts_resident_input_without_an_implicit_copy(self) -> None:
+        backend = self.BufferBackend()
+        layer = Linear(input_size=2, output_size=1, seed=7, backend=backend)
+        layer.weights = backend.buffer_from_host([[2.0, -1.0]], shape=(1, 2))
+        layer.bias = backend.buffer_from_host([0.25], shape=(1,))
+        input_buffer = backend.buffer_from_host([4.0, 2.0], shape=(2,))
+        copies_before_forward = backend.host_to_backend
+
+        output = layer.forward(input_buffer)
+
+        self.assertIsInstance(output, self.Buffer)
+        self.assertEqual(backend.host_to_backend, copies_before_forward)
+        self.assertEqual(backend.backend_to_host, 0)
 
 
 if __name__ == "__main__":

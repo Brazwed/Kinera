@@ -1,0 +1,46 @@
+{
+  "issue": 12,
+  "phase": "9.5_linear_forward_equivalence_gate",
+  "captured_at": "2026-10-04",
+  "baseline_commit": "a64b23730a4604270c0508f173715fe413704acd",
+  "foundation_commit": "5007defba314b3574ad431ce4f5250f4eede0170",
+  "branch": "feat/issue-12-cuda-linear",
+  "result": "PASS",
+  "cuda_environment": {
+    "gpu": "NVIDIA Tesla T4",
+    "device_count": 1,
+    "compute_capability": "7.5",
+    "nvcc": "13.0.88",
+    "python": "3.13.15",
+    "native_abi_version": 1
+  },
+  "numeric_policy": {
+    "dtype": "float64",
+    "atol": 1e-12,
+    "rtol": 1e-12,
+    "comparison_rule": "abs(cuda_value - cpu_value) <= atol + rtol * abs(cpu_value)",
+    "max_absolute_error_observed": 4.440892098500626e-16
+  },
+  "cases": [
+    "small deterministic 3x3 Linear with positive, negative, and zero weights/inputs",
+    "Kinera Linear shape output=51, input=26",
+    "Kinera Linear shape output=3932, input=26",
+    "mismatched device-buffer shapes are rejected before kernel execution"
+  ],
+  "checks": {
+    "cuda_library_compiled_and_loaded": true,
+    "linear_forward_runs_through_cudabackend": true,
+    "output_remains_a_cuda_buffer_until_explicit_export": true,
+    "cpu_cuda_equivalence_within_registered_tolerance": true,
+    "nan_or_infinity_in_test_outputs": false,
+    "linear_backward_started_before_forward_pass": false,
+    "local_cpu_suite": "290 tests passed; 3 CUDA-only tests skipped on the CPU-only host",
+    "compileall": "passed",
+    "git_diff_check": "passed",
+    "github_cpu_ci": "pending a draft PR run; keep the final Phase 9.5 CI checkbox open"
+  },
+  "scope_guardrails": [
+    "No Linear.backward or Linear.step/update CUDA implementation has started before the forward gate PASS.",
+    "No benchmark, 5k/10k training, Embedding kernel, softmax/loss kernel, or model-wide migration was run."
+  ]
+}

@@ -14,27 +14,70 @@ class BackendUnavailableError(BackendError):
 
 
 @runtime_checkable
+class BackendBuffer(Protocol):
+    """Hardware-neutral read-only metadata for a backend-owned array."""
+
+    @property
+    def device(self) -> str: ...
+
+    @property
+    def device_id(self) -> int: ...
+
+    @property
+    def shape(self) -> tuple[int, ...]: ...
+
+    @property
+    def dtype(self) -> str: ...
+
+    @property
+    def nbytes(self) -> int: ...
+
+    @property
+    def layout(self) -> str: ...
+
+    @property
+    def owns_memory(self) -> bool: ...
+
+    @property
+    def closed(self) -> bool: ...
+
+
+HostArray = list[float] | list[list[float]]
+BackendArray = HostArray | BackendBuffer
+
+
+@runtime_checkable
 class Backend(Protocol):
     """Hardware-independent contract for the operations used by Kinera."""
 
     name: str
 
+    def buffer_from_host(
+        self,
+        values: HostArray,
+        *,
+        shape: tuple[int, ...],
+        dtype: str = "float64",
+    ) -> BackendArray: ...
+
+    def buffer_to_host(self, buffer: BackendArray) -> HostArray: ...
+
     def linear_forward(
-        self, weights: list[list[float]], bias: list[float], inputs: list[float]
-    ) -> list[float]: ...
+        self, weights: BackendArray, bias: BackendArray, inputs: BackendArray
+    ) -> BackendArray: ...
 
     def linear_backward(
-        self, weights: list[list[float]], inputs: list[float], grad_output: list[float]
-    ) -> tuple[list[list[float]], list[float], list[float]]: ...
+        self, weights: BackendArray, inputs: BackendArray, grad_output: BackendArray
+    ) -> tuple[BackendArray, BackendArray, BackendArray]: ...
 
     def linear_step(
         self,
-        weights: list[list[float]],
-        bias: list[float],
-        grad_weights: list[list[float]],
-        grad_bias: list[float],
+        weights: BackendArray,
+        bias: BackendArray,
+        grad_weights: BackendArray,
+        grad_bias: BackendArray,
         learning_rate: float,
-    ) -> tuple[list[list[float]], list[float]]: ...
+    ) -> tuple[BackendArray, BackendArray]: ...
 
     def embedding_forward(
         self, weights: list[list[float]], ids: list[int]
