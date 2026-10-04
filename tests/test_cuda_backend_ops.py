@@ -3,6 +3,7 @@
 import ctypes
 from contextlib import ExitStack
 import unittest
+from typing import cast
 
 from kinera.backends.base import BackendError
 from kinera.backends.cuda import CUDABackend, CudaBridge, CudaBuffer, CudaRuntime
@@ -14,6 +15,9 @@ class FakeCudaBridge(CudaBridge):
         self._next_pointer = 0x1000
         self._allocations: dict[int, bytearray] = {}
         self.backward_calls: list[tuple[int, ...]] = []
+        self.step_calls: list[tuple[int | float, ...]] = []
+        self.copy_to_device_calls = 0
+        self.copy_to_host_calls = 0
 
     def device_count(self) -> int:
         return self._device_count
@@ -30,10 +34,36 @@ class FakeCudaBridge(CudaBridge):
         del self._allocations[pointer]
 
     def copy_to_device(self, device_id: int, destination: int, source: int, nbytes: int) -> None:
+        self.copy_to_device_calls += 1
         self._allocations[destination][:nbytes] = ctypes.string_at(source, nbytes)
 
     def copy_to_host(self, device_id: int, destination: int, source: int, nbytes: int) -> None:
+        self.copy_to_host_calls += 1
         ctypes.memmove(destination, bytes(self._allocations[source][:nbytes]), nbytes)
+
+    def linear_step_f64(
+        self,
+        device_id: int,
+        weights: int,
+        bias: int,
+        grad_weights: int,
+        grad_bias: int,
+        learning_rate: float,
+        input_size: int,
+        output_size: int,
+    ) -> None:
+        self.step_calls.append(
+            (
+                device_id,
+                weights,
+                bias,
+                grad_weights,
+                grad_bias,
+                learning_rate,
+                input_size,
+                output_size,
+            )
+        )
 
     def linear_backward_f64(
         self,
@@ -60,6 +90,148 @@ class FakeCudaBridge(CudaBridge):
                 output_size,
             )
         )
+
+
+class CudaBackendStepDispatchTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bridge = FakeCudaBridge()
+        self.backend = CUDABackend(runtime=CudaRuntime(bridge=self.bridge))
+
+    def _buffers(self, stack: ExitStack):
+        weights = stack.enter_context(
+            self.backend.buffer_from_host([[1.0, 2.0], [-1.0, 0.5]], shape=(2, 2))
+        )
+        bias = stack.enter_context(self.backend.buffer_from_host([0.25, -0.5], shape=(2,)))
+        grad_weights = stack.enter_context(
+            self.backend.buffer_from_host([[0.1, 0.2], [0.3, 0.4]], shape=(2, 2))
+        )
+        grad_bias = stack.enter_context(self.backend.buffer_from_host([0.5, -0.25], shape=(2,)))
+        return weights, bias, grad_weights, grad_bias
+
+    def test_step_updates_resident_buffers_with_one_native_dispatch(self) -> None:
+        with ExitStack() as stack:
+            weights, bias, grad_weights, grad_bias = self._buffers(stack)
+            h2d_before = self.bridge.copy_to_device_calls
+            d2h_before = self.bridge.copy_to_host_calls
+
+            updated_weights, updated_bias = self.backend.linear_step(
+                weights, bias, grad_weights, grad_bias, 0.125
+            )
+
+            self.assertIs(updated_weights, weights)
+            self.assertIs(updated_bias, bias)
+            self.assertEqual(
+                self.bridge.step_calls,
+                [
+                    (
+                        0,
+                        weights.pointer,
+                        bias.pointer,
+                        grad_weights.pointer,
+                        grad_bias.pointer,
+                        0.125,
+                        2,
+                        2,
+                    )
+                ],
+            )
+            self.assertEqual(self.bridge.copy_to_device_calls, h2d_before)
+            self.assertEqual(self.bridge.copy_to_host_calls, d2h_before)
+
+    def test_zero_rate_preserves_device_buffers_without_native_dispatch(self) -> None:
+        with ExitStack() as stack:
+            weights, bias, grad_weights, grad_bias = self._buffers(stack)
+            h2d_before = self.bridge.copy_to_device_calls
+            d2h_before = self.bridge.copy_to_host_calls
+
+            updated_weights, updated_bias = self.backend.linear_step(
+                weights, bias, grad_weights, grad_bias, 0.0
+            )
+
+            self.assertIs(updated_weights, weights)
+            self.assertIs(updated_bias, bias)
+            self.assertEqual(self.bridge.step_calls, [])
+            self.assertEqual(self.bridge.copy_to_device_calls, h2d_before)
+            self.assertEqual(self.bridge.copy_to_host_calls, d2h_before)
+
+    def test_step_rejects_each_parameter_and_gradient_shape_mismatch_before_native_dispatch(self) -> None:
+        with ExitStack() as stack:
+            weights, bias, grad_weights, grad_bias = self._buffers(stack)
+            wrong_bias = stack.enter_context(
+                self.backend.buffer_from_host([0.0], shape=(1,))
+            )
+            wrong_grad_weights = stack.enter_context(
+                self.backend.buffer_from_host([[1.0], [2.0]], shape=(2, 1))
+            )
+            wrong_grad_bias = stack.enter_context(
+                self.backend.buffer_from_host([1.0], shape=(1,))
+            )
+            invalid_cases = (
+                ("bias", weights, wrong_bias, grad_weights, grad_bias),
+                ("grad_weights", weights, bias, wrong_grad_weights, grad_bias),
+                ("grad_bias", weights, bias, grad_weights, wrong_grad_bias),
+            )
+            for name, case_weights, case_bias, case_grad_weights, case_grad_bias in invalid_cases:
+                with self.subTest(name=name), self.assertRaisesRegex(ValueError, name):
+                    self.backend.linear_step(
+                        case_weights,
+                        case_bias,
+                        case_grad_weights,
+                        case_grad_bias,
+                        0.1,
+                    )
+        self.assertEqual(self.bridge.step_calls, [])
+
+    def test_step_rejects_device_mismatch_before_native_dispatch(self) -> None:
+        bridge = FakeCudaBridge(device_count=2)
+        backend = CUDABackend(runtime=CudaRuntime(bridge=bridge))
+        with ExitStack() as stack:
+            weights = stack.enter_context(
+                backend.buffer_from_host([[1.0, 2.0], [-1.0, 0.5]], shape=(2, 2))
+            )
+            bias = stack.enter_context(
+                backend.memory.copy_to_device([0.25, -0.5], shape=(2,), device_id=1)
+            )
+            grad_weights = stack.enter_context(
+                backend.buffer_from_host([[0.1, 0.2], [0.3, 0.4]], shape=(2, 2))
+            )
+            grad_bias = stack.enter_context(
+                backend.buffer_from_host([0.5, -0.25], shape=(2,))
+            )
+            with self.assertRaisesRegex(BackendError, "same CUDA device"):
+                backend.linear_step(weights, bias, grad_weights, grad_bias, 0.1)
+        self.assertEqual(bridge.step_calls, [])
+
+    def test_step_rejects_foreign_manager_and_released_buffers(self) -> None:
+        other_bridge = FakeCudaBridge()
+        other_backend = CUDABackend(runtime=CudaRuntime(bridge=other_bridge))
+        with ExitStack() as stack:
+            weights, bias, grad_weights, grad_bias = self._buffers(stack)
+            foreign_weights = stack.enter_context(
+                other_backend.buffer_from_host([[1.0, 2.0], [-1.0, 0.5]], shape=(2, 2))
+            )
+            with self.assertRaisesRegex(BackendError, "different memory manager"):
+                self.backend.linear_step(
+                    foreign_weights, bias, grad_weights, grad_bias, 0.1
+                )
+            self.assertEqual(self.bridge.step_calls, [])
+
+        with ExitStack() as stack:
+            weights, bias, grad_weights, grad_bias = self._buffers(stack)
+            grad_bias.close()
+            with self.assertRaisesRegex(BackendError, "released/closed"):
+                self.backend.linear_step(weights, bias, grad_weights, grad_bias, 0.1)
+        self.assertEqual(self.bridge.step_calls, [])
+
+    def test_step_rejects_invalid_learning_rates_before_native_dispatch(self) -> None:
+        invalid_rates = ((True, TypeError), ("0.1", TypeError), (float("nan"), ValueError),
+                         (float("inf"), ValueError), (-0.1, ValueError))
+        with ExitStack() as stack:
+            buffers = self._buffers(stack)
+            for rate, error_type in invalid_rates:
+                with self.subTest(rate=rate), self.assertRaises(error_type):
+                    self.backend.linear_step(*buffers, cast(float, rate))
+        self.assertEqual(self.bridge.step_calls, [])
 
 
 class CudaBackendBackwardDispatchTests(unittest.TestCase):

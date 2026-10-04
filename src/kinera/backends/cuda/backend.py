@@ -1,7 +1,8 @@
-"""CUDA backend: explicit buffers plus a small Linear.forward implementation."""
+"""CUDA backend: explicit buffers and the gated Linear forward/backward/step kernels."""
 
 from __future__ import annotations
 
+import math
 from typing import NoReturn, cast
 
 from kinera.backends.base import (
@@ -184,8 +185,63 @@ class CUDABackend:
             raise
         return grad_weights, grad_bias, grad_inputs
 
-    def linear_step(self, *args, **kwargs):
-        self._unavailable("linear_step")
+    def linear_step(
+        self,
+        weights: BackendArray,
+        bias: BackendArray,
+        grad_weights: BackendArray,
+        grad_bias: BackendArray,
+        learning_rate: float,
+    ) -> tuple[CudaBuffer, CudaBuffer]:
+        """Update resident Linear parameters in place with no host transfers."""
+        weights_buffer = self._require_buffer(weights, "weights", rank=2)
+        bias_buffer = self._require_buffer(bias, "bias", rank=1)
+        grad_weights_buffer = self._require_buffer(grad_weights, "grad_weights", rank=2)
+        grad_bias_buffer = self._require_buffer(grad_bias, "grad_bias", rank=1)
+        self.memory._validate_buffer(weights_buffer)
+        self.memory._validate_buffer(bias_buffer)
+        self.memory._validate_buffer(grad_weights_buffer)
+        self.memory._validate_buffer(grad_bias_buffer)
+
+        output_size, input_size = weights_buffer.shape
+        if bias_buffer.shape != (output_size,):
+            raise ValueError("bias must match the number of Linear outputs")
+        if grad_weights_buffer.shape != (output_size, input_size):
+            raise ValueError("grad_weights must match weights shape")
+        if grad_bias_buffer.shape != (output_size,):
+            raise ValueError("grad_bias must match the number of Linear outputs")
+        device_ids = {
+            weights_buffer.device_id,
+            bias_buffer.device_id,
+            grad_weights_buffer.device_id,
+            grad_bias_buffer.device_id,
+        }
+        if len(device_ids) != 1:
+            raise BackendError("Linear.step buffers must reside on the same CUDA device")
+        if isinstance(learning_rate, bool) or not isinstance(learning_rate, (int, float)):
+            raise TypeError("learning_rate must be numeric")
+        if not math.isfinite(learning_rate):
+            raise ValueError("learning_rate must be finite")
+        if learning_rate < 0.0:
+            raise ValueError("learning_rate cannot be negative")
+
+        device_id = weights_buffer.device_id
+        self.runtime.require_device(device_id)
+        rate = float(learning_rate)
+        if rate == 0.0:
+            return weights_buffer, bias_buffer
+
+        self.bridge.linear_step_f64(
+            device_id,
+            weights_buffer.pointer,
+            bias_buffer.pointer,
+            grad_weights_buffer.pointer,
+            grad_bias_buffer.pointer,
+            rate,
+            input_size,
+            output_size,
+        )
+        return weights_buffer, bias_buffer
 
     def embedding_forward(self, *args, **kwargs):
         self._unavailable("embedding_forward")

@@ -23,7 +23,7 @@ class CudaBackendScaffoldTests(unittest.TestCase):
         self.assertFalse(backend.is_available)
         with self.assertRaisesRegex(BackendUnavailableError, "no native CUDA runtime"):
             backend.buffer_from_host([1.0], shape=(1,))
-        with self.assertRaises(BackendUnavailableError):
+        with self.assertRaisesRegex(TypeError, "CudaBuffer"):
             backend.linear_step(None, None, None, None, 0.1)
 
     def test_missing_runtime_memory_and_library_fail_closed(self) -> None:
@@ -54,11 +54,12 @@ class CudaBackendScaffoldTests(unittest.TestCase):
             with self.assertRaises(BackendUnavailableError):
                 bridge.load()
 
-    def test_linear_forward_and_backward_are_the_only_real_kernels_in_this_gate(self) -> None:
+    def test_linear_forward_backward_and_step_are_the_real_kernels_in_this_gate(self) -> None:
         source_root = Path(__file__).resolve().parents[1] / "src/kinera/backends/cuda/kernels"
         for filename, symbol in (
             ("linear_forward.cu", "kinera_cuda_linear_forward_f64"),
             ("linear_backward.cu", "kinera_cuda_linear_backward_f64"),
+            ("linear_step.cu", "kinera_cuda_linear_step_f64"),
         ):
             with self.subTest(kernel=filename):
                 source = source_root / filename
