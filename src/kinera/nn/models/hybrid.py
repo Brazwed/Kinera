@@ -207,16 +207,18 @@ class AutoregressiveModel:
                 (embedding.last_ids, embedding.output, embedding.grad_weights)
             )
         for head in heads:
-            buffers.extend((head.last_input, head.output))
+            buffers.extend(
+                (head.last_input, head.output, head.grad_weights, head.grad_bias)
+            )
         release_backend_buffers(*buffers)
 
-        self.representation.release_output()
+        self.representation.discard_forward_state()
         for embedding in embeddings:
             embedding.discard_forward_state()
         for head in heads:
             head.last_input = None
             head.output = None
-            head._has_backward = False
+            head.release_backward_state()
 
         self.last_logits = None
         self.last_pooled = None
@@ -294,22 +296,100 @@ class AutoregressiveModel:
             if loss_function is None
             else loss_function
         )
-        outputs = self.forward_heads(char_ids, syllable_ids, feature_vectors)
-        report = loss_function.forward(outputs, targets)
-        gradients = loss_function.backward(outputs, targets)
-        input_gradients = self.heads.backward(gradients)
-        assert self.last_context_size is not None
-        pooled_gradient = [
-            sum(input_gradients[name][index] for name in input_gradients)
-            / self.last_context_size
-            for index in range(self.representation.output_dim)
-        ]
-        self.representation.backward([
-            pooled_gradient.copy() for _ in range(self.last_context_size)
-        ])
-        self.heads.step(learning_rate)
-        self.representation.step(learning_rate)
-        return report
+        temporary_buffers: list[object] = []
+        try:
+            outputs = self._forward_heads_backend(
+                char_ids, syllable_ids, feature_vectors
+            )
+            report = loss_function.forward(outputs, targets)
+            logit_gradients = loss_function.backward(outputs, targets)
+            temporary_buffers.extend(logit_gradients.values())
+            input_gradients = self.heads.backward(logit_gradients)
+            temporary_buffers.extend(input_gradients.values())
+            context_size = self.last_context_size
+            if context_size is None:
+                raise RuntimeError("multitask backward lost the forward context size")
+
+            head_names = ("char", "syllable", "boundary")
+            resident_flags = [
+                isinstance(input_gradients[name], BackendBuffer)
+                for name in head_names
+            ]
+            if any(resident_flags):
+                if not all(resident_flags):
+                    raise BackendError(
+                        "multitask head gradients must all use the same backend storage"
+                    )
+                aggregate = getattr(self.backend, "sum_head_input_gradients", None)
+                if not callable(aggregate):
+                    raise BackendUnavailableError(
+                        "backend must provide sum_head_input_gradients for resident gradients"
+                    )
+                pooled_gradient = aggregate(
+                    input_gradients["char"],
+                    input_gradients["syllable"],
+                    input_gradients["boundary"],
+                )
+                if not isinstance(pooled_gradient, BackendBuffer):
+                    release_backend_buffers(pooled_gradient)
+                    raise BackendError(
+                        "sum_head_input_gradients must return a BackendBuffer"
+                    )
+                temporary_buffers.append(pooled_gradient)
+                if pooled_gradient.closed or pooled_gradient.dtype != "float64":
+                    raise BackendError("head aggregation returned an invalid buffer")
+                if pooled_gradient.shape != (self.representation.output_dim,):
+                    raise BackendError("head aggregation returned an invalid shape")
+
+                pool_backward = getattr(self.backend, "mean_pool_backward", None)
+                if not callable(pool_backward):
+                    raise BackendUnavailableError(
+                        "backend must provide mean_pool_backward for resident gradients"
+                    )
+                representation_gradient = pool_backward(
+                    pooled_gradient, context_size=context_size
+                )
+                if not isinstance(representation_gradient, BackendBuffer):
+                    release_backend_buffers(representation_gradient)
+                    raise BackendError("mean_pool_backward must return a BackendBuffer")
+                temporary_buffers.append(representation_gradient)
+                if representation_gradient.closed or representation_gradient.dtype != "float64":
+                    raise BackendError("mean_pool_backward returned an invalid buffer")
+                if representation_gradient.shape != (
+                    context_size,
+                    self.representation.output_dim,
+                ):
+                    raise BackendError("mean_pool_backward returned an invalid shape")
+                feature_gradients = self.representation.backward(
+                    representation_gradient
+                )
+                temporary_buffers.append(feature_gradients)
+            else:
+                char_gradient = cast(list[float], input_gradients["char"])
+                syllable_gradient = cast(list[float], input_gradients["syllable"])
+                boundary_gradient = cast(list[float], input_gradients["boundary"])
+                pooled_gradient = [
+                    sum(
+                        (
+                            char_gradient[index],
+                            syllable_gradient[index],
+                            boundary_gradient[index],
+                        )
+                    )
+                    / context_size
+                    for index in range(self.representation.output_dim)
+                ]
+                self.representation.backward(
+                    [pooled_gradient.copy() for _ in range(context_size)]
+                )
+
+            self.heads.step(learning_rate)
+            self.representation.step(learning_rate)
+            return report
+        finally:
+            release_backend_buffers(*temporary_buffers)
+            if self.backend.name == "cuda":
+                self.release_forward_state()
 
     def predict(
         self,

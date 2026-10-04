@@ -94,10 +94,19 @@ class CudaBackendScaffoldTests(unittest.TestCase):
                 self.assertIn("__global__", text)
                 self.assertIn(symbol, text)
 
-        placeholders = (
-            "activations.cu",
-            "losses.cu",
-        )
+        losses = source_root / "losses.cu"
+        loss_source = losses.read_text(encoding="utf-8")
+        for symbol in (
+            "kinera_cuda_cross_entropy_forward_f64",
+            "kinera_cuda_cross_entropy_gradient_f64",
+            "kinera_cuda_binary_cross_entropy_with_logits_forward_f64",
+            "kinera_cuda_binary_cross_entropy_with_logits_gradient_f64",
+        ):
+            with self.subTest(symbol=symbol):
+                self.assertIn("__global__", loss_source)
+                self.assertIn(symbol, loss_source)
+
+        placeholders = ("activations.cu",)
         for name in placeholders:
             with self.subTest(kernel=name):
                 source = source_root / name

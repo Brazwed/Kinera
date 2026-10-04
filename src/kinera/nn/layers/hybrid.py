@@ -8,6 +8,7 @@ from typing import Sequence, cast
 from kinera.backends.base import (
     BackendArray,
     BackendBuffer,
+    BackendError,
     BackendUnavailableError,
     release_backend_buffers,
 )
@@ -36,6 +37,7 @@ class HybridRepresentation:
         self.syllable_embedding = syllable_embedding
         self.feature_dim = feature_dim
         self.last_output: list[list[float]] | BackendBuffer | None = None
+        self.last_context_size: int | None = None
 
     @property
     def output_dim(self) -> int:
@@ -46,9 +48,14 @@ class HybridRepresentation:
         )
 
     def release_output(self) -> None:
-        """Release the latest owned hybrid matrix when its consumer is done."""
+        """Release the latest hybrid matrix, retaining backward shape metadata."""
         release_backend_buffers(self.last_output)
         self.last_output = None
+
+    def discard_forward_state(self) -> None:
+        """Release activation and context metadata after a completed/failed step."""
+        self.release_output()
+        self.last_context_size = None
 
     def forward(
         self,
@@ -58,6 +65,7 @@ class HybridRepresentation:
     ) -> list[list[float]] | BackendBuffer:
         self._validate_parallel_inputs(char_ids, syllable_ids, feature_vectors)
         self.release_output()
+        self.last_context_size = None
         feature_buffer: BackendArray | None = None
         try:
             char_vectors = self.char_embedding.forward(char_ids)
@@ -106,11 +114,13 @@ class HybridRepresentation:
             release_backend_buffers(feature_buffer)
             self.char_embedding.discard_forward_state()
             self.syllable_embedding.discard_forward_state()
+            self.last_context_size = None
             raise
 
         release_backend_buffers(feature_buffer)
         self.char_embedding.release_output_buffer()
         self.syllable_embedding.release_output_buffer()
+        self.last_context_size = len(char_ids)
         if isinstance(output, BackendBuffer):
             self.last_output = output
             return output
@@ -119,14 +129,24 @@ class HybridRepresentation:
         self.last_output = [vector.copy() for vector in output_values]
         return [vector.copy() for vector in output_values]
 
-    def backward(self, grad_output: list[list[float]]) -> list[list[float]]:
+    def backward(
+        self, grad_output: list[list[float]] | BackendBuffer
+    ) -> list[list[float]] | BackendBuffer:
         """Propaga gradientes às embeddings e devolve gradientes das features."""
-        if self.last_output is None:
+        if self.last_context_size is None:
+            if isinstance(self.last_output, BackendBuffer):
+                raise BackendUnavailableError(
+                    "CUDA operation HybridRepresentation.backward requires a valid forward cache"
+                )
             raise RuntimeError("backward exige um forward anterior")
+        if isinstance(grad_output, BackendBuffer):
+            return self._backward_backend(grad_output)
         if isinstance(self.last_output, BackendBuffer):
             raise BackendUnavailableError(
-                "CUDA operation HybridRepresentation.backward is not available in Phase 11A"
+                "CUDA HybridRepresentation.backward requires a resident gradient buffer"
             )
+        if not isinstance(self.last_output, list):
+            raise RuntimeError("backward exige um forward anterior")
         if not isinstance(grad_output, list):
             raise TypeError("grad_output deve ser uma lista")
         if len(grad_output) != len(self.last_output):
@@ -150,6 +170,91 @@ class HybridRepresentation:
         self.char_embedding.backward(char_gradients)
         self.syllable_embedding.backward(syllable_gradients)
         return feature_gradients
+
+    def _backward_backend(self, grad_output: BackendBuffer) -> BackendBuffer:
+        context_size = self.last_context_size
+        assert context_size is not None
+        if grad_output.closed:
+            raise BackendError("HybridRepresentation.backward received a released buffer")
+        if grad_output.dtype != "float64":
+            raise ValueError("grad_output must use dtype float64")
+        if len(grad_output.shape) != 2 or grad_output.shape != (
+            context_size,
+            self.output_dim,
+        ):
+            raise ValueError("grad_output must match the forward hybrid matrix shape")
+
+        char_ids = self.char_embedding.last_ids
+        syllable_ids = self.syllable_embedding.last_ids
+        if char_ids is None or syllable_ids is None:
+            raise RuntimeError("backward exige um forward anterior")
+        if not isinstance(char_ids, BackendBuffer) or not isinstance(
+            syllable_ids, BackendBuffer
+        ):
+            raise BackendUnavailableError(
+                "resident HybridRepresentation.backward requires resident embedding IDs"
+            )
+        for name, ids in (("char_ids", char_ids), ("syllable_ids", syllable_ids)):
+            if ids.closed:
+                raise BackendError(f"{name} buffer has been released")
+            if ids.dtype != "int32" or ids.shape != (context_size,):
+                raise BackendError(f"{name} buffer does not match the forward context")
+            if (ids.device, ids.device_id) != (
+                grad_output.device,
+                grad_output.device_id,
+            ):
+                raise BackendError("HybridRepresentation.backward buffers must share a device")
+
+        backward = getattr(
+            self.char_embedding.backend, "hybrid_representation_backward", None
+        )
+        if not callable(backward):
+            raise BackendUnavailableError(
+                "backend must provide hybrid_representation_backward for device buffers"
+            )
+        outputs: object = backward(
+            grad_output,
+            char_dim=self.char_embedding.embedding_dim,
+            feature_dim=self.feature_dim,
+            syllable_dim=self.syllable_embedding.embedding_dim,
+        )
+        if not isinstance(outputs, tuple) or len(outputs) != 3:
+            release_backend_buffers(outputs)
+            raise TypeError("hybrid_representation_backward must return three buffers")
+        char_gradient, feature_gradient, syllable_gradient = outputs
+        expected = (
+            (context_size, self.char_embedding.embedding_dim),
+            (context_size, self.feature_dim),
+            (context_size, self.syllable_embedding.embedding_dim),
+        )
+        try:
+            for name, buffer, shape in zip(
+                ("char", "feature", "syllable"),
+                outputs,
+                expected,
+            ):
+                if not isinstance(buffer, BackendBuffer):
+                    raise TypeError(
+                        f"hybrid_representation_backward {name} gradient must be a BackendBuffer"
+                    )
+                if buffer.closed or buffer.dtype != "float64" or buffer.shape != shape:
+                    raise BackendError(
+                        f"hybrid_representation_backward returned invalid {name} gradients"
+                    )
+                if (buffer.device, buffer.device_id) != (
+                    grad_output.device,
+                    grad_output.device_id,
+                ):
+                    raise BackendError(
+                        "hybrid_representation_backward returned a gradient on the wrong device"
+                    )
+            self.char_embedding.backward(char_gradient)
+            self.syllable_embedding.backward(syllable_gradient)
+        except Exception:
+            release_backend_buffers(*outputs)
+            raise
+        release_backend_buffers(char_gradient, syllable_gradient)
+        return feature_gradient
 
     def step(self, learning_rate: float) -> None:
         self.char_embedding.step(learning_rate)

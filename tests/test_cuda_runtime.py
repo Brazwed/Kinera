@@ -62,7 +62,7 @@ class FakeFunction:
 
 
 class FakeLibrary:
-    def __init__(self, abi_version: int = 6, omit: str | None = None) -> None:
+    def __init__(self, abi_version: int = 7, omit: str | None = None) -> None:
         self.kinera_cuda_abi_version = FakeFunction(abi_version)
         self.kinera_cuda_error_string = FakeFunction(b"fake CUDA error")
         self.kinera_cuda_get_device_count = FakeFunction(
@@ -109,6 +109,34 @@ class FakeLibrary:
         self.kinera_cuda_mean_pool_forward_f64 = FakeFunction(
             callback=self._record_mean_pool
         )
+        self.cross_entropy_forward_arguments = None
+        self.kinera_cuda_cross_entropy_forward_f64 = FakeFunction(
+            callback=self._record_cross_entropy_forward
+        )
+        self.cross_entropy_gradient_arguments = None
+        self.kinera_cuda_cross_entropy_gradient_f64 = FakeFunction(
+            callback=self._record_cross_entropy_gradient
+        )
+        self.binary_cross_entropy_forward_arguments = None
+        self.kinera_cuda_binary_cross_entropy_with_logits_forward_f64 = FakeFunction(
+            callback=self._record_binary_cross_entropy_forward
+        )
+        self.binary_cross_entropy_gradient_arguments = None
+        self.kinera_cuda_binary_cross_entropy_with_logits_gradient_f64 = FakeFunction(
+            callback=self._record_binary_cross_entropy_gradient
+        )
+        self.head_gradient_sum_arguments = None
+        self.kinera_cuda_sum_head_input_gradients_f64 = FakeFunction(
+            callback=self._record_head_gradient_sum
+        )
+        self.mean_pool_backward_arguments = None
+        self.kinera_cuda_mean_pool_backward_f64 = FakeFunction(
+            callback=self._record_mean_pool_backward
+        )
+        self.hybrid_backward_arguments = None
+        self.kinera_cuda_hybrid_representation_backward_f64 = FakeFunction(
+            callback=self._record_hybrid_backward
+        )
         self.argmax_arguments = None
         self.kinera_cuda_argmax_f64 = FakeFunction(callback=self._record_argmax)
         if omit:
@@ -144,6 +172,34 @@ class FakeLibrary:
 
     def _record_mean_pool(self, *args) -> int:
         self.mean_pool_arguments = args
+        return 0
+
+    def _record_cross_entropy_forward(self, *args) -> int:
+        self.cross_entropy_forward_arguments = args
+        return 0
+
+    def _record_cross_entropy_gradient(self, *args) -> int:
+        self.cross_entropy_gradient_arguments = args
+        return 0
+
+    def _record_binary_cross_entropy_forward(self, *args) -> int:
+        self.binary_cross_entropy_forward_arguments = args
+        return 0
+
+    def _record_binary_cross_entropy_gradient(self, *args) -> int:
+        self.binary_cross_entropy_gradient_arguments = args
+        return 0
+
+    def _record_head_gradient_sum(self, *args) -> int:
+        self.head_gradient_sum_arguments = args
+        return 0
+
+    def _record_mean_pool_backward(self, *args) -> int:
+        self.mean_pool_backward_arguments = args
+        return 0
+
+    def _record_hybrid_backward(self, *args) -> int:
+        self.hybrid_backward_arguments = args
         return 0
 
     def _record_argmax(self, *args) -> int:
@@ -201,6 +257,37 @@ class CudaRuntimeTests(unittest.TestCase):
 
 
 class CudaKernelArithmeticContractTests(unittest.TestCase):
+    def test_multitask_backward_kernels_export_all_resident_ops(self) -> None:
+        kernel = (
+            Path(__file__).resolve().parents[1]
+            / "src/kinera/backends/cuda/kernels/multitask_backward.cu"
+        )
+        source = kernel.read_text(encoding="utf-8")
+        for symbol in (
+            "kinera_cuda_sum_head_input_gradients_f64",
+            "kinera_cuda_mean_pool_backward_f64",
+            "kinera_cuda_hybrid_representation_backward_f64",
+        ):
+            with self.subTest(symbol=symbol):
+                self.assertIn(symbol, source)
+        self.assertIn("blocks_wide > static_cast<std::size_t>(INT_MAX)", source)
+
+    def test_loss_kernel_exports_resident_ce_and_bce_forward_backward_symbols(self) -> None:
+        kernel = (
+            Path(__file__).resolve().parents[1]
+            / "src/kinera/backends/cuda/kernels/losses.cu"
+        )
+        source = kernel.read_text(encoding="utf-8")
+        for symbol in (
+            "kinera_cuda_cross_entropy_forward_f64",
+            "kinera_cuda_cross_entropy_gradient_f64",
+            "kinera_cuda_binary_cross_entropy_with_logits_forward_f64",
+            "kinera_cuda_binary_cross_entropy_with_logits_gradient_f64",
+        ):
+            with self.subTest(symbol=symbol):
+                self.assertIn(symbol, source)
+        self.assertIn("KINERA_CUDA_INVALID_NUMERIC_STATUS", source)
+
     def test_mean_pool_grid_math_handles_signed_int_max_without_signed_wrap(self) -> None:
         kernel = (
             Path(__file__).resolve().parents[1]
@@ -251,7 +338,7 @@ class CudaBridgeAbiTests(unittest.TestCase):
             self.assertFalse(bridge.is_loaded)
             bridge.load()
             self.assertTrue(bridge.is_loaded)
-            self.assertEqual(bridge.abi_version, 6)
+            self.assertEqual(bridge.abi_version, 7)
             self.assertEqual(bridge.device_count(), 1)
             self.assertIsNotNone(library.kinera_cuda_get_device_count.argtypes)
 
@@ -308,6 +395,62 @@ class CudaBridgeAbiTests(unittest.TestCase):
         self.assertEqual(
             library.linear_step_arguments,
             (0, 101, 202, 303, 404, 0.125, 3, 2),
+        )
+
+    def test_bridge_dispatches_resident_backward_chain_symbols(self) -> None:
+        from kinera.backends.cuda.bridge import CudaBridge
+
+        library = FakeLibrary()
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            bridge.sum_head_input_gradients_f64(0, 101, 202, 303, 404, 5, 1)
+            bridge.mean_pool_backward_f64(0, 501, 502, 3, 5)
+            bridge.hybrid_representation_backward_f64(
+                0, 601, 602, 603, 604, 3, 2, 4, 2
+            )
+        self.assertEqual(
+            library.head_gradient_sum_arguments,
+            (0, 101, 202, 303, 404, 5, 1),
+        )
+        self.assertEqual(library.mean_pool_backward_arguments, (0, 501, 502, 3, 5))
+        self.assertEqual(
+            library.hybrid_backward_arguments,
+            (0, 601, 602, 603, 604, 3, 2, 4, 2),
+        )
+
+    def test_bridge_dispatches_all_probability_forward_and_gradient_symbols(self) -> None:
+        from kinera.backends.cuda.bridge import CudaBridge
+
+        library = FakeLibrary()
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            bridge.cross_entropy_forward_f64(0, 101, 202, 303, 5, 2, 1)
+            bridge.binary_cross_entropy_with_logits_forward_f64(
+                0, 401, 402, 403, 1.0
+            )
+            bridge.binary_cross_entropy_with_logits_gradient_f64(
+                0, 501, 502, 503, 0.0, 0.3
+            )
+        self.assertEqual(library.cross_entropy_forward_arguments, (0, 101, 202, 303, 5, 2, 1))
+        self.assertEqual(
+            library.binary_cross_entropy_forward_arguments,
+            (0, 401, 402, 403, 1.0),
+        )
+        self.assertEqual(
+            library.binary_cross_entropy_gradient_arguments,
+            (0, 501, 502, 503, 0.0, 0.3),
+        )
+
+    def test_bridge_dispatches_cross_entropy_gradient_through_versioned_c_symbol(self) -> None:
+        from kinera.backends.cuda.bridge import CudaBridge
+
+        library = FakeLibrary()
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            bridge.cross_entropy_gradient_f64(0, 101, 202, 303, 3, 1, 0.7, 1)
+        self.assertEqual(
+            library.cross_entropy_gradient_arguments,
+            (0, 101, 202, 303, 3, 1, 0.7, 1),
         )
 
     def test_bridge_dispatches_argmax_through_versioned_c_symbol(self) -> None:

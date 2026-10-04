@@ -15,9 +15,10 @@ from typing import Any, Callable
 from kinera.backends.base import BackendUnavailableError
 
 
-ABI_VERSION = 6
+ABI_VERSION = 7
 # Negative statuses are reserved for Kinera-level validation failures.
 KINERA_CUDA_INVALID_INDEX_STATUS = -1
+KINERA_CUDA_INVALID_NUMERIC_STATUS = -2
 _BUILD_FLAGS = (
     "--shared",
     "--cudart=shared",
@@ -394,6 +395,157 @@ class CudaBridge:
             ),
         )
 
+    def cross_entropy_forward_f64(
+        self,
+        device_id: int,
+        logits: int,
+        loss: int,
+        status: int,
+        logits_count: int,
+        target_id: int,
+        compensated_sum: int,
+    ) -> None:
+        self.load()
+        self._check(
+            "cross_entropy.forward kernel",
+            self._functions["kinera_cuda_cross_entropy_forward_f64"](
+                device_id,
+                logits,
+                loss,
+                status,
+                logits_count,
+                target_id,
+                compensated_sum,
+            ),
+        )
+
+    def cross_entropy_gradient_f64(
+        self,
+        device_id: int,
+        logits: int,
+        gradient: int,
+        status: int,
+        logits_count: int,
+        target_id: int,
+        scale: float,
+        compensated_sum: int,
+    ) -> None:
+        self.load()
+        self._check(
+            "cross_entropy.gradient kernel",
+            self._functions["kinera_cuda_cross_entropy_gradient_f64"](
+                device_id,
+                logits,
+                gradient,
+                status,
+                logits_count,
+                target_id,
+                scale,
+                compensated_sum,
+            ),
+        )
+
+    def binary_cross_entropy_with_logits_forward_f64(
+        self,
+        device_id: int,
+        logit: int,
+        loss: int,
+        status: int,
+        target: float,
+    ) -> None:
+        self.load()
+        self._check(
+            "binary_cross_entropy_with_logits.forward kernel",
+            self._functions[
+                "kinera_cuda_binary_cross_entropy_with_logits_forward_f64"
+            ](device_id, logit, loss, status, target),
+        )
+
+    def binary_cross_entropy_with_logits_gradient_f64(
+        self,
+        device_id: int,
+        logit: int,
+        gradient: int,
+        status: int,
+        target: float,
+        scale: float,
+    ) -> None:
+        self.load()
+        self._check(
+            "binary_cross_entropy_with_logits.gradient kernel",
+            self._functions[
+                "kinera_cuda_binary_cross_entropy_with_logits_gradient_f64"
+            ](device_id, logit, gradient, status, target, scale),
+        )
+
+    def sum_head_input_gradients_f64(
+        self,
+        device_id: int,
+        char_gradient: int,
+        syllable_gradient: int,
+        boundary_gradient: int,
+        output: int,
+        feature_dim: int,
+        compensated_sum: int,
+    ) -> None:
+        self.load()
+        self._check(
+            "head gradient aggregation kernel",
+            self._functions["kinera_cuda_sum_head_input_gradients_f64"](
+                device_id,
+                char_gradient,
+                syllable_gradient,
+                boundary_gradient,
+                output,
+                feature_dim,
+                compensated_sum,
+            ),
+        )
+
+    def mean_pool_backward_f64(
+        self,
+        device_id: int,
+        grad_pooled: int,
+        grad_vectors: int,
+        context_size: int,
+        feature_dim: int,
+    ) -> None:
+        self.load()
+        self._check(
+            "mean_pool.backward kernel",
+            self._functions["kinera_cuda_mean_pool_backward_f64"](
+                device_id, grad_pooled, grad_vectors, context_size, feature_dim
+            ),
+        )
+
+    def hybrid_representation_backward_f64(
+        self,
+        device_id: int,
+        grad_output: int,
+        char_gradient: int,
+        feature_gradient: int,
+        syllable_gradient: int,
+        context_size: int,
+        char_dim: int,
+        feature_dim: int,
+        syllable_dim: int,
+    ) -> None:
+        self.load()
+        self._check(
+            "HybridRepresentation.backward kernel",
+            self._functions["kinera_cuda_hybrid_representation_backward_f64"](
+                device_id,
+                grad_output,
+                char_gradient,
+                feature_gradient,
+                syllable_gradient,
+                context_size,
+                char_dim,
+                feature_dim,
+                syllable_dim,
+            ),
+        )
+
     def argmax_f64(
         self,
         device_id: int,
@@ -550,6 +702,88 @@ class CudaBridge:
                     ctypes.c_int,
                     ctypes.c_void_p,
                     ctypes.c_void_p,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_cross_entropy_forward_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_cross_entropy_gradient_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                    ctypes.c_double,
+                    ctypes.c_int,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_binary_cross_entropy_with_logits_forward_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_double,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_binary_cross_entropy_with_logits_gradient_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_double,
+                    ctypes.c_double,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_sum_head_input_gradients_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_mean_pool_backward_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_hybrid_representation_backward_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_int,
                     ctypes.c_int,
                     ctypes.c_int,
                     ctypes.c_int,

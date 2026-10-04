@@ -6,6 +6,11 @@ import math
 from typing import Any
 
 from kinera.backends import Backend, resolve_backend
+from kinera.backends.base import (
+    BackendBuffer,
+    BackendError,
+    release_backend_buffers,
+)
 
 from .boundary import BoundaryHead
 from .character import CharacterHead
@@ -43,7 +48,9 @@ class MultiTaskHeads:
             backend=self.backend,
         )
 
-    def forward(self, representation: list[float]) -> dict[str, list[float]]:
+    def forward(
+        self, representation: list[float] | BackendBuffer
+    ) -> dict[str, list[float] | BackendBuffer]:
         """Calcula logits das três tarefas sobre uma entrada compartilhada."""
         self._validate_representation(representation)
         return {
@@ -54,8 +61,8 @@ class MultiTaskHeads:
 
     def backward(
         self,
-        gradients: dict[str, list[float]],
-    ) -> dict[str, list[float]]:
+        gradients: dict[str, list[float] | BackendBuffer],
+    ) -> dict[str, list[float] | BackendBuffer]:
         """Propaga gradientes de cada head e devolve gradientes da entrada."""
         if not isinstance(gradients, dict) or set(gradients) != {
             "char",
@@ -63,11 +70,21 @@ class MultiTaskHeads:
             "boundary",
         }:
             raise ValueError("gradients deve conter char, syllable e boundary")
-        return {
-            "char": self.char.backward(gradients["char"]),
-            "syllable": self.syllable.backward(gradients["syllable"]),
-            "boundary": self.boundary.backward(gradients["boundary"]),
+        outputs: dict[str, list[float] | BackendBuffer] = {}
+        layers = {
+            "char": self.char,
+            "syllable": self.syllable,
+            "boundary": self.boundary,
         }
+        try:
+            for name in ("char", "syllable", "boundary"):
+                outputs[name] = layers[name].backward(gradients[name])
+        except Exception:
+            release_backend_buffers(*outputs.values())
+            for layer in layers.values():
+                layer.release_backward_state()
+            raise
+        return outputs
 
     def step(self, learning_rate: float) -> None:
         """Atualiza os parâmetros das três cabeças."""
@@ -83,9 +100,19 @@ class MultiTaskHeads:
             raise ValueError(f"{name} deve ser positivo")
 
     @staticmethod
-    def _validate_representation(representation: list[float]) -> None:
+    def _validate_representation(
+        representation: list[float] | BackendBuffer,
+    ) -> None:
+        if isinstance(representation, BackendBuffer):
+            if representation.closed:
+                raise BackendError("representation buffer has been released")
+            if representation.dtype != "float64":
+                raise ValueError("representation buffer must use dtype float64")
+            if len(representation.shape) != 1 or representation.shape[0] <= 0:
+                raise ValueError("representation buffer must be a non-empty vector")
+            return
         if not isinstance(representation, list):
-            raise TypeError("representation deve ser uma lista")
+            raise TypeError("representation deve ser uma lista ou BackendBuffer")
         for index, value in enumerate(representation):
             if isinstance(value, bool) or not isinstance(value, (int, float)):
                 raise TypeError(f"representation[{index}] deve ser numérico")
