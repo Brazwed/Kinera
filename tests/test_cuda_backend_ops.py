@@ -10,6 +10,7 @@ from typing import cast
 
 from kinera.backends.base import BackendError
 from kinera.backends.cuda import CUDABackend, CudaBridge, CudaBuffer, CudaRuntime
+from kinera.nn.layers.linear import Linear
 
 
 class FakeCudaBridge(CudaBridge):
@@ -18,6 +19,7 @@ class FakeCudaBridge(CudaBridge):
         self._next_pointer = 0x1000
         self._allocations: dict[int, bytearray] = {}
         self.backward_calls: list[tuple[int, ...]] = []
+        self.linear_forward_calls: list[tuple[int, ...]] = []
         self.step_calls: list[tuple[int | float, ...]] = []
         self.copy_to_device_calls = 0
         self.copy_to_host_calls = 0
@@ -28,6 +30,13 @@ class FakeCudaBridge(CudaBridge):
         self.hybrid_forward_calls: list[tuple[int, ...]] = []
         self.mean_pool_calls: list[tuple[int, ...]] = []
         self.argmax_calls: list[tuple[int, ...]] = []
+        self.cross_entropy_gradient_calls: list[tuple[int | float, ...]] = []
+        self.cross_entropy_forward_calls: list[tuple[int | float, ...]] = []
+        self.binary_cross_entropy_forward_calls: list[tuple[int | float, ...]] = []
+        self.binary_cross_entropy_gradient_calls: list[tuple[int | float, ...]] = []
+        self.head_gradient_sum_calls: list[tuple[int, ...]] = []
+        self.mean_pool_backward_calls: list[tuple[int, ...]] = []
+        self.hybrid_backward_calls: list[tuple[int, ...]] = []
 
     def device_count(self) -> int:
         return self._device_count
@@ -74,6 +83,20 @@ class FakeCudaBridge(CudaBridge):
                 input_size,
                 output_size,
             )
+        )
+
+    def linear_forward_f64(
+        self,
+        device_id: int,
+        weights: int,
+        bias: int,
+        inputs: int,
+        output: int,
+        input_size: int,
+        output_size: int,
+    ) -> None:
+        self.linear_forward_calls.append(
+            (device_id, weights, bias, inputs, output, input_size, output_size)
         )
 
     def linear_backward_f64(
@@ -208,6 +231,116 @@ class FakeCudaBridge(CudaBridge):
         struct.pack_into("=i", self._allocations[output], 0, result)
 
 
+    def cross_entropy_gradient_f64(
+        self,
+        device_id: int,
+        logits: int,
+        gradient: int,
+        status: int,
+        logits_count: int,
+        target_id: int,
+        scale: float,
+        compensated_sum: int,
+    ) -> None:
+        self.cross_entropy_gradient_calls.append(
+            (device_id, logits, gradient, status, logits_count, target_id, scale, compensated_sum)
+        )
+        struct.pack_into("=i", self._allocations[status], 0, 0)
+
+
+    def cross_entropy_forward_f64(
+        self,
+        device_id: int,
+        logits: int,
+        loss: int,
+        status: int,
+        logits_count: int,
+        target_id: int,
+        compensated_sum: int,
+    ) -> None:
+        self.cross_entropy_forward_calls.append(
+            (device_id, logits, loss, status, logits_count, target_id, compensated_sum)
+        )
+        struct.pack_into("=d", self._allocations[loss], 0, 0.75)
+        struct.pack_into("=i", self._allocations[status], 0, 0)
+
+    def binary_cross_entropy_with_logits_forward_f64(
+        self, device_id: int, logit: int, loss: int, status: int, target: float
+    ) -> None:
+        self.binary_cross_entropy_forward_calls.append(
+            (device_id, logit, loss, status, target)
+        )
+        struct.pack_into("=d", self._allocations[loss], 0, 0.25)
+        struct.pack_into("=i", self._allocations[status], 0, 0)
+
+    def binary_cross_entropy_with_logits_gradient_f64(
+        self,
+        device_id: int,
+        logit: int,
+        gradient: int,
+        status: int,
+        target: float,
+        scale: float,
+    ) -> None:
+        self.binary_cross_entropy_gradient_calls.append(
+            (device_id, logit, gradient, status, target, scale)
+        )
+        struct.pack_into("=i", self._allocations[status], 0, 0)
+
+
+    def sum_head_input_gradients_f64(
+        self,
+        device_id: int,
+        char_gradient: int,
+        syllable_gradient: int,
+        boundary_gradient: int,
+        output: int,
+        feature_dim: int,
+        compensated_sum: int,
+    ) -> None:
+        self.head_gradient_sum_calls.append(
+            (device_id, char_gradient, syllable_gradient, boundary_gradient, output, feature_dim, compensated_sum)
+        )
+
+    def mean_pool_backward_f64(
+        self,
+        device_id: int,
+        grad_pooled: int,
+        grad_vectors: int,
+        context_size: int,
+        feature_dim: int,
+    ) -> None:
+        self.mean_pool_backward_calls.append(
+            (device_id, grad_pooled, grad_vectors, context_size, feature_dim)
+        )
+
+    def hybrid_representation_backward_f64(
+        self,
+        device_id: int,
+        grad_output: int,
+        char_gradient: int,
+        feature_gradient: int,
+        syllable_gradient: int,
+        context_size: int,
+        char_dim: int,
+        feature_dim: int,
+        syllable_dim: int,
+    ) -> None:
+        self.hybrid_backward_calls.append(
+            (
+                device_id,
+                grad_output,
+                char_gradient,
+                feature_gradient,
+                syllable_gradient,
+                context_size,
+                char_dim,
+                feature_dim,
+                syllable_dim,
+            )
+        )
+
+
 class CudaBackendMeanPoolDispatchTests(unittest.TestCase):
     def setUp(self) -> None:
         self.bridge = FakeCudaBridge()
@@ -319,6 +452,167 @@ class CudaBackendNativeDimensionBoundsTests(unittest.TestCase):
                     )
                 allocate.assert_not_called()
         self.assertEqual(self.bridge.hybrid_forward_calls, [])
+
+
+class CudaBackendResidentLossDispatchTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bridge = FakeCudaBridge()
+        self.backend = CUDABackend(runtime=CudaRuntime(bridge=self.bridge))
+
+    def test_cross_entropy_forward_returns_scalar_and_only_scalar_d2h(self) -> None:
+        with ExitStack() as stack:
+            logits = stack.enter_context(
+                self.backend.buffer_from_host([0.25, -0.5, 1.0], shape=(3,))
+            )
+            h2d_before = self.bridge.copy_to_device_calls
+            d2h_before = self.bridge.copy_to_host_calls
+
+            loss = self.backend.cross_entropy_forward_buffer(logits, 2)
+
+            self.assertEqual(loss, 0.75)
+            self.assertEqual(self.bridge.copy_to_device_calls, h2d_before)
+            self.assertEqual(self.bridge.copy_to_host_calls, d2h_before + 2)
+            self.assertEqual(
+                self.bridge.copy_to_host_nbytes[-2:],
+                [ctypes.sizeof(ctypes.c_int32), ctypes.sizeof(ctypes.c_double)],
+            )
+
+    def test_binary_cross_entropy_forward_and_gradient_are_resident_except_scalars(self) -> None:
+        with ExitStack() as stack:
+            logit = stack.enter_context(
+                self.backend.buffer_from_host([0.5], shape=(1,))
+            )
+            d2h_before = self.bridge.copy_to_host_calls
+            loss = self.backend.binary_cross_entropy_with_logits_forward_buffer(
+                logit, 1.0
+            )
+            gradient = self.backend.binary_cross_entropy_with_logits_gradient_buffer(
+                logit, 1.0, 0.3
+            )
+            stack.enter_context(gradient)
+
+            self.assertEqual(loss, 0.25)
+            self.assertEqual(gradient.shape, (1,))
+            self.assertEqual(self.bridge.copy_to_host_calls, d2h_before + 3)
+            self.assertEqual(
+                self.bridge.copy_to_host_nbytes[d2h_before:],
+                [ctypes.sizeof(ctypes.c_int32), ctypes.sizeof(ctypes.c_double), ctypes.sizeof(ctypes.c_int32)],
+            )
+            self.assertEqual(len(self.bridge.binary_cross_entropy_gradient_calls), 1)
+
+    def test_cross_entropy_gradient_stays_resident_and_scales_in_kernel(self) -> None:
+        with ExitStack() as stack:
+            logits = stack.enter_context(
+                self.backend.buffer_from_host([0.25, -0.5, 1.0], shape=(3,))
+            )
+            h2d_before = self.bridge.copy_to_device_calls
+            d2h_before = self.bridge.copy_to_host_calls
+
+            gradient = self.backend.cross_entropy_gradient_buffer(logits, 2, 0.7)
+            stack.enter_context(gradient)
+
+            self.assertEqual(gradient.shape, (3,))
+            self.assertEqual(gradient.dtype, "float64")
+            self.assertEqual(len(self.bridge.cross_entropy_gradient_calls), 1)
+            call = self.bridge.cross_entropy_gradient_calls[0]
+            self.assertEqual(call[:3], (0, logits.pointer, gradient.pointer))
+            self.assertEqual(call[4:], (3, 2, 0.7, int(sum((1e16, 1.0, -1e16)) == 1.0)))
+            self.assertNotIn(call[3], self.bridge._allocations)
+            self.assertEqual(self.bridge.copy_to_device_calls, h2d_before)
+            self.assertEqual(self.bridge.copy_to_host_calls, d2h_before + 1)
+            self.assertEqual(self.bridge.copy_to_host_nbytes[-1], ctypes.sizeof(ctypes.c_int32))
+
+
+class CudaBackendResidentBackwardDispatchTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bridge = FakeCudaBridge()
+        self.backend = CUDABackend(runtime=CudaRuntime(bridge=self.bridge))
+
+    def test_repeated_backward_releases_replaced_device_parameter_gradients(self) -> None:
+        with ExitStack() as stack:
+            layer = Linear(3, 2, seed=9, backend=self.backend)
+            inputs = stack.enter_context(
+                self.backend.buffer_from_host([0.1, 0.2, 0.3], shape=(3,))
+            )
+            grad_output = stack.enter_context(
+                self.backend.buffer_from_host([0.4, -0.5], shape=(2,))
+            )
+            layer.forward(inputs)
+            first_grad_inputs = cast(CudaBuffer, layer.backward(grad_output))
+            stack.enter_context(first_grad_inputs)
+            first_grad_weights = cast(CudaBuffer, layer.grad_weights)
+            first_grad_bias = cast(CudaBuffer, layer.grad_bias)
+
+            second_grad_inputs = cast(CudaBuffer, layer.backward(grad_output))
+            stack.enter_context(second_grad_inputs)
+            self.assertIsNot(first_grad_inputs, second_grad_inputs)
+            self.assertTrue(first_grad_weights.closed)
+            self.assertTrue(first_grad_bias.closed)
+            self.assertIsInstance(layer.grad_weights, CudaBuffer)
+            self.assertIsInstance(layer.grad_bias, CudaBuffer)
+
+    def test_linear_release_backward_state_closes_device_parameter_gradients(self) -> None:
+        with ExitStack() as stack:
+            layer = Linear(3, 2, seed=9, backend=self.backend)
+            inputs = stack.enter_context(
+                self.backend.buffer_from_host([0.1, 0.2, 0.3], shape=(3,))
+            )
+            grad_output = stack.enter_context(
+                self.backend.buffer_from_host([0.4, -0.5], shape=(2,))
+            )
+            layer.forward(inputs)
+            grad_inputs = stack.enter_context(layer.backward(grad_output))
+            grad_weights = cast(CudaBuffer, layer.grad_weights)
+            grad_bias = cast(CudaBuffer, layer.grad_bias)
+
+            layer.release_backward_state()
+
+            self.assertTrue(grad_weights.closed)
+            self.assertTrue(grad_bias.closed)
+            self.assertIsNone(layer.grad_weights)
+            self.assertIsNone(layer.grad_bias)
+            self.assertFalse(layer._has_backward)
+
+    def test_head_sum_pool_backward_and_representation_split_stay_resident(self) -> None:
+        with ExitStack() as stack:
+            char = stack.enter_context(
+                self.backend.buffer_from_host([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], shape=(6,))
+            )
+            syllable = stack.enter_context(
+                self.backend.buffer_from_host([-0.1, -0.2, -0.3, -0.4, -0.5, -0.6], shape=(6,))
+            )
+            boundary = stack.enter_context(
+                self.backend.buffer_from_host([0.05, 0.06, 0.07, 0.08, 0.09, 0.1], shape=(6,))
+            )
+            h2d_before = self.bridge.copy_to_device_calls
+            d2h_before = self.bridge.copy_to_host_calls
+
+            pooled_gradient = self.backend.sum_head_input_gradients(
+                char, syllable, boundary
+            )
+            stack.enter_context(pooled_gradient)
+            matrix_gradient = self.backend.mean_pool_backward(
+                pooled_gradient, context_size=2
+            )
+            stack.enter_context(matrix_gradient)
+            char_gradient, feature_gradient, syllable_gradient = (
+                self.backend.hybrid_representation_backward(
+                    matrix_gradient, char_dim=2, feature_dim=2, syllable_dim=2
+                )
+            )
+            for buffer in (char_gradient, feature_gradient, syllable_gradient):
+                stack.enter_context(buffer)
+
+            self.assertEqual(pooled_gradient.shape, (6,))
+            self.assertEqual(matrix_gradient.shape, (2, 6))
+            self.assertEqual(char_gradient.shape, (2, 2))
+            self.assertEqual(feature_gradient.shape, (2, 2))
+            self.assertEqual(syllable_gradient.shape, (2, 2))
+            self.assertEqual(self.bridge.copy_to_device_calls, h2d_before)
+            self.assertEqual(self.bridge.copy_to_host_calls, d2h_before)
+            self.assertEqual(len(self.bridge.head_gradient_sum_calls), 1)
+            self.assertEqual(len(self.bridge.mean_pool_backward_calls), 1)
+            self.assertEqual(len(self.bridge.hybrid_backward_calls), 1)
 
 
 class CudaBackendArgmaxDispatchTests(unittest.TestCase):

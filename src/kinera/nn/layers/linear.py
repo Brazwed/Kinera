@@ -6,7 +6,12 @@ from random import Random
 from typing import cast
 
 from kinera.backends import Backend, resolve_backend
-from kinera.backends.base import BackendArray, BackendBuffer, BackendError
+from kinera.backends.base import (
+    BackendArray,
+    BackendBuffer,
+    BackendError,
+    release_backend_buffers,
+)
 
 
 class Linear:
@@ -129,6 +134,7 @@ class Linear:
             output, (self.output_size,), "output"
         )
 
+        self.release_backward_state()
         self.weights = prepared_weights
         self.bias = prepared_bias
         self.last_input = prepared_inputs
@@ -159,19 +165,42 @@ class Linear:
         grad_weights, grad_bias, grad_inputs = self.backend.linear_backward(
             self.weights, self.last_input, prepared_gradient
         )
-        self.grad_weights = self._validate_backend_array(
+        previous_gradients = (self.grad_weights, self.grad_bias)
+        validated_grad_weights = self._validate_backend_array(
             grad_weights, (self.output_size, self.input_size), "grad_weights"
         )
-        self.grad_bias = self._validate_backend_array(
+        validated_grad_bias = self._validate_backend_array(
             grad_bias, (self.output_size,), "grad_bias"
         )
         validated_grad_inputs = self._validate_backend_array(
             grad_inputs, (self.input_size,), "grad_inputs"
         )
+        release_backend_buffers(
+            *(
+                previous
+                for previous, replacement in zip(
+                    previous_gradients,
+                    (validated_grad_weights, validated_grad_bias),
+                )
+                if previous is not replacement
+            )
+        )
+        self.grad_weights = validated_grad_weights
+        self.grad_bias = validated_grad_bias
         self._has_backward = True
         if isinstance(validated_grad_inputs, list):
             return cast(list[float], validated_grad_inputs.copy())
         return validated_grad_inputs
+
+    def release_backward_state(self) -> None:
+        """Discard temporary backend-owned parameter gradients explicitly."""
+        if isinstance(self.grad_weights, BackendBuffer) or isinstance(
+            self.grad_bias, BackendBuffer
+        ):
+            release_backend_buffers(self.grad_weights, self.grad_bias)
+            self.grad_weights = None
+            self.grad_bias = None
+        self._has_backward = False
 
     def step(self, learning_rate: float) -> None:
         """Atualiza pesos e biases com gradient descent."""

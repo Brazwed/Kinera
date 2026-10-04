@@ -1,4 +1,6 @@
+import math
 import unittest
+from copy import deepcopy
 from typing import cast
 
 from kinera.backends.base import BackendArray, BackendBuffer, BackendUnavailableError
@@ -21,6 +23,70 @@ class NonSequenceBackendBuffer:
 
     def close(self) -> None:
         self.closed = True
+
+
+class ResidentBuffer:
+    device = "cuda"
+    device_id = 0
+    layout = "row_major"
+    owns_memory = True
+
+    def __init__(
+        self, values: object, shape: tuple[int, ...], dtype: str = "float64"
+    ) -> None:
+        self.values = values
+        self.shape = shape
+        self.dtype = dtype
+        self.nbytes = (4 if dtype == "int32" else 8) * math.prod(shape)
+        self.closed = False
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class ResidentHybridBackend(CPUBackend):
+    name = "cuda"
+
+    def __init__(self) -> None:
+        self.embedding_backward_inputs: list[list[list[float]]] = []
+
+    def buffer_from_host(self, values, *, shape, dtype="float64"):  # type: ignore[override]
+        return ResidentBuffer(deepcopy(values), shape, dtype)
+
+    def buffer_to_host(self, buffer):
+        raise AssertionError("resident representation backward must not download")
+
+    def embedding_forward(self, weights, ids):  # type: ignore[override]
+        rows = [weights.values[index][:] for index in ids.values]
+        return ResidentBuffer(rows, (len(rows), weights.shape[1]))
+
+    def hybrid_representation_forward(self, char_vectors, feature_vectors, syllable_vectors):  # type: ignore[override]
+        values = [
+            char + feature + syllable
+            for char, feature, syllable in zip(
+                char_vectors.values, feature_vectors.values, syllable_vectors.values
+            )
+        ]
+        return ResidentBuffer(values, (len(values), len(values[0])))
+
+    def hybrid_representation_backward(
+        self, grad_output, *, char_dim, feature_dim, syllable_dim
+    ):
+        char_rows = [row[:char_dim] for row in grad_output.values]
+        feature_rows = [
+            row[char_dim : char_dim + feature_dim] for row in grad_output.values
+        ]
+        syllable_rows = [row[char_dim + feature_dim :] for row in grad_output.values]
+        context = len(grad_output.values)
+        return (
+            ResidentBuffer(char_rows, (context, char_dim)),
+            ResidentBuffer(feature_rows, (context, feature_dim)),
+            ResidentBuffer(syllable_rows, (context, syllable_dim)),
+        )
+
+    def embedding_backward(self, grad_weights, ids, grad_output):
+        self.embedding_backward_inputs.append(deepcopy(grad_output.values))
+        return grad_weights
 
 
 class RecordingHybridBackend(CPUBackend):
@@ -189,6 +255,31 @@ class HybridRepresentationTests(unittest.TestCase):
         self.assertEqual(features, [[1.0, 0.0]])
         self.assertEqual(syllable_vectors, [[1.3, 1.4, 1.5]])
         self.assertEqual(output, [char_vectors[0] + features[0] + syllable_vectors[0]])
+
+    def test_cuda_backward_splits_resident_gradients_after_forward_release(self) -> None:
+        backend = ResidentHybridBackend()
+        representation = HybridRepresentation(
+            Embedding(4, 2, seed=7, backend=backend),
+            Embedding(3, 3, seed=8, backend=backend),
+            feature_dim=2,
+        )
+        output = representation.forward(
+            [2, 0], [1, 2], [[1.0, 0.0], [0.0, 1.0]]
+        )
+        self.assertIsInstance(output, ResidentBuffer)
+        representation.release_output()
+        self.assertTrue(output.closed)
+        grad_output = ResidentBuffer([[1.0] * 7, [2.0] * 7], (2, 7))
+
+        feature_gradients = representation.backward(grad_output)
+
+        self.assertIsInstance(feature_gradients, ResidentBuffer)
+        self.assertEqual(feature_gradients.values, [[1.0, 1.0], [2.0, 2.0]])
+        self.assertEqual(
+            backend.embedding_backward_inputs,
+            [[[1.0, 1.0], [2.0, 2.0]], [[1.0] * 3, [2.0] * 3]],
+        )
+        self.assertFalse(backend.embedding_backward_inputs == [])
 
     def test_cuda_backward_fails_closed_until_phase_11b(self) -> None:
         representation = self._representation()

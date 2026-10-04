@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "phase": "11B",
+  "validation_scope": "resident multitask losses and one deterministic CUDA training step; not a performance or expanded-training claim",
+  "baseline_commit": "2c66c6de2b3ac1b3301de5382a01df63f3c3c043",
+  "candidate": {
+    "branch": "feat/issue-18-cuda-multitask-training",
+    "commit_state": "uncommitted",
+    "synced_source_test_manifest": {
+      "sha256": "3913c93be23a0551cbf47ef4ff7ae4f685a585f0b7b58857770fca9e793cd59a",
+      "files": 186,
+      "remote_readback_match": true
+    }
+  },
+  "cuda_probe": {
+    "result": "PASS",
+    "device": "Tesla T4",
+    "runtime_fingerprint": "a4827f39aab54432a943a559d41f0d5b",
+    "python": "3.13.15",
+    "cuda": "13.0",
+    "driver": "580.82.07",
+    "nvcc": "Build cuda_13.0.r13.0/compiler.36424714_0",
+    "native_library_compiled": true,
+    "native_abi": 7,
+    "device_count": 1,
+    "imported_package_path": "/content/workspace/kinera-issue18-11b-gate/src/kinera/__init__.py"
+  },
+  "multitask_fixture": {
+    "result": "PASS",
+    "tests_run": 1,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "dtype": "float64",
+    "atol": 1e-12,
+    "rtol": 1e-12,
+    "max_abs_error": 1.3877787807814457e-17,
+    "compared": [
+      "three head logits",
+      "per-head and total losses",
+      "weighted logit gradients",
+      "three head input gradients",
+      "deterministic head aggregation",
+      "mean-pool backward matrix",
+      "hybrid representation feature gradient",
+      "both embedding gradient tables",
+      "all head and embedding parameters after one multitask_train_step"
+    ],
+    "device_to_host_during_train_step": {
+      "float64_scalar_copies": 3,
+      "int32_status_copies": 6,
+      "logit_or_gradient_vector_copies": 0
+    },
+    "post_step_cleanup": "PASS"
+  },
+  "cuda_test_matrix": {
+    "result": "PASS",
+    "tests_run": 96,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  },
+  "cpu_suite": {
+    "result": "PASS",
+    "tests_run": 393,
+    "failures": 0,
+    "errors": 0,
+    "cuda_only_skips": 24
+  },
+  "cpu_only_wheel_candidate": {
+    "result": "PASS",
+    "built_from": "dirty candidate snapshot over baseline_commit",
+    "snapshot_manifest_sha256": "2f5348fde03f95a0eff57a50aa559e6f06f4fe60e115e48c870a1d218c5b836c",
+    "snapshot_files": 304,
+    "wheel": "kinera-0.1.0-py3-none-any.whl",
+    "size_bytes": 145340,
+    "sha256": "b88be8db75cdf70672b057251763ee4e048e8defc8720908bca0fee54cdd6cb1",
+    "isolated_install": "PASS",
+    "cpu_forward_backward_step": "PASS",
+    "nvcc_visible": false,
+    "cuda_modules_imported": false,
+    "required_cuda_sources_packaged": [
+      "kinera/backends/cuda/kernels/losses.cu",
+      "kinera/backends/cuda/kernels/multitask_backward.cu",
+      "kinera/backends/cuda/native/runtime.cu"
+    ],
+    "final_committed_wheel_rebuild_required": true
+  },
+  "independent_review": {
+    "result": "PASS",
+    "blocking_logic_errors": 0,
+    "security_concerns": 0
+  },
+  "scope_guards": {
+    "benchmark_run": false,
+    "expanded_5k_10k_training": false,
+    "trainer_cli_changed": false,
+    "issue13_changed": false
+  },
+  "remaining": [
+    "commit candidate and rebuild CPU-only wheel from the exact commit",
+    "open draft PR and pass required CI on its exact head SHA",
+    "update Issue #18 only after the CI/review gates"
+  ]
+}

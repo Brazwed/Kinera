@@ -12,6 +12,7 @@ from kinera.backends.base import (
     BackendUnavailableError,
     HostArray,
 )
+from kinera.backends.cuda.bridge import KINERA_CUDA_INVALID_NUMERIC_STATUS
 from kinera.backends.cuda.buffer import CudaBuffer
 from kinera.backends.cuda.memory import CudaMemoryManager
 from kinera.backends.cuda.runtime import CudaRuntime
@@ -358,6 +359,369 @@ class CUDABackend:
             self.memory.release(pooled)
             raise
         return pooled
+
+    def cross_entropy_forward_buffer(
+        self, logits: BackendArray, target_id: int
+    ) -> float:
+        """Compute CE on resident logits and export only its scalar result."""
+        logits_buffer = self._require_buffer(
+            logits, "logits", rank=1, operation="cross_entropy_forward"
+        )
+        self.memory._validate_buffer(logits_buffer)
+        logits_count = logits_buffer.shape[0]
+        if logits_count > _CUDA_ABI_INT_MAX:
+            raise ValueError("cross_entropy input exceeds the CUDA ABI limit")
+        if isinstance(target_id, bool) or not isinstance(target_id, int):
+            raise TypeError("target_id must be an integer")
+        if not 0 <= target_id < logits_count:
+            raise ValueError("target_id outside vocabulary")
+        device_id = logits_buffer.device_id
+        self.runtime.require_device(device_id)
+        loss_buffer: CudaBuffer | None = None
+        status_buffer: CudaBuffer | None = None
+        try:
+            loss_buffer = self.memory.allocate((1,), dtype="float64", device_id=device_id)
+            status_buffer = self.memory.allocate((1,), dtype="int32", device_id=device_id)
+            self.bridge.cross_entropy_forward_f64(
+                device_id,
+                logits_buffer.pointer,
+                loss_buffer.pointer,
+                status_buffer.pointer,
+                logits_count,
+                target_id,
+                int(_PYTHON_FLOAT_SUM_COMPENSATED),
+            )
+            self._check_numeric_status(status_buffer, "cross_entropy_forward")
+            host_loss = self.memory.copy_to_host(loss_buffer)
+            if not isinstance(host_loss, list) or len(host_loss) != 1:
+                raise BackendError("CUDA cross_entropy_forward returned an invalid scalar")
+            result = cast(list[float], host_loss)[0]
+            if not math.isfinite(result):
+                raise ValueError("CUDA cross_entropy_forward returned a non-finite loss")
+            return result
+        finally:
+            if status_buffer is not None:
+                self.memory.release(status_buffer)
+            if loss_buffer is not None:
+                self.memory.release(loss_buffer)
+
+    def cross_entropy_gradient_buffer(
+        self,
+        logits: BackendArray,
+        target_id: int,
+        scale: float,
+    ) -> CudaBuffer:
+        """Compute a weighted resident cross-entropy gradient without logits D2H."""
+        logits_buffer = self._require_buffer(
+            logits, "logits", rank=1, operation="cross_entropy_gradient"
+        )
+        self.memory._validate_buffer(logits_buffer)
+        logits_count = logits_buffer.shape[0]
+        if logits_count > _CUDA_ABI_INT_MAX:
+            raise ValueError("cross_entropy_gradient input exceeds the CUDA ABI limit")
+        if isinstance(target_id, bool) or not isinstance(target_id, int):
+            raise TypeError("target_id must be an integer")
+        if not 0 <= target_id < logits_count:
+            raise ValueError("target_id outside vocabulary")
+        self._validate_gradient_scale(scale)
+        device_id = logits_buffer.device_id
+        self.runtime.require_device(device_id)
+        gradient: CudaBuffer | None = None
+        status_buffer: CudaBuffer | None = None
+        try:
+            gradient = self.memory.allocate(
+                (logits_count,), dtype="float64", device_id=device_id
+            )
+            status_buffer = self.memory.allocate(
+                (1,), dtype="int32", device_id=device_id
+            )
+            self.bridge.cross_entropy_gradient_f64(
+                device_id,
+                logits_buffer.pointer,
+                gradient.pointer,
+                status_buffer.pointer,
+                logits_count,
+                target_id,
+                float(scale),
+                int(_PYTHON_FLOAT_SUM_COMPENSATED),
+            )
+            self._check_numeric_status(status_buffer, "cross_entropy_gradient")
+            return gradient
+        except Exception:
+            if gradient is not None:
+                self.memory.release(gradient)
+            raise
+        finally:
+            if status_buffer is not None:
+                self.memory.release(status_buffer)
+
+    @staticmethod
+    def _validate_gradient_scale(scale: float) -> None:
+        if isinstance(scale, bool) or not isinstance(scale, (int, float)):
+            raise TypeError("gradient scale must be numeric")
+        if not math.isfinite(scale):
+            raise ValueError("gradient scale must be finite")
+        if scale < 0.0:
+            raise ValueError("gradient scale cannot be negative")
+
+    def _check_numeric_status(self, status_buffer: CudaBuffer, operation: str) -> None:
+        status_values = self.memory.copy_to_host(status_buffer)
+        if not isinstance(status_values, list) or len(status_values) != 1:
+            raise BackendError(f"CUDA {operation} returned an invalid status buffer")
+        status = cast(list[int], status_values)[0]
+        if status == KINERA_CUDA_INVALID_NUMERIC_STATUS:
+            raise ValueError(f"CUDA {operation} requires finite input and output values")
+        if status != 0:
+            raise BackendError(f"CUDA {operation} returned invalid numeric status {status}")
+
+    @staticmethod
+    def _validate_binary_target(target: float) -> float:
+        if isinstance(target, bool) or not isinstance(target, (int, float)):
+            raise TypeError("target must be numeric")
+        if not math.isfinite(target) or not 0.0 <= target <= 1.0:
+            raise ValueError("target must be between 0 and 1")
+        return float(target)
+
+    def binary_cross_entropy_with_logits_forward_buffer(
+        self, logit: BackendArray, target: float
+    ) -> float:
+        """Compute resident BCE-with-logits and export only its scalar result."""
+        logit_buffer = self._require_buffer(
+            logit, "logit", rank=1, operation="binary_cross_entropy_with_logits_forward"
+        )
+        self.memory._validate_buffer(logit_buffer)
+        if logit_buffer.shape != (1,):
+            raise ValueError("binary_cross_entropy_with_logits requires one logit")
+        target_value = self._validate_binary_target(target)
+        device_id = logit_buffer.device_id
+        self.runtime.require_device(device_id)
+        loss_buffer: CudaBuffer | None = None
+        status_buffer: CudaBuffer | None = None
+        try:
+            loss_buffer = self.memory.allocate((1,), dtype="float64", device_id=device_id)
+            status_buffer = self.memory.allocate((1,), dtype="int32", device_id=device_id)
+            self.bridge.binary_cross_entropy_with_logits_forward_f64(
+                device_id,
+                logit_buffer.pointer,
+                loss_buffer.pointer,
+                status_buffer.pointer,
+                target_value,
+            )
+            self._check_numeric_status(
+                status_buffer, "binary_cross_entropy_with_logits_forward"
+            )
+            host_loss = self.memory.copy_to_host(loss_buffer)
+            if not isinstance(host_loss, list) or len(host_loss) != 1:
+                raise BackendError("CUDA BCE forward returned an invalid scalar")
+            result = cast(list[float], host_loss)[0]
+            if not math.isfinite(result):
+                raise ValueError("CUDA BCE forward returned a non-finite loss")
+            return result
+        finally:
+            if status_buffer is not None:
+                self.memory.release(status_buffer)
+            if loss_buffer is not None:
+                self.memory.release(loss_buffer)
+
+    def binary_cross_entropy_with_logits_gradient_buffer(
+        self, logit: BackendArray, target: float, scale: float
+    ) -> CudaBuffer:
+        """Compute weighted resident BCE gradient without downloading logits."""
+        logit_buffer = self._require_buffer(
+            logit, "logit", rank=1, operation="binary_cross_entropy_with_logits_gradient"
+        )
+        self.memory._validate_buffer(logit_buffer)
+        if logit_buffer.shape != (1,):
+            raise ValueError("binary_cross_entropy_with_logits requires one logit")
+        target_value = self._validate_binary_target(target)
+        self._validate_gradient_scale(scale)
+        device_id = logit_buffer.device_id
+        self.runtime.require_device(device_id)
+        gradient: CudaBuffer | None = None
+        status_buffer: CudaBuffer | None = None
+        try:
+            gradient = self.memory.allocate((1,), dtype="float64", device_id=device_id)
+            status_buffer = self.memory.allocate((1,), dtype="int32", device_id=device_id)
+            self.bridge.binary_cross_entropy_with_logits_gradient_f64(
+                device_id,
+                logit_buffer.pointer,
+                gradient.pointer,
+                status_buffer.pointer,
+                target_value,
+                float(scale),
+            )
+            self._check_numeric_status(
+                status_buffer, "binary_cross_entropy_with_logits_gradient"
+            )
+            return gradient
+        except Exception:
+            if gradient is not None:
+                self.memory.release(gradient)
+            raise
+        finally:
+            if status_buffer is not None:
+                self.memory.release(status_buffer)
+
+    @staticmethod
+    def _validate_grid_count(element_count: int, operation: str) -> None:
+        if element_count <= 0:
+            raise ValueError(f"{operation} requires a positive element count")
+        blocks = (element_count + _CUDA_GRID_THREADS_PER_BLOCK - 1) // _CUDA_GRID_THREADS_PER_BLOCK
+        if blocks > _CUDA_GRID_MAX_BLOCKS:
+            raise ValueError(f"{operation} output exceeds the CUDA grid limit")
+
+    def sum_head_input_gradients(
+        self,
+        char_gradient: BackendArray,
+        syllable_gradient: BackendArray,
+        boundary_gradient: BackendArray,
+    ) -> CudaBuffer:
+        """Sum head input gradients in CPU semantic order without D2H."""
+        buffers = (
+            self._require_buffer(
+                char_gradient, "char_gradient", rank=1,
+                operation="sum_head_input_gradients",
+            ),
+            self._require_buffer(
+                syllable_gradient, "syllable_gradient", rank=1,
+                operation="sum_head_input_gradients",
+            ),
+            self._require_buffer(
+                boundary_gradient, "boundary_gradient", rank=1,
+                operation="sum_head_input_gradients",
+            ),
+        )
+        for buffer in buffers:
+            self.memory._validate_buffer(buffer)
+        feature_dim = buffers[0].shape[0]
+        if any(buffer.shape != (feature_dim,) for buffer in buffers[1:]):
+            raise ValueError("head input gradients must have equal shapes")
+        if feature_dim > _CUDA_ABI_INT_MAX:
+            raise ValueError("sum_head_input_gradients dimension exceeds the CUDA ABI limit")
+        if len({buffer.device_id for buffer in buffers}) != 1:
+            raise BackendError("head input gradients must reside on the same CUDA device")
+        self._validate_grid_count(feature_dim, "sum_head_input_gradients")
+        device_id = buffers[0].device_id
+        self.runtime.require_device(device_id)
+        output = self.memory.allocate((feature_dim,), dtype="float64", device_id=device_id)
+        try:
+            self.bridge.sum_head_input_gradients_f64(
+                device_id,
+                buffers[0].pointer,
+                buffers[1].pointer,
+                buffers[2].pointer,
+                output.pointer,
+                feature_dim,
+                int(_PYTHON_FLOAT_SUM_COMPENSATED),
+            )
+        except Exception:
+            self.memory.release(output)
+            raise
+        return output
+
+    def mean_pool_backward(
+        self, grad_pooled: BackendArray, *, context_size: int
+    ) -> CudaBuffer:
+        """Repeat the pooled gradient across context rows with CPU division order."""
+        gradient_buffer = self._require_buffer(
+            grad_pooled, "grad_pooled", rank=1, operation="mean_pool_backward"
+        )
+        self.memory._validate_buffer(gradient_buffer)
+        if isinstance(context_size, bool) or not isinstance(context_size, int):
+            raise TypeError("context_size must be an integer")
+        if context_size <= 0:
+            raise ValueError("context_size must be positive")
+        feature_dim = gradient_buffer.shape[0]
+        for name, dimension in (("context_size", context_size), ("feature_dim", feature_dim)):
+            if dimension > _CUDA_ABI_INT_MAX:
+                raise ValueError(f"mean_pool_backward {name} exceeds the CUDA ABI limit")
+        element_count = context_size * feature_dim
+        self._validate_grid_count(element_count, "mean_pool_backward")
+        device_id = gradient_buffer.device_id
+        self.runtime.require_device(device_id)
+        output = self.memory.allocate(
+            (context_size, feature_dim), dtype="float64", device_id=device_id
+        )
+        try:
+            self.bridge.mean_pool_backward_f64(
+                device_id,
+                gradient_buffer.pointer,
+                output.pointer,
+                context_size,
+                feature_dim,
+            )
+        except Exception:
+            self.memory.release(output)
+            raise
+        return output
+
+    def hybrid_representation_backward(
+        self,
+        grad_output: BackendArray,
+        *,
+        char_dim: int,
+        feature_dim: int,
+        syllable_dim: int,
+    ) -> tuple[CudaBuffer, CudaBuffer, CudaBuffer]:
+        """Split resident concatenated gradients into the three input channels."""
+        gradient_buffer = self._require_buffer(
+            grad_output, "grad_output", rank=2,
+            operation="hybrid_representation_backward",
+        )
+        self.memory._validate_buffer(gradient_buffer)
+        context_size, output_dim = gradient_buffer.shape
+        for name, dimension in (
+            ("context_size", context_size),
+            ("char_dim", char_dim),
+            ("feature_dim", feature_dim),
+            ("syllable_dim", syllable_dim),
+        ):
+            if isinstance(dimension, bool) or not isinstance(dimension, int):
+                raise TypeError(f"{name} must be an integer")
+            if dimension <= 0:
+                raise ValueError(f"{name} must be positive")
+            if dimension > _CUDA_ABI_INT_MAX:
+                raise ValueError(f"hybrid backward {name} exceeds the CUDA ABI limit")
+        expected_output_dim = char_dim + feature_dim + syllable_dim
+        if output_dim != expected_output_dim:
+            raise ValueError("grad_output columns must equal the hybrid output dimension")
+        if expected_output_dim > _CUDA_ABI_INT_MAX:
+            raise ValueError("hybrid backward output dimension exceeds the CUDA ABI limit")
+        self._validate_grid_count(
+            context_size * expected_output_dim, "hybrid_representation_backward"
+        )
+        device_id = gradient_buffer.device_id
+        self.runtime.require_device(device_id)
+        allocated: list[CudaBuffer] = []
+        try:
+            char_gradient = self.memory.allocate(
+                (context_size, char_dim), dtype="float64", device_id=device_id
+            )
+            allocated.append(char_gradient)
+            feature_gradient = self.memory.allocate(
+                (context_size, feature_dim), dtype="float64", device_id=device_id
+            )
+            allocated.append(feature_gradient)
+            syllable_gradient = self.memory.allocate(
+                (context_size, syllable_dim), dtype="float64", device_id=device_id
+            )
+            allocated.append(syllable_gradient)
+            self.bridge.hybrid_representation_backward_f64(
+                device_id,
+                gradient_buffer.pointer,
+                char_gradient.pointer,
+                feature_gradient.pointer,
+                syllable_gradient.pointer,
+                context_size,
+                char_dim,
+                feature_dim,
+                syllable_dim,
+            )
+        except Exception:
+            for buffer in reversed(allocated):
+                self.memory.release(buffer)
+            raise
+        return char_gradient, feature_gradient, syllable_gradient
 
     def argmax(self, logits: BackendArray) -> int:
         """Find the first finite maximum and copy back only its int32 index."""

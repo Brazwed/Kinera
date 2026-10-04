@@ -1,5 +1,6 @@
 import math
 import unittest
+from unittest.mock import patch
 from typing import Any
 
 from kinera.backends.cpu.backend import CPUBackend
@@ -304,6 +305,139 @@ class AutoregressiveModelBackendIntegrationTests(unittest.TestCase):
         self.assertGreaterEqual(backend.calls.count("linear_forward"), 3)
         self.assertGreaterEqual(backend.calls.count("embedding_forward"), 2)
         self.assertGreaterEqual(backend.calls.count("cross_entropy"), 2)
+
+
+class ResidentMultiTaskLossTests(unittest.TestCase):
+    class Buffer:
+        def __init__(self, shape: tuple[int, ...], device_id: int = 0) -> None:
+            self.device = "cuda"
+            self.device_id = device_id
+            self.shape = shape
+            self.dtype = "float64"
+            self.nbytes = math.prod(shape) * 8
+            self.layout = "row_major"
+            self.owns_memory = False
+            self.closed = False
+
+    class Backend(CPUBackend):
+        def __init__(self) -> None:
+            self.calls: list[tuple[object, ...]] = []
+            self.resident_calls: list[tuple[object, ...]] = []
+
+        def cross_entropy_forward_buffer(self, logits, target_id):
+            self.calls.append(("ce", logits, target_id))
+            return 0.2
+
+        def binary_cross_entropy_with_logits_forward_buffer(self, logits, target):
+            self.calls.append(("bce", logits, target))
+            return 0.4
+
+        def cross_entropy_gradient_buffer(self, logits, target_id, scale):
+            self.calls.append(("ce_gradient", logits, target_id, scale))
+            return ResidentMultiTaskLossTests.Buffer(logits.shape, logits.device_id)
+
+        def binary_cross_entropy_with_logits_gradient_buffer(self, logits, target, scale):
+            self.calls.append(("bce_gradient", logits, target, scale))
+            return ResidentMultiTaskLossTests.Buffer(logits.shape, logits.device_id)
+
+        def sum_head_input_gradients(self, char_gradient, syllable_gradient, boundary_gradient):
+            self.resident_calls.append(("sum_heads", char_gradient, syllable_gradient, boundary_gradient))
+            return ResidentMultiTaskLossTests.Buffer(char_gradient.shape, char_gradient.device_id)
+
+        def mean_pool_backward(self, grad_pooled, *, context_size):
+            self.resident_calls.append(("mean_pool_backward", grad_pooled, context_size))
+            return ResidentMultiTaskLossTests.Buffer(
+                (context_size, grad_pooled.shape[0]), grad_pooled.device_id
+            )
+
+        def buffer_to_host(self, buffer):
+            raise AssertionError("resident loss path must not download logits")
+
+    def test_forward_and_backward_keep_all_logits_and_gradients_backend_native(self) -> None:
+        backend = self.Backend()
+        loss = MultiTaskLoss(backend=backend)
+        outputs = {
+            "char": self.Buffer((3,)),
+            "syllable": self.Buffer((4,)),
+            "boundary": self.Buffer((1,)),
+        }
+        targets = {"char": 1, "syllable": 2, "boundary": 1.0}
+
+        report = loss.forward(outputs, targets)
+        gradients = loss.backward(outputs, targets)
+
+        self.assertEqual(report["char_loss"], 0.2)
+        self.assertEqual(report["syllable_loss"], 0.2)
+        self.assertEqual(report["boundary_loss"], 0.4)
+        self.assertAlmostEqual(report["total_loss"], 0.46)
+        self.assertEqual(set(gradients), {"char", "syllable", "boundary"})
+        self.assertTrue(all(isinstance(value, self.Buffer) for value in gradients.values()))
+        self.assertEqual(
+            [(call[0], call[-1]) for call in backend.calls
+             if isinstance(call[0], str) and call[0].endswith("gradient")],
+            [("ce_gradient", 1.0), ("ce_gradient", 0.7), ("bce_gradient", 0.3)],
+        )
+        self.assertEqual([call[0] for call in backend.calls], [
+            "ce", "ce", "bce", "ce_gradient", "ce_gradient", "bce_gradient"
+        ])
+
+    def test_model_multitask_step_uses_backend_native_forward_and_backward_chain(self) -> None:
+        backend = self.Backend()
+        model = AutoregressiveModel(
+            char_vocab_size=3,
+            syllable_vocab_size=4,
+            char_embedding_dim=2,
+            syllable_embedding_dim=3,
+            feature_dim=2,
+            seed=7,
+            backend=backend,
+        )
+        loss = MultiTaskLoss(backend=backend)
+        outputs = {
+            "char": self.Buffer((3,)),
+            "syllable": self.Buffer((4,)),
+            "boundary": self.Buffer((1,)),
+        }
+        head_gradients = {
+            name: self.Buffer((model.representation.output_dim,))
+            for name in ("char", "syllable", "boundary")
+        }
+
+        def resident_forward(*args):
+            model.last_context_size = 2
+            return outputs
+
+        with (
+            patch.object(model, "_forward_heads_backend", side_effect=resident_forward) as forward_backend,
+            patch.object(
+                model,
+                "forward_heads",
+                side_effect=AssertionError("training must not export logits"),
+            ),
+            patch.object(model.heads, "backward", return_value=head_gradients) as heads_backward,
+            patch.object(model.representation, "backward") as representation_backward,
+            patch.object(model.heads, "step") as heads_step,
+            patch.object(model.representation, "step") as representation_step,
+        ):
+            report = model.multitask_train_step(
+                [0, 1],
+                [0, 1],
+                [[1.0, 0.0], [0.0, 1.0]],
+                targets={"char": 1, "syllable": 2, "boundary": 1.0},
+                learning_rate=0.1,
+                loss_function=loss,
+            )
+
+        self.assertAlmostEqual(report["total_loss"], 0.46)
+        forward_backend.assert_called_once()
+        heads_backward.assert_called_once()
+        self.assertEqual([call[0] for call in backend.resident_calls], [
+            "sum_heads", "mean_pool_backward"
+        ])
+        representation_backward.assert_called_once()
+        self.assertEqual(representation_backward.call_args.args[0].shape, (2, model.representation.output_dim))
+        heads_step.assert_called_once_with(0.1)
+        representation_step.assert_called_once_with(0.1)
 
 
 if __name__ == "__main__":
