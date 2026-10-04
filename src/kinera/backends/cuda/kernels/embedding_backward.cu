@@ -11,6 +11,58 @@
 
 namespace {
 
+constexpr int kKineraInvalidEmbeddingIdStatus = -1;  // Reserved by CUDA ABI 5.
+
+__global__ void embedding_backward_validate_ids_kernel(
+    const int32_t* ids, int vocab_size, int ids_count,
+    int32_t* invalid_position) {
+  if (blockIdx.x != 0 || threadIdx.x != 0) {
+    return;
+  }
+
+  *invalid_position = -1;
+  for (int position = 0; position < ids_count; ++position) {
+    const int32_t row = ids[position];
+    if (row < 0 || row >= vocab_size) {
+      *invalid_position = position;
+      return;
+    }
+  }
+}
+
+int validate_embedding_backward_ids(
+    const int32_t* ids, int vocab_size, int ids_count) noexcept {
+  int32_t* device_invalid_position = nullptr;
+  cudaError_t status = cudaMalloc(
+      reinterpret_cast<void**>(&device_invalid_position), sizeof(int32_t));
+  if (status != cudaSuccess) {
+    return static_cast<int>(status);
+  }
+
+  embedding_backward_validate_ids_kernel<<<1, 1>>>(
+      ids, vocab_size, ids_count, device_invalid_position);
+  status = cudaGetLastError();
+  if (status == cudaSuccess) {
+    status = cudaDeviceSynchronize();
+  }
+
+  int32_t invalid_position = -1;
+  if (status == cudaSuccess) {
+    status = cudaMemcpy(&invalid_position, device_invalid_position,
+                        sizeof(invalid_position), cudaMemcpyDeviceToHost);
+  }
+  const cudaError_t free_status = cudaFree(device_invalid_position);
+  if (status != cudaSuccess) {
+    return static_cast<int>(status);
+  }
+  if (free_status != cudaSuccess) {
+    return static_cast<int>(free_status);
+  }
+  return invalid_position < 0
+             ? static_cast<int>(cudaSuccess)
+             : kKineraInvalidEmbeddingIdStatus;
+}
+
 __global__ void embedding_backward_f64_kernel(
     const int32_t* ids, const double* grad_output, double* grad_weights,
     int vocab_size, int embedding_dim, int ids_count) {
@@ -50,6 +102,12 @@ extern "C" KINERA_CUDA_EXPORT int kinera_cuda_embedding_backward_f64(
   cudaError_t status = cudaSetDevice(device_id);
   if (status != cudaSuccess) {
     return static_cast<int>(status);
+  }
+
+  const int validation_status =
+      validate_embedding_backward_ids(ids, vocab_size, ids_count);
+  if (validation_status != static_cast<int>(cudaSuccess)) {
+    return validation_status;
   }
 
   constexpr int threads_per_block = 128;

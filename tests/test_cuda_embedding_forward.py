@@ -114,6 +114,41 @@ class EmbeddingCudaForwardEquivalenceTests(unittest.TestCase):
             ids=[2, 0, 2, 3],
         )
 
+    def test_resident_out_of_range_ids_are_rejected_before_forward_lookup(self) -> None:
+        vocab_size = 4
+        embedding_dim = 2
+        weights = self.backend.buffer_from_host(
+            [[0.25, -0.5], [1.0, 2.0], [-3.0, 4.0], [5.0, -6.0]],
+            shape=(vocab_size, embedding_dim),
+            dtype="float64",
+        )
+        invalid_ids = (-1, vocab_size, -(2**31), 2**31 - 1)
+        allocated_ids: list[CudaBuffer] = []
+        output: CudaBuffer | None = None
+        try:
+            for invalid_id in invalid_ids:
+                with self.subTest(id=invalid_id):
+                    device_ids = self.backend.buffer_from_host(
+                        [invalid_id], shape=(1,), dtype="int32"
+                    )
+                    allocated_ids.append(device_ids)
+                    with self.assertRaisesRegex(ValueError, "vocabulary"):
+                        self.backend.embedding_forward(weights, device_ids)
+                    device_ids.close()
+
+            valid_ids = self.backend.buffer_from_host([3], shape=(1,), dtype="int32")
+            allocated_ids.append(valid_ids)
+            output = cast(CudaBuffer, self.backend.embedding_forward(weights, valid_ids))
+            self.assertEqual(self.backend.buffer_to_host(output), [[5.0, -6.0]])
+        finally:
+            if output is not None and not output.closed:
+                output.close()
+            for device_ids in allocated_ids:
+                if not device_ids.closed:
+                    device_ids.close()
+            if not weights.closed:
+                weights.close()
+
     def test_single_row_and_empty_id_edge_cases_match_cpu(self) -> None:
         self._assert_equivalent(vocab_size=1, embedding_dim=1, ids=[0, 0, 0])
         self._assert_equivalent(vocab_size=1, embedding_dim=1, ids=[])

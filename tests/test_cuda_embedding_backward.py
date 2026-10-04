@@ -23,6 +23,47 @@ class EmbeddingCudaBackwardEquivalenceTests(unittest.TestCase):
         cls.backend.runtime.require_device(0)
         cls.cpu = CPUBackend()
 
+    def test_resident_out_of_range_ids_are_rejected_before_backward_updates(self) -> None:
+        vocab_size = 4
+        embedding_dim = 3
+        expected_gradients = [[0.0] * embedding_dim for _ in range(vocab_size)]
+        grad_weights = self.backend.buffer_from_host(
+            expected_gradients,
+            shape=(vocab_size, embedding_dim),
+            dtype="float64",
+        )
+        grad_output = self.backend.buffer_from_host(
+            [[0.5, -1.25, 2.0]],
+            shape=(1, embedding_dim),
+            dtype="float64",
+        )
+        invalid_ids = (-1, vocab_size, -(2**31), 2**31 - 1)
+        allocated_ids: list[CudaBuffer] = []
+        try:
+            for invalid_id in invalid_ids:
+                with self.subTest(id=invalid_id):
+                    device_ids = self.backend.buffer_from_host(
+                        [invalid_id], shape=(1,), dtype="int32"
+                    )
+                    allocated_ids.append(device_ids)
+                    with self.assertRaisesRegex(ValueError, "vocabulary"):
+                        self.backend.embedding_backward(
+                            grad_weights, device_ids, grad_output
+                        )
+                    self.assertEqual(
+                        self.backend.buffer_to_host(grad_weights),
+                        expected_gradients,
+                    )
+                    device_ids.close()
+        finally:
+            for device_ids in allocated_ids:
+                if not device_ids.closed:
+                    device_ids.close()
+            if not grad_output.closed:
+                grad_output.close()
+            if not grad_weights.closed:
+                grad_weights.close()
+
     def test_ordered_duplicate_accumulation_matches_cpu_and_finite_differences(self) -> None:
         vocab_size = 4
         embedding_dim = 3
