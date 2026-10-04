@@ -20,6 +20,7 @@ class FakeCudaBridge(CudaBridge):
         self.copy_to_host_calls = 0
         self.embedding_forward_calls: list[tuple[int, ...]] = []
         self.embedding_backward_calls: list[tuple[int, ...]] = []
+        self.embedding_step_calls: list[tuple[int | float, ...]] = []
 
     def device_count(self) -> int:
         return self._device_count
@@ -125,6 +126,18 @@ class FakeCudaBridge(CudaBridge):
                 embedding_dim,
                 ids_count,
             )
+        )
+    def embedding_step_f64(
+        self,
+        device_id: int,
+        weights: int,
+        grad_weights: int,
+        learning_rate: float,
+        vocab_size: int,
+        embedding_dim: int,
+    ) -> None:
+        self.embedding_step_calls.append(
+            (device_id, weights, grad_weights, learning_rate, vocab_size, embedding_dim)
         )
 
 
@@ -529,6 +542,131 @@ class CudaBackendEmbeddingBackwardDispatchTests(unittest.TestCase):
             with self.assertRaisesRegex(BackendError, "released/closed"):
                 backend.embedding_backward(grad_weights, ids_other_device, grad_output)
         self.assertEqual(bridge.embedding_backward_calls, [])
+
+
+class CudaBackendEmbeddingStepDispatchTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bridge = FakeCudaBridge()
+        self.backend = CUDABackend(runtime=CudaRuntime(bridge=self.bridge))
+
+    def test_step_updates_resident_embedding_weights_with_one_native_dispatch(self) -> None:
+        with ExitStack() as stack:
+            weights = stack.enter_context(
+                self.backend.buffer_from_host(
+                    [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]],
+                    shape=(3, 2),
+                    dtype="float64",
+                )
+            )
+            grad_weights = stack.enter_context(
+                self.backend.buffer_from_host(
+                    [[1.0, 2.0], [0.0, 0.0], [3.0, 4.0]],
+                    shape=(3, 2),
+                    dtype="float64",
+                )
+            )
+            h2d_before = self.bridge.copy_to_device_calls
+            d2h_before = self.bridge.copy_to_host_calls
+
+            updated_weights = self.backend.embedding_step(weights, grad_weights, 0.125)
+
+            self.assertIs(updated_weights, weights)
+            self.assertEqual(
+                self.bridge.embedding_step_calls,
+                [(0, weights.pointer, grad_weights.pointer, 0.125, 3, 2)],
+            )
+            self.assertEqual(self.bridge.copy_to_device_calls, h2d_before)
+            self.assertEqual(self.bridge.copy_to_host_calls, d2h_before)
+
+
+    def test_zero_rate_preserves_embedding_weights_without_dispatch_or_transfer(self) -> None:
+        with ExitStack() as stack:
+            weights = stack.enter_context(
+                self.backend.buffer_from_host([[0.1, 0.2], [0.3, 0.4]], shape=(2, 2))
+            )
+            grad_weights = stack.enter_context(
+                self.backend.buffer_from_host([[1.0, 2.0], [3.0, 4.0]], shape=(2, 2))
+            )
+            expected = self.backend.buffer_to_host(weights)
+            h2d_before = self.bridge.copy_to_device_calls
+            d2h_before = self.bridge.copy_to_host_calls
+
+            result = self.backend.embedding_step(weights, grad_weights, 0.0)
+
+            self.assertIs(result, weights)
+            self.assertEqual(self.bridge.embedding_step_calls, [])
+            self.assertEqual(self.bridge.copy_to_device_calls, h2d_before)
+            self.assertEqual(self.bridge.copy_to_host_calls, d2h_before)
+            self.assertEqual(self.backend.buffer_to_host(weights), expected)
+
+
+    def test_step_rejects_shape_dtype_ownership_lifetime_and_invalid_rates(self) -> None:
+        with ExitStack() as stack:
+            weights = stack.enter_context(
+                self.backend.buffer_from_host([[1.0, 2.0], [3.0, 4.0]], shape=(2, 2))
+            )
+            gradients = stack.enter_context(
+                self.backend.buffer_from_host([[1.0, 0.0], [0.0, 1.0]], shape=(2, 2))
+            )
+            wrong_shape = stack.enter_context(
+                self.backend.buffer_from_host([[1.0], [2.0]], shape=(2, 1))
+            )
+            int_weights = stack.enter_context(
+                self.backend.buffer_from_host([[1, 2], [3, 4]], shape=(2, 2), dtype="int32")
+            )
+            for rate, error in (
+                (True, TypeError),
+                ("0.1", TypeError),
+                (float("nan"), ValueError),
+                (float("inf"), ValueError),
+                (-0.1, ValueError),
+            ):
+                with self.subTest(rate=rate), self.assertRaises(error):
+                    self.backend.embedding_step(weights, gradients, cast(float, rate))
+            with self.assertRaisesRegex(ValueError, "grad_weights"):
+                self.backend.embedding_step(weights, wrong_shape, 0.1)
+            with self.assertRaisesRegex(ValueError, "float64"):
+                self.backend.embedding_step(int_weights, gradients, 0.1)
+            with self.assertRaisesRegex(TypeError, "CudaBuffer"):
+                self.backend.embedding_step([[1.0]], [[0.0]], 0.1)
+
+        foreign_bridge = FakeCudaBridge()
+        foreign_backend = CUDABackend(runtime=CudaRuntime(bridge=foreign_bridge))
+        with ExitStack() as stack:
+            weights = stack.enter_context(
+                self.backend.buffer_from_host([[1.0, 2.0]], shape=(1, 2))
+            )
+            gradients = stack.enter_context(
+                foreign_backend.buffer_from_host([[0.1, 0.2]], shape=(1, 2))
+            )
+            with self.assertRaisesRegex(BackendError, "different memory manager"):
+                self.backend.embedding_step(weights, gradients, 0.1)
+        self.assertEqual(self.bridge.embedding_step_calls, [])
+
+
+    def test_step_rejects_device_mismatch_and_released_gradient_buffer(self) -> None:
+        bridge = FakeCudaBridge(device_count=2)
+        backend = CUDABackend(runtime=CudaRuntime(bridge=bridge))
+        with ExitStack() as stack:
+            weights = stack.enter_context(
+                backend.buffer_from_host([[1.0, 2.0]], shape=(1, 2))
+            )
+            gradients_other_device = stack.enter_context(
+                backend.memory.copy_to_device(
+                    [[0.1, 0.2]], shape=(1, 2), dtype="float64", device_id=1
+                )
+            )
+            gradients_closed = stack.enter_context(
+                backend.buffer_from_host([[0.1, 0.2]], shape=(1, 2))
+            )
+
+            with self.assertRaisesRegex(BackendError, "same CUDA device"):
+                backend.embedding_step(weights, gradients_other_device, 0.1)
+            gradients_closed.close()
+            with self.assertRaisesRegex(BackendError, "released/closed"):
+                backend.embedding_step(weights, gradients_closed, 0.1)
+
+        self.assertEqual(bridge.embedding_step_calls, [])
 
 
 if __name__ == "__main__":

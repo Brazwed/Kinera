@@ -357,8 +357,47 @@ class CUDABackend:
         )
         return gradients_buffer
 
-    def embedding_step(self, *args, **kwargs):
-        self._unavailable("embedding_step")
+    def embedding_step(
+        self,
+        weights: BackendArray,
+        grad_weights: BackendArray,
+        learning_rate: float,
+    ) -> CudaBuffer | list[list[float]]:
+        """Apply gradient descent to the resident Embedding table in place."""
+        weights_buffer = self._require_buffer(
+            weights, "weights", rank=2, operation="Embedding.step"
+        )
+        grad_weights_buffer = self._require_buffer(
+            grad_weights, "grad_weights", rank=2, operation="Embedding.step"
+        )
+        self.memory._validate_buffer(weights_buffer)
+        self.memory._validate_buffer(grad_weights_buffer)
+        if grad_weights_buffer.shape != weights_buffer.shape:
+            raise ValueError("grad_weights must match weights shape")
+        if weights_buffer.device_id != grad_weights_buffer.device_id:
+            raise BackendError("Embedding.step buffers must reside on the same CUDA device")
+        if isinstance(learning_rate, bool) or not isinstance(learning_rate, (int, float)):
+            raise TypeError("learning_rate must be numeric")
+        if not math.isfinite(learning_rate):
+            raise ValueError("learning_rate must be finite")
+        if learning_rate < 0.0:
+            raise ValueError("learning_rate cannot be negative")
+
+        device_id = weights_buffer.device_id
+        self.runtime.require_device(device_id)
+        rate = float(learning_rate)
+        if rate == 0.0:
+            return weights_buffer
+        vocab_size, embedding_dim = weights_buffer.shape
+        self.bridge.embedding_step_f64(
+            device_id,
+            weights_buffer.pointer,
+            grad_weights_buffer.pointer,
+            rate,
+            vocab_size,
+            embedding_dim,
+        )
+        return weights_buffer
 
     def neuron_forward(self, *args, **kwargs):
         self._unavailable("neuron_forward")

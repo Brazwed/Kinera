@@ -15,7 +15,7 @@ from typing import Any, Callable
 from kinera.backends.base import BackendUnavailableError
 
 
-ABI_VERSION = 3
+ABI_VERSION = 4
 _BUILD_FLAGS = (
     "--shared",
     "--cudart=shared",
@@ -318,6 +318,28 @@ class CudaBridge:
             ),
         )
 
+    def embedding_step_f64(
+        self,
+        device_id: int,
+        weights: int,
+        grad_weights: int,
+        learning_rate: float,
+        vocab_size: int,
+        embedding_dim: int,
+    ) -> None:
+        self.load()
+        self._check(
+            "Embedding.step/update kernel",
+            self._functions["kinera_cuda_embedding_step_f64"](
+                device_id,
+                weights,
+                grad_weights,
+                learning_rate,
+                vocab_size,
+                embedding_dim,
+            ),
+        )
+
     def _check(self, operation: str, result: object) -> None:
         status = int(result)
         if status == 0:
@@ -424,6 +446,17 @@ class CudaBridge:
                     ctypes.c_void_p,
                     ctypes.c_void_p,
                     ctypes.c_int,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                ],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_embedding_step_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_double,
                     ctypes.c_int,
                     ctypes.c_int,
                 ],

@@ -77,7 +77,7 @@ class CudaBackendScaffoldTests(unittest.TestCase):
             with self.assertRaises(BackendUnavailableError):
                 bridge.load()
 
-    def test_linear_and_embedding_forward_are_the_real_kernels_in_this_gate(self) -> None:
+    def test_linear_and_embedding_trainable_kernels_are_real_in_this_gate(self) -> None:
         source_root = Path(__file__).resolve().parents[1] / "src/kinera/backends/cuda/kernels"
         for filename, symbol in (
             ("linear_forward.cu", "kinera_cuda_linear_forward_f64"),
@@ -85,6 +85,7 @@ class CudaBackendScaffoldTests(unittest.TestCase):
             ("linear_step.cu", "kinera_cuda_linear_step_f64"),
             ("embedding_forward.cu", "kinera_cuda_embedding_forward_f64"),
             ("embedding_backward.cu", "kinera_cuda_embedding_backward_f64"),
+            ("embedding_step.cu", "kinera_cuda_embedding_step_f64"),
         ):
             with self.subTest(kernel=filename):
                 source = source_root / filename
