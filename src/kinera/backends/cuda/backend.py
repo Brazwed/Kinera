@@ -59,11 +59,9 @@ class CUDABackend:
         if not isinstance(buffer, CudaBuffer):
             raise TypeError("CUDA buffer_to_host requires a CudaBuffer")
         values = self.memory.copy_to_host(buffer)
-        if len(buffer.shape) == 1:
-            return cast(list[float], values)
-        if len(buffer.shape) == 2:
-            return cast(list[list[float]], values)
-        raise ValueError("Phase 9 public host export supports rank 1 or rank 2")
+        if len(buffer.shape) in {1, 2}:
+            return cast(HostArray, values)
+        raise ValueError("CUDA public host export supports rank 1 or rank 2")
 
     def release_buffer(self, buffer: CudaBuffer) -> None:
         """Release a buffer explicitly through its owning memory manager."""
@@ -126,7 +124,7 @@ class CUDABackend:
     @staticmethod
     def _unavailable(operation: str) -> NoReturn:
         raise BackendUnavailableError(
-            f"CUDA operation {operation} is not available in the current Phase 9 gate"
+            f"CUDA operation {operation} is not available in the current CUDA gate"
         )
 
     def linear_backward(

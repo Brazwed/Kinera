@@ -26,6 +26,13 @@ class CudaBackendScaffoldTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "CudaBuffer"):
             backend.linear_step(None, None, None, None, 0.1)
 
+    def test_embedding_scaffold_fails_closed_with_phase_independent_message(self) -> None:
+        from kinera.backends.cuda.backend import CUDABackend
+
+        backend = CUDABackend()
+        with self.assertRaisesRegex(BackendUnavailableError, "current CUDA gate"):
+            backend.embedding_forward(None, None)
+
     def test_missing_runtime_memory_and_library_fail_closed(self) -> None:
         from kinera.backends.cuda.bridge import CudaBridge
         from kinera.backends.cuda.memory import CudaMemoryManager

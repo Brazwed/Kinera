@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import math
 from random import Random
+from typing import cast
 
 from kinera.backends import Backend, resolve_backend
+from kinera.backends.base import BackendArray, BackendBuffer
 
 
 class Embedding:
@@ -31,27 +33,39 @@ class Embedding:
             raise TypeError("seed deve ser um inteiro ou None")
 
         self.backend = resolve_backend(backend)
+        self._vocab_size = vocab_size
+        self._embedding_dim = embedding_dim
         generator = Random(seed)
-        self.weights = [
+        initial_weights = [
             [float(generator.uniform(-0.1, 0.1)) for _ in range(embedding_dim)]
             for _ in range(vocab_size)
         ]
-        self.grad_weights = [
+        initial_grad_weights = [
             [0.0 for _ in range(embedding_dim)] for _ in range(vocab_size)
         ]
+        self.weights: BackendArray = self.backend.buffer_from_host(
+            initial_weights,
+            shape=(vocab_size, embedding_dim),
+            dtype="float64",
+        )
+        self.grad_weights: BackendArray = self.backend.buffer_from_host(
+            initial_grad_weights,
+            shape=(vocab_size, embedding_dim),
+            dtype="float64",
+        )
         self.last_ids: list[int] | None = None
-        self.output: list[list[float]] | None = None
+        self.output: BackendArray | None = None
         self._has_backward = False
 
     @property
     def vocab_size(self) -> int:
-        return len(self.weights)
+        return self._vocab_size
 
     @property
     def embedding_dim(self) -> int:
-        return len(self.weights[0])
+        return self._embedding_dim
 
-    def forward(self, ids: list[int]) -> list[list[float]]:
+    def forward(self, ids: list[int]) -> list[list[float]] | BackendBuffer:
         """Busca vetores na ordem dos IDs fornecidos."""
         if not isinstance(ids, list):
             raise TypeError("ids deve ser uma lista")
@@ -64,12 +78,15 @@ class Embedding:
                 raise ValueError(f"ids[{position}] fora do vocabulário")
 
         self.last_ids = ids.copy()
-        self.output = self.backend.embedding_forward(self.weights, ids)
+        output = self.backend.embedding_forward(self.weights, ids)
+        self.output = output
         self.grad_weights = [
             [0.0] * embedding_dim for _ in range(vocab_size)
         ]
         self._has_backward = False
-        return [vector.copy() for vector in self.output]
+        if isinstance(output, BackendBuffer):
+            return output
+        return [vector.copy() for vector in cast(list[list[float]], output)]
 
     def backward(self, grad_output: list[list[float]]) -> None:
         """Acumula gradientes por ID; IDs repetidos somam suas contribuições."""
