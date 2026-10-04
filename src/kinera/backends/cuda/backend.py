@@ -16,6 +16,12 @@ from kinera.backends.cuda.buffer import CudaBuffer
 from kinera.backends.cuda.memory import CudaMemoryManager
 from kinera.backends.cuda.runtime import CudaRuntime
 
+# Keep CUDA pooling aligned with the active interpreter's built-in float sum.
+_PYTHON_FLOAT_SUM_COMPENSATED = sum((1e16, 1.0, -1e16)) == 1.0
+_CUDA_ABI_INT_MAX = 2**31 - 1
+_CUDA_GRID_MAX_BLOCKS = 2**31 - 1
+_CUDA_GRID_THREADS_PER_BLOCK = 128
+
 
 class CUDABackend:
     """Fail-closed optional CUDA backend with explicit device-array transfers."""
@@ -246,6 +252,144 @@ class CUDABackend:
             output_size,
         )
         return weights_buffer, bias_buffer
+
+    def hybrid_representation_forward(
+        self,
+        char_vectors: BackendArray,
+        feature_vectors: BackendArray,
+        syllable_vectors: BackendArray,
+    ) -> CudaBuffer:
+        """Concatenate resident vector channels without materializing host lists."""
+        char_buffer = self._require_buffer(
+            char_vectors, "char_vectors", rank=2, operation="HybridRepresentation.forward"
+        )
+        feature_buffer = self._require_buffer(
+            feature_vectors, "feature_vectors", rank=2, operation="HybridRepresentation.forward"
+        )
+        syllable_buffer = self._require_buffer(
+            syllable_vectors, "syllable_vectors", rank=2, operation="HybridRepresentation.forward"
+        )
+        for buffer in (char_buffer, feature_buffer, syllable_buffer):
+            self.memory._validate_buffer(buffer)
+
+        context_size, char_dim = char_buffer.shape
+        feature_context, feature_dim = feature_buffer.shape
+        syllable_context, syllable_dim = syllable_buffer.shape
+        if feature_context != context_size or syllable_context != context_size:
+            raise ValueError("hybrid representation matrices must have equal context sizes")
+        for name, dimension in (
+            ("context_size", context_size),
+            ("char_dim", char_dim),
+            ("feature_dim", feature_dim),
+            ("syllable_dim", syllable_dim),
+        ):
+            if dimension > _CUDA_ABI_INT_MAX:
+                raise ValueError(
+                    f"hybrid representation {name} exceeds the CUDA ABI limit"
+                )
+        device_ids = {
+            char_buffer.device_id,
+            feature_buffer.device_id,
+            syllable_buffer.device_id,
+        }
+        if len(device_ids) != 1:
+            raise BackendError(
+                "HybridRepresentation.forward buffers must reside on the same CUDA device"
+            )
+        output_dim = char_dim + feature_dim + syllable_dim
+        if output_dim > 2**31 - 1:
+            raise ValueError("hybrid representation output dimension exceeds the CUDA ABI limit")
+        output_element_count = context_size * output_dim
+        grid_block_count = (
+            output_element_count + _CUDA_GRID_THREADS_PER_BLOCK - 1
+        ) // _CUDA_GRID_THREADS_PER_BLOCK
+        if grid_block_count > _CUDA_GRID_MAX_BLOCKS:
+            raise ValueError("hybrid representation output exceeds the CUDA grid limit")
+        device_id = char_buffer.device_id
+        self.runtime.require_device(device_id)
+        output = self.memory.allocate(
+            (context_size, output_dim), dtype="float64", device_id=device_id
+        )
+        try:
+            self.bridge.hybrid_representation_forward_f64(
+                device_id,
+                char_buffer.pointer,
+                feature_buffer.pointer,
+                syllable_buffer.pointer,
+                output.pointer,
+                context_size,
+                char_dim,
+                feature_dim,
+                syllable_dim,
+            )
+        except Exception:
+            self.memory.release(output)
+            raise
+        return output
+
+    def mean_pool_forward(self, vectors: BackendArray) -> CudaBuffer:
+        """Average a resident matrix using CPU-compatible sequential sums."""
+        vector_buffer = self._require_buffer(
+            vectors, "vectors", rank=2, operation="mean_pool_forward"
+        )
+        self.memory._validate_buffer(vector_buffer)
+        context_size, feature_dim = vector_buffer.shape
+        for name, dimension in (
+            ("context_size", context_size),
+            ("feature_dim", feature_dim),
+        ):
+            if dimension > _CUDA_ABI_INT_MAX:
+                raise ValueError(f"mean_pool_forward {name} exceeds the CUDA ABI limit")
+        device_id = vector_buffer.device_id
+        self.runtime.require_device(device_id)
+        pooled = self.memory.allocate(
+            (feature_dim,), dtype="float64", device_id=device_id
+        )
+        try:
+            self.bridge.mean_pool_forward_f64(
+                device_id,
+                vector_buffer.pointer,
+                pooled.pointer,
+                context_size,
+                feature_dim,
+                int(_PYTHON_FLOAT_SUM_COMPENSATED),
+            )
+        except Exception:
+            self.memory.release(pooled)
+            raise
+        return pooled
+
+    def argmax(self, logits: BackendArray) -> int:
+        """Find the first finite maximum and copy back only its int32 index."""
+        logits_buffer = self._require_buffer(
+            logits, "logits", rank=1, operation="argmax"
+        )
+        self.memory._validate_buffer(logits_buffer)
+        logits_count = logits_buffer.shape[0]
+        if logits_count > 2**31 - 1:
+            raise ValueError("argmax input length exceeds the CUDA ABI limit")
+        device_id = logits_buffer.device_id
+        self.runtime.require_device(device_id)
+        output_id = self.memory.allocate((1,), dtype="int32", device_id=device_id)
+        try:
+            self.bridge.argmax_f64(
+                device_id,
+                logits_buffer.pointer,
+                output_id.pointer,
+                logits_count,
+            )
+            host_id = self.memory.copy_to_host(output_id)
+        finally:
+            self.memory.release(output_id)
+
+        if not isinstance(host_id, list) or len(host_id) != 1:
+            raise BackendError("CUDA argmax did not return one index")
+        predicted_id = cast(list[int], host_id)[0]
+        if predicted_id < 0:
+            raise ValueError(f"output[{-predicted_id - 1}] deve ser finito")
+        if predicted_id >= logits_count:
+            raise BackendError("CUDA argmax returned an out-of-range index")
+        return predicted_id
 
     def embedding_forward(
         self, weights: BackendArray, ids: list[int] | BackendBuffer

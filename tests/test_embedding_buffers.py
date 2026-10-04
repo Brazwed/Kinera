@@ -4,6 +4,7 @@ from contextlib import ExitStack
 import ctypes
 from typing import cast
 import unittest
+from unittest.mock import patch
 
 from kinera.backends.base import BackendArray, BackendBuffer, BackendUnavailableError, HostArray
 from kinera.backends.cpu.backend import CPUBackend
@@ -145,6 +146,137 @@ class EmbeddingCudaStorageTests(unittest.TestCase):
             ]
             for buffer in buffers:
                 if isinstance(buffer, CudaBuffer) and not buffer.closed:
+                    buffer.close()
+        self.assertEqual(bridge.allocations, {})
+
+    def test_forward_explicitly_closes_superseded_activation_buffers(self) -> None:
+        bridge = InMemoryCudaBridge()
+        memory = CudaMemoryManager(bridge=bridge)
+        backend = CUDABackend(runtime=memory.runtime, memory_manager=memory)
+        outputs: list[CudaBuffer] = []
+
+        def embedding_forward(
+            weights: BackendArray, ids: list[int] | BackendBuffer
+        ) -> CudaBuffer:
+            weight_buffer = cast(CudaBuffer, weights)
+            count = len(ids) if isinstance(ids, list) else ids.shape[0]
+            output = memory.allocate(
+                (count, weight_buffer.shape[1]),
+                dtype="float64",
+                device_id=weight_buffer.device_id,
+            )
+            outputs.append(output)
+            return output
+
+        setattr(backend, "embedding_forward", embedding_forward)
+        embedding = Embedding(vocab_size=3, embedding_dim=2, seed=7, backend=backend)
+        weights = cast(CudaBuffer, embedding.weights)
+        initial_gradients = cast(CudaBuffer, embedding.grad_weights)
+        ids_buffers: list[CudaBuffer] = []
+        gradient_buffers: list[CudaBuffer] = []
+        try:
+            embedding.forward([1, 0])
+            first_ids = cast(CudaBuffer, embedding.last_ids)
+            first_gradients = cast(CudaBuffer, embedding.grad_weights)
+            ids_buffers.append(first_ids)
+            gradient_buffers.append(first_gradients)
+            self.assertTrue(
+                initial_gradients.closed,
+                "forward replaced the initial gradient buffer without closing it",
+            )
+
+            embedding.forward([0, 2])
+            second_ids = cast(CudaBuffer, embedding.last_ids)
+            second_gradients = cast(CudaBuffer, embedding.grad_weights)
+            ids_buffers.append(second_ids)
+            gradient_buffers.append(second_gradients)
+            self.assertTrue(first_ids.closed, "superseded ID buffer leaked")
+            self.assertTrue(outputs[0].closed, "superseded embedding output leaked")
+            self.assertTrue(first_gradients.closed, "superseded gradient buffer leaked")
+            self.assertFalse(second_ids.closed)
+            self.assertFalse(outputs[1].closed)
+            self.assertFalse(second_gradients.closed)
+        finally:
+            buffers = [
+                weights,
+                initial_gradients,
+                *ids_buffers,
+                *gradient_buffers,
+                *outputs,
+            ]
+            for buffer in buffers:
+                if not buffer.closed:
+                    buffer.close()
+        self.assertEqual(bridge.allocations, {})
+
+    def test_failed_forward_releases_new_buffers_and_preserves_previous_state(self) -> None:
+        bridge = InMemoryCudaBridge()
+        memory = CudaMemoryManager(bridge=bridge)
+        backend = CUDABackend(runtime=memory.runtime, memory_manager=memory)
+        dispatches = 0
+
+        def embedding_forward(
+            weights: BackendArray, ids: list[int] | BackendBuffer
+        ) -> CudaBuffer:
+            nonlocal dispatches
+            dispatches += 1
+            if dispatches == 2:
+                raise RuntimeError("simulated forward dispatch failure")
+            weight_buffer = cast(CudaBuffer, weights)
+            count = len(ids) if isinstance(ids, list) else ids.shape[0]
+            return memory.allocate(
+                (count, weight_buffer.shape[1]),
+                dtype="float64",
+                device_id=weight_buffer.device_id,
+            )
+
+        setattr(backend, "embedding_forward", embedding_forward)
+        embedding = Embedding(vocab_size=3, embedding_dim=2, seed=7, backend=backend)
+        weights = cast(CudaBuffer, embedding.weights)
+        initial_gradients = cast(CudaBuffer, embedding.grad_weights)
+        created: list[CudaBuffer] = []
+        original_allocate = memory.allocate
+        original_copy_to_device = memory.copy_to_device
+
+        def record_allocate(*args, **kwargs) -> CudaBuffer:
+            buffer = original_allocate(*args, **kwargs)
+            created.append(buffer)
+            return buffer
+
+        def record_copy_to_device(*args, **kwargs) -> CudaBuffer:
+            buffer = original_copy_to_device(*args, **kwargs)
+            created.append(buffer)
+            return buffer
+
+        try:
+            with (
+                patch.object(memory, "allocate", side_effect=record_allocate),
+                patch.object(memory, "copy_to_device", side_effect=record_copy_to_device),
+            ):
+                embedding.forward([1, 0])
+                previous_state = (
+                    cast(CudaBuffer, embedding.last_ids),
+                    cast(CudaBuffer, embedding.output),
+                    cast(CudaBuffer, embedding.grad_weights),
+                )
+                allocations_before = set(bridge.allocations)
+
+                with self.assertRaisesRegex(RuntimeError, "simulated forward dispatch failure"):
+                    embedding.forward([2, 1])
+
+                self.assertEqual(
+                    (
+                        cast(CudaBuffer, embedding.last_ids),
+                        cast(CudaBuffer, embedding.output),
+                        cast(CudaBuffer, embedding.grad_weights),
+                    ),
+                    previous_state,
+                )
+                self.assertTrue(all(not buffer.closed for buffer in previous_state))
+                self.assertEqual(set(bridge.allocations), allocations_before)
+        finally:
+            for buffer in [weights, initial_gradients, *created]:
+                if not buffer.closed:
                     buffer.close()
         self.assertEqual(bridge.allocations, {})
 

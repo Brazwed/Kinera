@@ -1,8 +1,11 @@
 """CPU-only orchestration tests for CUDA Linear gradient dispatch."""
 
 import ctypes
+import math
+import struct
 from contextlib import ExitStack
 import unittest
+from unittest.mock import patch
 from typing import cast
 
 from kinera.backends.base import BackendError
@@ -18,9 +21,13 @@ class FakeCudaBridge(CudaBridge):
         self.step_calls: list[tuple[int | float, ...]] = []
         self.copy_to_device_calls = 0
         self.copy_to_host_calls = 0
+        self.copy_to_host_nbytes: list[int] = []
         self.embedding_forward_calls: list[tuple[int, ...]] = []
         self.embedding_backward_calls: list[tuple[int, ...]] = []
         self.embedding_step_calls: list[tuple[int | float, ...]] = []
+        self.hybrid_forward_calls: list[tuple[int, ...]] = []
+        self.mean_pool_calls: list[tuple[int, ...]] = []
+        self.argmax_calls: list[tuple[int, ...]] = []
 
     def device_count(self) -> int:
         return self._device_count
@@ -42,6 +49,7 @@ class FakeCudaBridge(CudaBridge):
 
     def copy_to_host(self, device_id: int, destination: int, source: int, nbytes: int) -> None:
         self.copy_to_host_calls += 1
+        self.copy_to_host_nbytes.append(nbytes)
         ctypes.memmove(destination, bytes(self._allocations[source][:nbytes]), nbytes)
 
     def linear_step_f64(
@@ -139,6 +147,204 @@ class FakeCudaBridge(CudaBridge):
         self.embedding_step_calls.append(
             (device_id, weights, grad_weights, learning_rate, vocab_size, embedding_dim)
         )
+
+    def hybrid_representation_forward_f64(
+        self,
+        device_id: int,
+        char_vectors: int,
+        feature_vectors: int,
+        syllable_vectors: int,
+        output: int,
+        context_size: int,
+        char_dim: int,
+        feature_dim: int,
+        syllable_dim: int,
+    ) -> None:
+        self.hybrid_forward_calls.append(
+            (
+                device_id,
+                char_vectors,
+                feature_vectors,
+                syllable_vectors,
+                output,
+                context_size,
+                char_dim,
+                feature_dim,
+                syllable_dim,
+            )
+        )
+
+
+    def mean_pool_forward_f64(
+        self,
+        device_id: int,
+        vectors: int,
+        output: int,
+        context_size: int,
+        feature_dim: int,
+        compensated_sum: int,
+    ) -> None:
+        self.mean_pool_calls.append(
+            (device_id, vectors, output, context_size, feature_dim, compensated_sum)
+        )
+
+
+    def argmax_f64(
+        self,
+        device_id: int,
+        logits: int,
+        output: int,
+        logits_count: int,
+    ) -> None:
+        self.argmax_calls.append((device_id, logits, output, logits_count))
+        values = [
+            struct.unpack_from("=d", self._allocations[logits], index * ctypes.sizeof(ctypes.c_double))[0]
+            for index in range(logits_count)
+        ]
+        result = next(
+            (-(index + 1) for index, value in enumerate(values) if not math.isfinite(value)),
+            max(range(logits_count), key=values.__getitem__),
+        )
+        struct.pack_into("=i", self._allocations[output], 0, result)
+
+
+class CudaBackendMeanPoolDispatchTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bridge = FakeCudaBridge()
+        self.backend = CUDABackend(runtime=CudaRuntime(bridge=self.bridge))
+
+    def test_mean_pool_dispatches_one_resident_matrix_without_transfers(self) -> None:
+        with ExitStack() as stack:
+            vectors = stack.enter_context(
+                self.backend.buffer_from_host(
+                    [[1e16, 2.0], [1.0, 4.0], [-1e16, 6.0]],
+                    shape=(3, 2),
+                    dtype="float64",
+                )
+            )
+            h2d_before = self.bridge.copy_to_device_calls
+            d2h_before = self.bridge.copy_to_host_calls
+
+            pooled = self.backend.mean_pool_forward(vectors)
+            stack.enter_context(pooled)
+
+            self.assertIsInstance(pooled, CudaBuffer)
+            self.assertEqual(pooled.shape, (2,))
+            self.assertEqual(pooled.dtype, "float64")
+            self.assertIsNot(pooled, vectors)
+            expected_sum_mode = int(sum([1e16, 1.0, -1e16]) == 1.0)
+            self.assertEqual(
+                self.bridge.mean_pool_calls,
+                [(0, vectors.pointer, pooled.pointer, 3, 2, expected_sum_mode)],
+            )
+            self.assertEqual(self.bridge.copy_to_device_calls, h2d_before)
+            self.assertEqual(self.bridge.copy_to_host_calls, d2h_before)
+
+
+class CudaBackendNativeDimensionBoundsTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bridge = FakeCudaBridge()
+        self.backend = CUDABackend(runtime=CudaRuntime(bridge=self.bridge))
+
+    def _metadata_buffer(self, shape: tuple[int, int]) -> CudaBuffer:
+        pointer = self.bridge.allocate(0, ctypes.sizeof(ctypes.c_double))
+        return CudaBuffer(
+            self.backend.memory,
+            pointer,
+            device_id=0,
+            shape=shape,
+            dtype="float64",
+            nbytes=ctypes.sizeof(ctypes.c_double),
+        )
+
+    def test_hybrid_forward_rejects_context_size_outside_c_int_before_allocation(self) -> None:
+        oversized = 2**31
+        with ExitStack() as stack:
+            char_vectors = stack.enter_context(self._metadata_buffer((oversized, 1)))
+            feature_vectors = stack.enter_context(self._metadata_buffer((oversized, 1)))
+            syllable_vectors = stack.enter_context(self._metadata_buffer((oversized, 1)))
+            with patch.object(
+                self.backend.memory,
+                "allocate",
+                side_effect=AssertionError("output must not be allocated"),
+            ) as allocate:
+                with self.assertRaisesRegex(ValueError, "context_size.*CUDA ABI limit"):
+                    self.backend.hybrid_representation_forward(
+                        char_vectors, feature_vectors, syllable_vectors
+                    )
+                allocate.assert_not_called()
+        self.assertEqual(self.bridge.hybrid_forward_calls, [])
+
+    def test_mean_pool_rejects_each_dimension_outside_c_int_before_allocation(self) -> None:
+        oversized = 2**31
+        for dimension, shape in (
+            ("context_size", (oversized, 1)),
+            ("feature_dim", (1, oversized)),
+        ):
+            with self.subTest(dimension=dimension), ExitStack() as stack:
+                vectors = stack.enter_context(self._metadata_buffer(shape))
+                with patch.object(
+                    self.backend.memory,
+                    "allocate",
+                    side_effect=AssertionError("output must not be allocated"),
+                ) as allocate:
+                    with self.assertRaisesRegex(
+                        ValueError, f"{dimension}.*CUDA ABI limit"
+                    ):
+                        self.backend.mean_pool_forward(vectors)
+                    allocate.assert_not_called()
+        self.assertEqual(self.bridge.mean_pool_calls, [])
+
+    def test_hybrid_forward_rejects_unrepresentable_grid_before_allocation(self) -> None:
+        context_size = 1_000_000_000
+        feature_dim = 100
+        with ExitStack() as stack:
+            char_vectors = stack.enter_context(
+                self._metadata_buffer((context_size, feature_dim))
+            )
+            feature_vectors = stack.enter_context(
+                self._metadata_buffer((context_size, feature_dim))
+            )
+            syllable_vectors = stack.enter_context(
+                self._metadata_buffer((context_size, feature_dim))
+            )
+            with patch.object(
+                self.backend.memory,
+                "allocate",
+                side_effect=AssertionError("output must not be allocated"),
+            ) as allocate:
+                with self.assertRaisesRegex(ValueError, "CUDA grid limit"):
+                    self.backend.hybrid_representation_forward(
+                        char_vectors, feature_vectors, syllable_vectors
+                    )
+                allocate.assert_not_called()
+        self.assertEqual(self.bridge.hybrid_forward_calls, [])
+
+
+class CudaBackendArgmaxDispatchTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bridge = FakeCudaBridge()
+        self.backend = CUDABackend(runtime=CudaRuntime(bridge=self.bridge))
+
+    def test_argmax_dispatches_resident_logits_and_copies_only_the_int32_id(self) -> None:
+        with ExitStack() as stack:
+            logits = stack.enter_context(
+                self.backend.buffer_from_host([0.0, 5.0, 5.0, -1.0], shape=(4,))
+            )
+            h2d_before = self.bridge.copy_to_device_calls
+            d2h_before = self.bridge.copy_to_host_calls
+
+            predicted = self.backend.argmax(logits)
+
+            self.assertEqual(predicted, 1)
+            self.assertEqual(len(self.bridge.argmax_calls), 1)
+            device_id, input_pointer, output_pointer, logits_count = self.bridge.argmax_calls[0]
+            self.assertEqual((device_id, input_pointer, logits_count), (0, logits.pointer, 4))
+            self.assertNotIn(output_pointer, self.bridge._allocations)
+            self.assertEqual(self.bridge.copy_to_device_calls, h2d_before)
+            self.assertEqual(self.bridge.copy_to_host_calls, d2h_before + 1)
+            self.assertEqual(self.bridge.copy_to_host_nbytes[d2h_before:], [4])
+            self.assertFalse(logits.closed)
 
 
 class CudaBackendStepDispatchTests(unittest.TestCase):
@@ -341,6 +547,58 @@ class CudaBackendBackwardDispatchTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "CudaBuffer"):
             self.backend.linear_backward([[1.0]], [1.0], [1.0])
         self.assertEqual(self.bridge.backward_calls, [])
+
+
+class CudaBackendHybridRepresentationDispatchTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bridge = FakeCudaBridge()
+        self.backend = CUDABackend(runtime=CudaRuntime(bridge=self.bridge))
+
+    def test_forward_dispatches_three_resident_matrices_without_transfers(self) -> None:
+        with ExitStack() as stack:
+            char_vectors = stack.enter_context(
+                self.backend.buffer_from_host(
+                    [[0.1, 0.2], [0.3, 0.4]], shape=(2, 2)
+                )
+            )
+            features = stack.enter_context(
+                self.backend.buffer_from_host(
+                    [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], shape=(2, 3)
+                )
+            )
+            syllable_vectors = stack.enter_context(
+                self.backend.buffer_from_host([[0.5], [0.6]], shape=(2, 1))
+            )
+            h2d_before = self.bridge.copy_to_device_calls
+            d2h_before = self.bridge.copy_to_host_calls
+
+            output = self.backend.hybrid_representation_forward(
+                char_vectors, features, syllable_vectors
+            )
+            stack.enter_context(output)
+
+            self.assertIsInstance(output, CudaBuffer)
+            self.assertEqual(output.shape, (2, 6))
+            self.assertEqual(output.dtype, "float64")
+            self.assertNotIn(output, (char_vectors, features, syllable_vectors))
+            self.assertEqual(
+                self.bridge.hybrid_forward_calls,
+                [
+                    (
+                        0,
+                        char_vectors.pointer,
+                        features.pointer,
+                        syllable_vectors.pointer,
+                        output.pointer,
+                        2,
+                        2,
+                        3,
+                        1,
+                    )
+                ],
+            )
+            self.assertEqual(self.bridge.copy_to_device_calls, h2d_before)
+            self.assertEqual(self.bridge.copy_to_host_calls, d2h_before)
 
 
 class CudaBackendEmbeddingForwardDispatchTests(unittest.TestCase):

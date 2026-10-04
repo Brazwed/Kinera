@@ -3,6 +3,8 @@ import unittest
 from typing import Any
 
 import kinera.nn.losses as losses_module
+from kinera.backends import resolve_backend
+from kinera.backends.cpu.backend import CPUBackend
 from kinera.nn.probability import cross_entropy, cross_entropy_gradient, softmax
 from kinera.training.autoregressive import AutoregressiveModel
 
@@ -29,6 +31,9 @@ class ProbabilityTests(unittest.TestCase):
     def test_invalid_target_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             cross_entropy([0.0, 1.0], target_id=2)
+
+    def test_cpu_backend_argmax_returns_first_maximum(self) -> None:
+        self.assertEqual(CPUBackend().argmax([0.0, 2.0, 2.0, -1.0]), 1)
 
     def test_public_probability_apis_reject_invalid_logits_with_exact_errors(self) -> None:
         apis: tuple[tuple[str, Any, bool], ...] = (
@@ -104,6 +109,33 @@ class AutoregressiveModelTests(unittest.TestCase):
         self.assertEqual(len(logits), 3)
         self.assertEqual(model.predict(*self._inputs()), max(range(3), key=logits.__getitem__))
 
+    def test_predict_delegates_to_backend_argmax_and_preserves_first_tie(self) -> None:
+        class RecordingBackend(CPUBackend):
+            def __init__(self) -> None:
+                self.argmax_calls = 0
+
+            def argmax(self, logits):
+                self.argmax_calls += 1
+                return max(range(len(logits)), key=logits.__getitem__)
+
+        backend = RecordingBackend()
+        model = AutoregressiveModel(
+            char_vocab_size=3,
+            syllable_vocab_size=2,
+            char_embedding_dim=2,
+            syllable_embedding_dim=2,
+            feature_dim=2,
+            seed=7,
+            backend=backend,
+        )
+        model.output_layer.weights = [[0.0] * 6 for _ in range(3)]
+        model.output_layer.bias = [-1.0, 2.0, 2.0]
+
+        prediction = model.predict(*self._inputs())
+
+        self.assertEqual(prediction, 1)
+        self.assertEqual(backend.argmax_calls, 1)
+
     def test_backward_and_step_update_the_model(self) -> None:
         model = self._model()
         inputs = self._inputs()
@@ -131,6 +163,94 @@ class AutoregressiveModelTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             model.forward([0, 1], [0, 1], [[math.nan, 0.0], [0.0, 1.0]])
+
+    def test_legacy_injected_cpu_backend_without_phase11a_capabilities_still_works(self) -> None:
+        class LegacyCPUBackend(CPUBackend):
+            def __getattribute__(self, name: str):
+                if name in {
+                    "hybrid_representation_forward",
+                    "mean_pool_forward",
+                    "argmax",
+                }:
+                    raise AttributeError(name)
+                return super().__getattribute__(name)
+
+        legacy = LegacyCPUBackend()
+        reference_backend = CPUBackend()
+        self.assertIs(resolve_backend(legacy), legacy)
+        self.assertIsNone(getattr(legacy, "hybrid_representation_forward", None))
+        self.assertIsNone(getattr(legacy, "mean_pool_forward", None))
+        self.assertIsNone(getattr(legacy, "argmax", None))
+        model_args = {
+            "char_vocab_size": 3,
+            "syllable_vocab_size": 2,
+            "char_embedding_dim": 2,
+            "syllable_embedding_dim": 2,
+            "feature_dim": 2,
+            "seed": 19,
+        }
+        legacy_model = AutoregressiveModel(**model_args, backend=legacy)
+        reference_model = AutoregressiveModel(**model_args, backend=reference_backend)
+        inputs = ([0, 1], [1, 0], [[1.0, 0.0], [0.0, 1.0]])
+
+        self.assertEqual(
+            legacy_model.forward_heads(*inputs),
+            reference_model.forward_heads(*inputs),
+        )
+        legacy_model.output_layer.weights = [[0.0] * 6 for _ in range(3)]
+        legacy_model.output_layer.bias = [-1.0, 2.0, 2.0]
+        reference_model.output_layer.weights = [[0.0] * 6 for _ in range(3)]
+        reference_model.output_layer.bias = [-1.0, 2.0, 2.0]
+        self.assertEqual(legacy_model.predict(*inputs), 1)
+        self.assertEqual(reference_model.predict(*inputs), 1)
+
+
+class ModelBackendNativeForwardTests(unittest.TestCase):
+    def test_internal_heads_forward_delegates_once_to_pool_and_three_linears(self) -> None:
+        class RecordingBackend(CPUBackend):
+            def __init__(self) -> None:
+                self.hybrid_calls = 0
+                self.pool_calls = 0
+                self.linear_calls = 0
+
+            def hybrid_representation_forward(
+                self, char_vectors, feature_vectors, syllable_vectors
+            ):
+                self.hybrid_calls += 1
+                return super().hybrid_representation_forward(
+                    char_vectors, feature_vectors, syllable_vectors
+                )
+
+            def mean_pool_forward(self, vectors):
+                self.pool_calls += 1
+                return super().mean_pool_forward(vectors)
+
+            def linear_forward(self, weights, bias, inputs):
+                self.linear_calls += 1
+                return super().linear_forward(weights, bias, inputs)
+
+        backend = RecordingBackend()
+        model = AutoregressiveModel(
+            char_vocab_size=4,
+            syllable_vocab_size=3,
+            char_embedding_dim=2,
+            syllable_embedding_dim=3,
+            feature_dim=2,
+            seed=11,
+            backend=backend,
+        )
+
+        outputs = model._forward_heads_backend(
+            [2, 0], [1, 2], [[1.0, 0.0], [0.0, 1.0]]
+        )
+
+        self.assertEqual(set(outputs), {"char", "syllable", "boundary"})
+        self.assertEqual(len(outputs["char"]), 4)
+        self.assertEqual(len(outputs["syllable"]), 3)
+        self.assertEqual(len(outputs["boundary"]), 1)
+        self.assertEqual(backend.hybrid_calls, 1)
+        self.assertEqual(backend.pool_calls, 1)
+        self.assertEqual(backend.linear_calls, 3)
 
 
 if __name__ == "__main__":

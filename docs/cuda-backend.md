@@ -16,9 +16,9 @@ Selecionar ou consultar explicitamente CUDA pode compilar/carregar o runtime nat
 
 O build sob demanda está habilitado para Linux. Em outras plataformas, deve ser fornecida uma biblioteca compatível por `KINERA_CUDA_LIBRARY`; falha ao construir não altera o caminho CPU. A biblioteca é carregada via `ctypes.CDLL` somente após solicitação explícita. O wheel inclui as fontes CUDA, mas não executa `nvcc` durante instalação.
 
-O ABI C é versionado (`kinera_cuda_abi_version()`, atualmente versão `5`). Cada função retorna um status inteiro; `kinera_cuda_error_string()` converte falhas CUDA em diagnósticos legíveis. O status `-1` é reservado pela ABI 5 para IDs da Embedding fora do vocabulário e vira `ValueError` no Python. `CudaBridge` valida todos os símbolos obrigatórios antes de publicar a biblioteca carregada. A ABI 2 adicionou `Embedding.forward`, a ABI 3 adicionou o backward determinístico, a ABI 4 adicionou `Embedding.step` in-place e a ABI 5 valida limites de IDs residentes no device antes de acessar pesos/gradientes. Bibliotecas ABI 1–4 são rejeitadas explicitamente.
+O ABI C é versionado (`kinera_cuda_abi_version()`, atualmente versão `6`). Cada função retorna um status inteiro; `kinera_cuda_error_string()` converte falhas CUDA em diagnósticos legíveis. O status `-1` foi introduzido na ABI 5 para IDs da Embedding fora do vocabulário e vira `ValueError` no Python. `CudaBridge` valida todos os símbolos obrigatórios antes de publicar a biblioteca carregada. A ABI 2 adicionou `Embedding.forward`, a ABI 3 adicionou o backward determinístico, a ABI 4 adicionou `Embedding.step` in-place, a ABI 5 valida limites de IDs residentes no device antes de acessar pesos/gradientes e a ABI 6 adiciona concatenação híbrida residente, mean pooling residente e argmax residente. Dimensões passadas aos kernels da ABI 6 são validadas no Python contra o limite positivo de `int32` antes de alocar saídas; a representação híbrida também rejeita grids acima de `INT_MAX` blocos, e a ABI nativa repete a checagem antes de estreitar o número de blocos. Bibliotecas ABI 1–5 são rejeitadas explicitamente.
 
-A interface nativa da versão 5 inclui:
+A interface nativa da versão 6 inclui:
 
 - consulta de versão, erro, quantidade e propriedades de devices;
 - seleção e sincronização explícitas do device;
@@ -29,7 +29,14 @@ A interface nativa da versão 5 inclui:
 - `kinera_cuda_linear_step_f64`, que aplica gradient descent diretamente aos buffers de pesos e bias residentes no device;
 - `kinera_cuda_embedding_forward_f64`, que valida no device cada ID residente (`0 <= id < vocab_size`) antes do primeiro acesso aos pesos, faz lookup row-major de pesos `float64` e escreve uma saída independente. A checagem transfere ao host apenas um status `int32`, nunca o vetor de IDs; ID inválido retorna o status de validação ABI 5 e não lança o lookup;
 - `kinera_cuda_embedding_backward_f64`, que aplica a mesma validação antes de ler/alterar a tabela de gradientes e, em seguida, acumula cada `(vocab_row, embedding_dimension)` percorrendo posições sequencialmente em ordem de entrada, sem `atomicAdd`. IDs inválidos falham sem modificar gradientes;
-- `kinera_cuda_embedding_step_f64`, que atualiza os pesos `float64` in-place em VRAM, sem cópias implícitas.
+- `kinera_cuda_embedding_step_f64`, que atualiza os pesos `float64` in-place em VRAM, sem cópias implícitas;
+- `kinera_cuda_hybrid_representation_forward_f64`, que concatena buffers `float64` residentes na ordem `[char | features | syllable]`, sem cópia para host;
+- `kinera_cuda_mean_pool_forward_f64`, que acumula cada feature sequencialmente na ordem das posições, compatível com a soma `float64` do oracle CPU;
+- `kinera_cuda_argmax_f64`, que escolhe o primeiro índice máximo e copia ao host somente um ID `int32`.
+
+### Evidência do candidato da Phase 11A
+
+O gate de forward residente passou na Tesla T4: 8 testes, sem falhas, erros ou skips; ambiente Python 3.13.15, fingerprint `a4827f39aab54432a943a559d41f0d5b`, manifesto dos fontes/testes `0d8c402e06294c316068dfc5f1dd8f0be828660f26aff14a3b464925b34553db`, `float64`, `atol=rtol=1e-12`. A suíte CPU passou com 377 testes e 23 skips CUDA-only. Os testes host também confirmam o retorno vazio da representação CPU e rejeição de grids CUDA não representáveis antes de alocação/estreitamento. O wheel candidato CPU-only foi construído e instalado em alvo isolado (137017 bytes, SHA-256 `1f80fa77cea3cda027eca4258e85c04e18b16467274105a4267546ceb9cca4a5`); o smoke `forward → backward → step` passou sem `nvcc` no `PATH` e sem importar módulos CUDA. Manifesto de entradas do pacote: `b0bd83a1808bb8236c47573b50c8ac866f0f5d8f2fb5535c4156788faf56b7a8`. Relatório: [`../experiments/phase11a_forward_validation.json`](../experiments/phase11a_forward_validation.json). O candidato ainda aguarda revisão pré-commit e CI no SHA do PR; esta evidência não declara a Issue concluída.
 
 Os gates de `Linear.forward`, `Linear.backward` e `Linear.step/update` passaram na Tesla T4. O update é in-place em `float64`, sem cópias host↔device implícitas; `learning_rate=0` retorna os mesmos buffers sem chamar o kernel. A equivalência CPU↔CUDA ficou com erro absoluto máximo `0.0` após 1 e 8 updates (`atol=rtol=1e-12`).
 

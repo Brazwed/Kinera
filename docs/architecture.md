@@ -16,7 +16,7 @@ A Fase 8 reorganiza o Kinera em um pacote instalável e prepara a fronteira de e
 
 ## Contrato de backend
 
-`kinera.backends.base.Backend` define as operações usadas por layers, ativações e losses. `resolve_backend(None)` seleciona `CPUBackend`; um backend injetado é validado pelo protocolo em runtime. `get_backend()` importa as implementações sob demanda. As classes em `kinera.nn` recebem uma instância de backend e não espalham condicionais por hardware.
+`kinera.backends.base.Backend` define o contrato estável de operações usado por layers, ativações e losses. `resolve_backend(None)` seleciona `CPUBackend`; um backend injetado é validado pelo protocolo em runtime. Operações específicas da Phase 11A — concatenação híbrida, mean pooling e argmax — são capacidades opcionais e não ampliam o protocolo obrigatório, preservando backends CPU injetados existentes. Se um backend legado produzir listas, o modelo mantém a execução compatível em host; se produzir buffers residentes sem a capacidade correspondente, a operação falha explicitamente em vez de transferir dados implicitamente. `get_backend()` importa implementações sob demanda. As classes em `kinera.nn` recebem uma instância de backend e não espalham condicionais por hardware.
 
 `CPUBackend` é a oracle Python sem dependências numéricas externas. Suas operações ficam em `backends/cpu/ops/` e preservam a aritmética existente de `Linear`, `Embedding`, `Neuron`, ativações e probabilidades.
 

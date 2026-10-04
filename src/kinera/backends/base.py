@@ -48,9 +48,24 @@ HostArray = FloatArray | IntArray
 BackendArray = HostArray | BackendBuffer
 
 
+def release_backend_buffers(*buffers: object) -> None:
+    """Explicitly close distinct owned backend buffers when they support it."""
+    seen: set[int] = set()
+    for buffer in buffers:
+        identity = id(buffer)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        if not getattr(buffer, "owns_memory", False) or getattr(buffer, "closed", False):
+            continue
+        close = getattr(buffer, "close", None)
+        if callable(close):
+            close()
+
+
 @runtime_checkable
 class Backend(Protocol):
-    """Hardware-independent contract for the operations used by Kinera."""
+    """Core hardware-independent contract shared by compatible backends."""
 
     name: str
 

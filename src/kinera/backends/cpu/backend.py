@@ -114,6 +114,62 @@ class CPUBackend:
     def embedding_step(self, weights, grad_weights, learning_rate):
         return embedding.step(weights, grad_weights, learning_rate)
 
+    def hybrid_representation_forward(
+        self, char_vectors, feature_vectors, syllable_vectors
+    ):
+        """Concatenate aligned character, feature, and syllable channels."""
+        matrices = (char_vectors, feature_vectors, syllable_vectors)
+        if any(not isinstance(matrix, list) for matrix in matrices):
+            raise TypeError("CPU hybrid representation inputs must be Python lists")
+        row_counts = tuple(len(matrix) for matrix in matrices)
+        if len(set(row_counts)) != 1:
+            raise ValueError("hybrid representation matrices must have equal row counts")
+        if row_counts[0] == 0:
+            return []
+
+        copied_matrices = [self._copy_host_tree(matrix) for matrix in matrices]
+        shapes = [shape for _, shape in copied_matrices]
+        if any(len(shape) != 2 for shape in shapes):
+            raise ValueError("hybrid representation inputs must have rank 2")
+        if any(shape[0] != row_counts[0] for shape in shapes):
+            raise ValueError("hybrid representation matrices must be rectangular")
+        char_values = cast(list[list[float]], copied_matrices[0][0])
+        feature_values = cast(list[list[float]], copied_matrices[1][0])
+        syllable_values = cast(list[list[float]], copied_matrices[2][0])
+        return [
+            char_row + feature_row + syllable_row
+            for char_row, feature_row, syllable_row in zip(
+                char_values, feature_values, syllable_values
+            )
+        ]
+
+    def mean_pool_forward(self, vectors):
+        """Average each feature by sequentially visiting context positions."""
+        if not isinstance(vectors, list):
+            raise TypeError("CPU mean pooling input must be a Python list")
+        copied, shape = self._copy_host_tree(vectors)
+        if len(shape) != 2:
+            raise ValueError("mean pooling input must have rank 2")
+        context_size, feature_dim = shape
+        matrix = cast(list[list[float]], copied)
+        return [
+            sum(vector[dimension] for vector in matrix) / context_size
+            for dimension in range(feature_dim)
+        ]
+
+    def argmax(self, logits):
+        """Return the first index holding the maximum finite host logit."""
+        if not isinstance(logits, list):
+            raise TypeError("CPU argmax input must be a Python list")
+        if not logits:
+            raise ValueError("CPU argmax input cannot be empty")
+        for index, value in enumerate(logits):
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise TypeError(f"logits[{index}] must be numeric")
+            if not math.isfinite(value):
+                raise ValueError(f"logits[{index}] must be finite")
+        return max(range(len(logits)), key=logits.__getitem__)
+
     def neuron_forward(self, weights, bias, inputs, activation, negative_slope):
         z = sum(input_value * weight for input_value, weight in zip(inputs, weights)) + bias
         return z, activations.forward(activation, z, negative_slope)
