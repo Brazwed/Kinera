@@ -20,7 +20,7 @@ A Fase 8 reorganiza o Kinera em um pacote instalável e prepara a fronteira de e
 
 `CPUBackend` é a oracle Python sem dependências numéricas externas. Suas operações ficam em `backends/cpu/ops/` e preservam a aritmética existente de `Linear`, `Embedding`, `Neuron`, ativações e probabilidades.
 
-`CUDABackend` permanece fail-closed para operações matemáticas até os gates de `Linear` da Phase 9. A Phase 8 criou os pontos de extensão sem carregar biblioteca nativa nem alocar memória CUDA. A Issue #12 implementa essa infraestrutura de forma opcional; o contrato atual de buffers e ABI está documentado em [`cuda-backend.md`](cuda-backend.md). Nenhum treinamento 5k/10k ou benchmark faz parte dessa transição.
+A Phase 8 criou os pontos de extensão sem carregar biblioteca nativa nem alocar memória CUDA. A Issue #12 implementa runtime, ABI e buffers de forma opcional; o contrato está documentado em [`cuda-backend.md`](cuda-backend.md). A `CUDABackend` agora executa somente `Linear.forward` em CUDA; backward, step/update e demais operações continuam fail-closed até seus gates. A equivalência numérica do forward passou; o check remoto de CI CPU ainda está pendente. Nenhum treinamento 5k/10k ou benchmark foi executado.
 
 
 ## Migração de caminhos

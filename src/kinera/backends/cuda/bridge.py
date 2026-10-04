@@ -192,6 +192,30 @@ class CudaBridge:
             ),
         )
 
+    def linear_forward_f64(
+        self,
+        device_id: int,
+        weights: int,
+        bias: int,
+        inputs: int,
+        output: int,
+        input_size: int,
+        output_size: int,
+    ) -> None:
+        self.load()
+        self._check(
+            "Linear.forward kernel",
+            self._functions["kinera_cuda_linear_forward_f64"](
+                device_id,
+                weights,
+                bias,
+                inputs,
+                output,
+                input_size,
+                output_size,
+            ),
+        )
+
     def _check(self, operation: str, result: object) -> None:
         status = int(result)
         if status == 0:
@@ -238,6 +262,18 @@ class CudaBridge:
             ),
             "kinera_cuda_copy_to_host": (
                 [ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t],
+                ctypes.c_int,
+            ),
+            "kinera_cuda_linear_forward_f64": (
+                [
+                    ctypes.c_int,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_void_p,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                ],
                 ctypes.c_int,
             ),
         }

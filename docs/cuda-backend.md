@@ -23,7 +23,10 @@ A interface nativa de runtime/memória da versão 1 inclui:
 - consulta de versão, erro, quantidade e propriedades de devices;
 - seleção e sincronização explícitas do device;
 - alocação/liberação de memória;
-- cópias explícitas host → device e device → host.
+- cópias explícitas host → device e device → host;
+- `kinera_cuda_linear_forward_f64`, que executa a soma afim em pesos row-major, com um thread por saída e acumulação sequencial em `float64`.
+
+O wrapper de `Linear.forward` sincroniza a execução e propaga erros CUDA; backward/update continuam indisponíveis até os gates seguintes.
 
 ## `CudaBuffer`
 
@@ -42,7 +45,7 @@ A versão inicial aceita apenas `float64`, mantendo correspondência com o `floa
 - tolerância relativa: `rtol=1e-12`;
 - comparação por elemento: `abs(cuda - cpu) <= atol + rtol * abs(cpu)`.
 
-O maior erro observado e os casos da fixture serão registrados após executar o gate CUDA de `Linear.forward`. A tolerância não deve ser ampliada apenas para fazer um teste passar.
+O maior erro absoluto observado no gate inicial de `Linear.forward` foi `4.440892098500626e-16`, abaixo do limite composto registrado. Os casos, ambiente T4/nvcc e a saída completa estão em [`experiments/phase9_5_linear_forward_validation.json`](../experiments/phase9_5_linear_forward_validation.json). A tolerância não deve ser ampliada apenas para fazer um teste passar.
 
 ## Ordem de validação
 

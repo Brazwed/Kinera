@@ -3,8 +3,10 @@
 import math
 import operator
 from random import Random
+from typing import cast
 
 from kinera.backends import Backend, resolve_backend
+from kinera.backends.base import BackendArray, BackendBuffer, BackendError
 
 
 class Linear:
@@ -29,20 +31,34 @@ class Linear:
         if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
             raise TypeError("seed deve ser um inteiro ou None")
 
+        self.input_size = input_size
+        self.output_size = output_size
         self.backend = resolve_backend(backend)
         generator = Random(seed)
-        self.weights = [
+        initial_weights = [
             [float(generator.uniform(-0.1, 0.1)) for _ in range(input_size)]
             for _ in range(output_size)
         ]
-        self.bias = [float(generator.uniform(-0.1, 0.1)) for _ in range(output_size)]
-
-        self.last_input: list[float] | None = None
-        self.output: list[float] | None = None
-        self.grad_weights = [
-            [0.0 for _ in range(input_size)] for _ in range(output_size)
+        initial_bias = [
+            float(generator.uniform(-0.1, 0.1)) for _ in range(output_size)
         ]
-        self.grad_bias = [0.0 for _ in range(output_size)]
+        self.weights: BackendArray = self.backend.buffer_from_host(
+            initial_weights, shape=(output_size, input_size), dtype="float64"
+        )
+        self.bias: BackendArray = self.backend.buffer_from_host(
+            initial_bias, shape=(output_size,), dtype="float64"
+        )
+
+        self.last_input: BackendArray | None = None
+        self.output: BackendArray | None = None
+        if isinstance(self.weights, BackendBuffer):
+            self.grad_weights: BackendArray | None = None
+            self.grad_bias: BackendArray | None = None
+        else:
+            self.grad_weights = [
+                [0.0 for _ in range(input_size)] for _ in range(output_size)
+            ]
+            self.grad_bias = [0.0 for _ in range(output_size)]
         self._has_backward = False
 
     @staticmethod
@@ -52,43 +68,110 @@ class Linear:
         if not math.isfinite(value):
             raise ValueError(f"{name} deve ser finito")
 
-    def forward(self, inputs: list[float]) -> list[float]:
-        """Calcula o vetor de saídas afins."""
-        if not isinstance(inputs, list):
-            raise TypeError("inputs deve ser uma lista")
-        if len(inputs) != len(self.weights[0]):
-            raise ValueError("inputs deve ter o mesmo tamanho das colunas")
-        for index, value in enumerate(inputs):
-            self._validate_number(value, f"inputs[{index}]")
+    @classmethod
+    def _validate_backend_array(
+        cls, value: object, shape: tuple[int, ...], name: str
+    ) -> BackendArray:
+        if isinstance(value, BackendBuffer):
+            if value.closed:
+                raise BackendError(f"{name} buffer has been released")
+            if value.shape != shape:
+                raise ValueError(f"{name} buffer must have shape {shape}")
+            if value.dtype != "float64":
+                raise ValueError(f"{name} buffer must use dtype float64")
+            return value
+        if not isinstance(value, list):
+            raise TypeError(f"{name} deve ser uma lista ou buffer do backend")
+        if len(shape) == 1:
+            if len(value) != shape[0]:
+                raise ValueError(f"{name} deve ter tamanho {shape[0]}")
+            for index, item in enumerate(value):
+                cls._validate_number(item, f"{name}[{index}]")
+            return value
+        if len(shape) == 2:
+            if len(value) != shape[0]:
+                raise ValueError(f"{name} deve ter {shape[0]} linhas")
+            for row_index, row in enumerate(value):
+                if not isinstance(row, list) or len(row) != shape[1]:
+                    raise ValueError(f"{name}[{row_index}] deve ter {shape[1]} colunas")
+                for column_index, item in enumerate(row):
+                    cls._validate_number(item, f"{name}[{row_index}][{column_index}]")
+            return value
+        raise ValueError("Linear backend arrays support rank 1 or rank 2")
 
-        self.last_input = [float(value) for value in inputs]
-        self.output = self.backend.linear_forward(
-            self.weights, self.bias, self.last_input
+    def _prepare_backend_array(
+        self, value: object, shape: tuple[int, ...], name: str
+    ) -> BackendArray:
+        validated = self._validate_backend_array(value, shape, name)
+        if isinstance(validated, BackendBuffer):
+            return validated
+        return self.backend.buffer_from_host(
+            validated, shape=shape, dtype="float64"
         )
-        self.grad_weights = [
-            [0.0 for _ in row] for row in self.weights
-        ]
-        self.grad_bias = [0.0 for _ in self.bias]
-        self._has_backward = False
-        return self.output.copy()
 
-    def backward(self, grad_output: list[float]) -> list[float]:
+    def forward(
+        self, inputs: list[float] | BackendBuffer
+    ) -> list[float] | BackendBuffer:
+        """Calcula y = W x + b, mantendo resultados de device no backend."""
+        prepared_weights = self._prepare_backend_array(
+            self.weights, (self.output_size, self.input_size), "weights"
+        )
+        prepared_bias = self._prepare_backend_array(
+            self.bias, (self.output_size,), "bias"
+        )
+        prepared_inputs = self._prepare_backend_array(
+            inputs, (self.input_size,), "inputs"
+        )
+        output = self.backend.linear_forward(
+            prepared_weights, prepared_bias, prepared_inputs
+        )
+        validated_output = self._validate_backend_array(
+            output, (self.output_size,), "output"
+        )
+
+        self.weights = prepared_weights
+        self.bias = prepared_bias
+        self.last_input = prepared_inputs
+        self.output = validated_output
+        if isinstance(self.grad_weights, list):
+            self.grad_weights = [
+                [0.0 for _ in range(self.input_size)]
+                for _ in range(self.output_size)
+            ]
+            self.grad_bias = [0.0 for _ in range(self.output_size)]
+        else:
+            self.grad_weights = None
+            self.grad_bias = None
+        self._has_backward = False
+        if isinstance(validated_output, list):
+            return cast(list[float], validated_output.copy())
+        return validated_output
+
+    def backward(
+        self, grad_output: list[float] | BackendBuffer
+    ) -> list[float] | BackendBuffer:
         """Calcula gradientes dos parâmetros e da entrada."""
         if self.last_input is None or self.output is None:
             raise RuntimeError("backward exige um forward anterior")
-        if not isinstance(grad_output, list):
-            raise TypeError("grad_output deve ser uma lista")
-        if len(grad_output) != len(self.weights):
-            raise ValueError("grad_output deve ter o mesmo tamanho das saídas")
-        for index, value in enumerate(grad_output):
-            self._validate_number(value, f"grad_output[{index}]")
-
-        grad_output_float = [float(value) for value in grad_output]
-        self.grad_weights, self.grad_bias, grad_inputs = self.backend.linear_backward(
-            self.weights, self.last_input, grad_output_float
+        prepared_gradient = self._prepare_backend_array(
+            grad_output, (self.output_size,), "grad_output"
+        )
+        grad_weights, grad_bias, grad_inputs = self.backend.linear_backward(
+            self.weights, self.last_input, prepared_gradient
+        )
+        self.grad_weights = self._validate_backend_array(
+            grad_weights, (self.output_size, self.input_size), "grad_weights"
+        )
+        self.grad_bias = self._validate_backend_array(
+            grad_bias, (self.output_size,), "grad_bias"
+        )
+        validated_grad_inputs = self._validate_backend_array(
+            grad_inputs, (self.input_size,), "grad_inputs"
         )
         self._has_backward = True
-        return grad_inputs
+        if isinstance(validated_grad_inputs, list):
+            return cast(list[float], validated_grad_inputs.copy())
+        return validated_grad_inputs
 
     def step(self, learning_rate: float) -> None:
         """Atualiza pesos e biases com gradient descent."""
@@ -97,6 +180,8 @@ class Linear:
             raise ValueError("learning_rate não pode ser negativo")
         if not self._has_backward:
             raise RuntimeError("step exige um backward anterior")
+        if self.grad_weights is None or self.grad_bias is None:
+            raise RuntimeError("backward não produziu gradientes válidos")
 
         rate = float(learning_rate)
         self.weights, self.bias = self.backend.linear_step(

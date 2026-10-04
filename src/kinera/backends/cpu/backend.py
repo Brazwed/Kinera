@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import math
+from typing import cast
+
+from kinera.backends.base import BackendArray, HostArray
 from kinera.backends.cpu.ops import activations, embedding, linear, probability
 
 
@@ -9,6 +13,60 @@ class CPUBackend:
     """Python-standard-library oracle for the model's numerical operations."""
 
     name = "cpu"
+
+    def buffer_from_host(
+        self,
+        values: HostArray,
+        *,
+        shape: tuple[int, ...],
+        dtype: str = "float64",
+    ) -> HostArray:
+        """Copy a validated host array while preserving the CPU list oracle."""
+        if dtype != "float64":
+            raise ValueError("CPU backend supports buffer dtype='float64' in Phase 9")
+        normalized_shape = self._normalize_shape(shape)
+        copied, observed_shape = self._copy_host_tree(values)
+        if observed_shape != normalized_shape:
+            raise ValueError(
+                f"shape {normalized_shape} does not match host data shape {observed_shape}"
+            )
+        return cast(HostArray, copied)
+
+    def buffer_to_host(self, buffer: BackendArray) -> HostArray:
+        """Return an independent Python-list copy of CPU-owned buffer data."""
+        if not isinstance(buffer, list):
+            raise TypeError("CPUBackend can export only CPU-owned list buffers")
+        copied, shape = self._copy_host_tree(buffer)
+        self._normalize_shape(shape)
+        return cast(HostArray, copied)
+
+    @staticmethod
+    def _normalize_shape(shape: tuple[int, ...]) -> tuple[int, ...]:
+        if not isinstance(shape, tuple) or not shape:
+            raise ValueError("shape must be a non-empty tuple")
+        for axis, dimension in enumerate(shape):
+            if isinstance(dimension, bool) or not isinstance(dimension, int):
+                raise TypeError(f"shape[{axis}] must be an integer")
+            if dimension <= 0:
+                raise ValueError(f"shape[{axis}] must be positive")
+        return shape
+
+    @classmethod
+    def _copy_host_tree(cls, value: object) -> tuple[object, tuple[int, ...]]:
+        if isinstance(value, list):
+            if not value:
+                raise ValueError("host data cannot contain an empty dimension")
+            children = [cls._copy_host_tree(child) for child in value]
+            child_shape = children[0][1]
+            if any(shape != child_shape for _, shape in children[1:]):
+                raise ValueError("host data must be rectangular")
+            return [child for child, _ in children], (len(value), *child_shape)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise TypeError("host data must contain only numeric values")
+        number = float(value)
+        if not math.isfinite(number):
+            raise ValueError("host data must contain only finite values")
+        return number, ()
 
     def linear_forward(self, weights, bias, inputs):
         return linear.forward(weights, bias, inputs)

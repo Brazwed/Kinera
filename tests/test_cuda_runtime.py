@@ -75,8 +75,16 @@ class FakeLibrary:
         self.kinera_cuda_free = FakeFunction(0)
         self.kinera_cuda_copy_to_device = FakeFunction(0)
         self.kinera_cuda_copy_to_host = FakeFunction(0)
+        self.linear_forward_arguments = None
+        self.kinera_cuda_linear_forward_f64 = FakeFunction(
+            callback=self._record_linear_forward
+        )
         if omit:
             delattr(self, omit)
+
+    def _record_linear_forward(self, *args) -> int:
+        self.linear_forward_arguments = args
+        return 0
 
     @staticmethod
     def _set_count(pointer) -> int:
@@ -172,6 +180,18 @@ class CudaBridgeAbiTests(unittest.TestCase):
         with temporary:
             with self.assertRaisesRegex(BackendUnavailableError, "symbol"):
                 bridge.load()
+
+    def test_bridge_dispatches_linear_forward_through_versioned_c_symbol(self) -> None:
+        from kinera.backends.cuda.bridge import CudaBridge
+
+        library = FakeLibrary()
+        temporary, bridge = self._load_with_fake_library(library)
+        with temporary:
+            bridge.linear_forward_f64(0, 101, 202, 303, 404, 26, 51)
+        self.assertEqual(
+            library.linear_forward_arguments,
+            (0, 101, 202, 303, 404, 26, 51),
+        )
 
     def test_explicit_load_builds_packaged_shared_library_on_demand(self) -> None:
         from kinera.backends.cuda.bridge import CudaBridge
