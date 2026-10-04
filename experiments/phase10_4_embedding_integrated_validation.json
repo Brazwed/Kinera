@@ -1,0 +1,74 @@
+{
+  "phase": "10.4",
+  "artifact": "Integrated Embedding forward/backward/step CUDA fixture",
+  "status": "PASS",
+  "source_commit": "bd08e80025e925f712b6268f82dcf2f7943ad73b",
+  "base_commit": "a02379ca2b6bd2d473740c402b71d4e5c44f5b1b",
+  "abi_version": 4,
+  "source_sha256": {
+    "src/kinera/backends/cuda/backend.py": "5821b0d5b09f325dc98f944d9bd8d70ecc6366abb46ab1384b65c1413e053e46",
+    "src/kinera/backends/cuda/bridge.py": "0f8e795d41b1e63edccf8411ec7f389c041a53846d7927c47f32f57c50a1d179",
+    "src/kinera/backends/cuda/native/runtime.cu": "641532e3f0f03b05188a6d600e54d1b685e557b9ef500017fa0ef63d4477c894",
+    "src/kinera/backends/cuda/kernels/embedding_forward.cu": "23fef43b246ed14ebd74d062814bbe238e03047d1f51a2786e683e42d6ade202",
+    "src/kinera/backends/cuda/kernels/embedding_backward.cu": "8e1ec66a3feef26297a2ae6b5eecfaddea6c97342fc63727a571a255690c663f",
+    "src/kinera/backends/cuda/kernels/embedding_step.cu": "e26637872a304097d15e528a60beb744105d282abc51bdfae41a52cc1f862235",
+    "src/kinera/nn/layers/embedding.py": "18ec6d73c964295c40117b97d13511b2cf859b5bd27682f56f0541b1738c9d49",
+    "tests/test_cuda_embedding_integration.py": "0998fc58205d9ae6c63f4be0111f68a5e11ab8861594b3b9deab4a12d8f1cba6",
+    "tests/test_cuda_integration.py": "462fbcb6834b1db99896128d58e1aee11a42b7c3b7560e6ac23ccd47c3796997"
+  },
+  "fixture": {
+    "vocab_size": 4,
+    "embedding_dim": 3,
+    "ids": [2, 0, 2, 3],
+    "learning_rate": 0.037,
+    "dtype": "float64",
+    "index_dtype": "signed int32",
+    "atol": 1e-12,
+    "rtol": 1e-12,
+    "comparison": "abs(cuda - cpu) <= atol + rtol * abs(cpu)",
+    "output_max_absolute_error": 0.0,
+    "gradient_table_max_absolute_error": 0.0,
+    "final_weight_table_max_absolute_error": 0.0
+  },
+  "lifetime_and_fail_closed": {
+    "all_tracked_buffers_released": true,
+    "temporary_grad_output_buffer_released": true,
+    "output_remains_valid_after_weights_and_ids_release": true,
+    "use_after_release_raises_BufferReleasedError": true,
+    "unavailable_cuda_construction_raises_BackendUnavailableError": true,
+    "silent_cpu_fallback": false,
+    "implicit_h2d_or_d2h_during_step": false
+  },
+  "gpu_environment": {
+    "device": "Tesla T4",
+    "compute_capability": "7.5",
+    "cuda_toolkit": "13.0",
+    "nvcc": "Build cuda_13.0.r13.0/compiler.36424714_0",
+    "driver": "580.82.07",
+    "python": "3.13.15",
+    "runtime_fingerprint": "a4827f39aab54432a943a559d41f0d5b",
+    "native_library_built_and_loaded": true
+  },
+  "t4_gate": {
+    "test_modules": ["tests/test_cuda_integration.py", "tests/test_cuda_embedding_integration.py"],
+    "tests_run": 4,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "embedding_gpu_fixture_count": 1,
+    "linear_regression_gpu_fixture_count": 1,
+    "embedding_integrated_max_absolute_error": 0.0,
+    "linear_regression_max_absolute_error": 0.0
+  },
+  "host_validation": {
+    "full_cpu_suite": "Ran 343 tests; OK (skipped=13)",
+    "compileall": "passed",
+    "git_diff_check": "passed",
+    "github_actions_tests_on_source_commit": "completed/success"
+  },
+  "limits": {
+    "cpu_wheel_install_after_phase10": "pending Phase 10.5",
+    "benchmark_run": false,
+    "training_run": false
+  }
+}
