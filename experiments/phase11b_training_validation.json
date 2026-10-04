@@ -5,7 +5,8 @@
   "baseline_commit": "2c66c6de2b3ac1b3301de5382a01df63f3c3c043",
   "candidate": {
     "branch": "feat/issue-18-cuda-multitask-training",
-    "commit_state": "uncommitted",
+    "commit_state": "committed",
+    "commit_sha": "c5f39e2ec9d3775e126f60690f041b4ed10085a2",
     "synced_source_test_manifest": {
       "sha256": "3913c93be23a0551cbf47ef4ff7ae4f685a585f0b7b58857770fca9e793cd59a",
       "files": 186,
@@ -84,7 +85,21 @@
       "kinera/backends/cuda/kernels/multitask_backward.cu",
       "kinera/backends/cuda/native/runtime.cu"
     ],
-    "final_committed_wheel_rebuild_required": true
+    "final_committed_wheel_rebuild_required": false,
+    "final_committed_wheel": {
+      "source_commit": "c5f39e2ec9d3775e126f60690f041b4ed10085a2",
+      "snapshot_manifest_sha256": "ed4407de1420adbf31d2dde13d0a15ef2b6bef7a6b83949c0c29b6d2acbab467",
+      "snapshot_files": 305,
+      "wheel": "kinera-0.1.0-py3-none-any.whl",
+      "size_bytes": 145340,
+      "sha256": "00527618b26e88e2b446147321a9401c0b02c2d40396876bd5753f357b245f54",
+      "build": "PASS",
+      "isolated_install": "PASS",
+      "cpu_forward_backward_step": "PASS",
+      "nvcc_visible": false,
+      "cuda_modules_imported": false,
+      "required_cuda_sources_packaged": true
+    }
   },
   "independent_review": {
     "result": "PASS",
@@ -98,8 +113,8 @@
     "issue13_changed": false
   },
   "remaining": [
-    "commit candidate and rebuild CPU-only wheel from the exact commit",
-    "open draft PR and pass required CI on its exact head SHA",
-    "update Issue #18 only after the CI/review gates"
+    "push the candidate branch and open a draft PR",
+    "pass required CI on the exact PR head SHA",
+    "after CI is green, publish the evidence/update Issue #18; then require final review PASS before merge, with all required checks still green"
   ]
 }
