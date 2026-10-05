@@ -34,6 +34,7 @@ class AutoregressiveModel:
         seed: int | None = None,
         backend: Backend | None = None,
     ) -> None:
+        self._closed = False
         self.backend = resolve_backend(backend)
         self.representation = HybridRepresentation(
             Embedding(
@@ -88,6 +89,69 @@ class AutoregressiveModel:
             name: self._export_vector(values) for name, values in outputs.items()
         }
 
+    def multitask_eval_step(
+        self,
+        char_ids: list[int],
+        syllable_ids: list[int],
+        feature_vectors: list[list[float]],
+        *,
+        targets: Mapping[str, object],
+        loss_function: MultiTaskLoss | None = None,
+    ) -> dict[str, dict[str, float] | dict[str, int]]:
+        """Evaluate three heads without exporting complete device logits."""
+        self._ensure_open()
+        loss_function = (
+            MultiTaskLoss(backend=self.backend)
+            if loss_function is None
+            else loss_function
+        )
+        try:
+            outputs = self._forward_heads_backend(
+                char_ids, syllable_ids, feature_vectors
+            )
+            losses = loss_function.forward(outputs, targets)
+            predictions: dict[str, int] = {}
+            for name in ("char", "syllable"):
+                logits = outputs[name]
+                backend_argmax = getattr(self.backend, "argmax", None)
+                if callable(backend_argmax):
+                    prediction = backend_argmax(logits)
+                elif isinstance(logits, BackendBuffer):
+                    raise BackendUnavailableError(
+                        f"backend must provide argmax for resident {name} logits"
+                    )
+                else:
+                    prediction = max(range(len(logits)), key=logits.__getitem__)
+                if isinstance(prediction, bool) or not isinstance(prediction, int):
+                    raise BackendError(f"backend argmax returned an invalid {name} ID")
+                if not 0 <= prediction < self._vector_size(logits):
+                    raise BackendError(f"backend argmax returned an out-of-range {name} ID")
+                predictions[name] = prediction
+
+            boundary_logits = outputs["boundary"]
+            if isinstance(boundary_logits, BackendBuffer):
+                buffer_to_host = getattr(self.backend, "buffer_to_host", None)
+                if not callable(buffer_to_host):
+                    raise BackendUnavailableError(
+                        "backend must provide explicit scalar export for boundary evaluation"
+                    )
+                boundary_values = buffer_to_host(boundary_logits)
+            else:
+                boundary_values = boundary_logits
+            if not isinstance(boundary_values, list) or len(boundary_values) != 1:
+                raise BackendError("boundary evaluation must export exactly one logit")
+            boundary_logit = boundary_values[0]
+            if (
+                isinstance(boundary_logit, bool)
+                or not isinstance(boundary_logit, (int, float))
+                or not math.isfinite(boundary_logit)
+            ):
+                raise BackendError("boundary evaluation returned an invalid scalar")
+            predictions["boundary"] = int(boundary_logit >= 0.0)
+            return {"losses": dict(losses), "predictions": predictions}
+        finally:
+            self.release_forward_state()
+
     def _forward_backend(
         self,
         char_ids: list[int],
@@ -95,6 +159,7 @@ class AutoregressiveModel:
         feature_vectors: list[list[float]],
     ) -> list[float] | BackendBuffer:
         """Retorna logits nativos; buffers emprestados até novo forward ou release_forward_state."""
+        self._ensure_open()
         self._validate_context(char_ids, syllable_ids, feature_vectors)
         self.release_forward_state()
         pooled: list[float] | BackendBuffer | None = None
@@ -122,6 +187,7 @@ class AutoregressiveModel:
         feature_vectors: list[list[float]],
     ) -> dict[str, list[float] | BackendBuffer]:
         """Retorna logits de todas as heads; buffers emprestados até novo forward ou release_forward_state."""
+        self._ensure_open()
         self._validate_context(char_ids, syllable_ids, feature_vectors)
         self.release_forward_state()
         pooled: list[float] | BackendBuffer | None = None
@@ -225,6 +291,16 @@ class AutoregressiveModel:
         self._last_head_logits_backend = {}
         self.last_context_size = None
 
+    def close(self) -> None:
+        """Release model-owned parameters and activations, without closing its backend."""
+        if self._closed:
+            return
+        self.release_forward_state()
+        self.representation.char_embedding.close()
+        self.representation.syllable_embedding.close()
+        self.heads.close()
+        self._closed = True
+
     @staticmethod
     def _retain_vector(
         values: list[float] | BackendBuffer,
@@ -240,6 +316,14 @@ class AutoregressiveModel:
             else values
         )
         return cast(list[float], host_values).copy()
+
+    @staticmethod
+    def _vector_size(values: list[float] | BackendBuffer) -> int:
+        return values.shape[0] if isinstance(values, BackendBuffer) else len(values)
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise RuntimeError("AutoregressiveModel is closed")
 
     def loss(
         self,

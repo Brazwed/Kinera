@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from kinera.language.vocabulary import CharacterVocabulary
 from kinera.experiments import comparison
+from kinera.experiments.config import ExecutionConfig
 from kinera.experiments.comparison import (
     BASELINE_VARIANTS,
     CONTROLLED_VARIANTS,
@@ -19,6 +20,7 @@ from kinera.experiments.comparison import (
     run_controlled_experiments,
 )
 from kinera.training.autoregressive import AutoregressiveModel
+from scripts.compare import build_parser, main as compare_main
 
 
 class ControlledComparisonTests(unittest.TestCase):
@@ -38,6 +40,79 @@ class ControlledComparisonTests(unittest.TestCase):
     def _run_historical(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         kwargs.setdefault("variants", CONTROLLED_VARIANTS)
         return run_controlled_experiments(*args, **kwargs)
+
+    def test_compare_cli_backend_defaults_to_cpu_and_supports_explicit_cuda(self) -> None:
+        arguments = [
+            "--vocabulary", "vocabulary.json",
+            "--syllable-vocabulary", "syllables.json",
+            "--train", "train.jsonl",
+            "--validation", "validation.jsonl",
+        ]
+        cpu_args = build_parser().parse_args(arguments)
+        cuda_args = build_parser().parse_args([*arguments, "--backend", "cuda"])
+
+        self.assertEqual(cpu_args.backend, "cpu")
+        self.assertEqual(cuda_args.backend, "cuda")
+
+    def test_compare_cli_passes_selected_execution_config_to_runner(self) -> None:
+        class FakeSyllableVocabulary:
+            unk_id = 0
+
+            def __len__(self) -> int:
+                return 5
+
+        arguments = [
+            "--vocabulary", "vocabulary.json",
+            "--syllable-vocabulary", "syllables.json",
+            "--train", "train.jsonl",
+            "--validation", "validation.jsonl",
+            "--seeds", "7",
+            "--epochs", "1",
+            "--variants", "D",
+            "--max-examples", "1",
+            "--backend", "cuda",
+            "--workers", "1",
+        ]
+        with (
+            patch.object(Path, "read_text", return_value="{}"),
+            patch(
+                "scripts.compare.CharacterVocabulary.from_dict",
+                return_value=self.vocabulary,
+            ),
+            patch(
+                "scripts.compare.SyllableVocabulary.from_dict",
+                return_value=FakeSyllableVocabulary(),
+            ),
+            patch("scripts.compare.load_jsonl", return_value=self.examples),
+            patch(
+                "scripts.compare.run_controlled_experiments",
+                return_value={"status": "completed"},
+            ) as run_experiments,
+        ):
+            compare_main(arguments)
+
+        self.assertEqual(
+            run_experiments.call_args.kwargs["execution_config"],
+            ExecutionConfig(backend="cuda", workers=1),
+        )
+        self.assertNotIn("workers", run_experiments.call_args.kwargs)
+
+    def test_compare_cli_rejects_cuda_workers_before_file_io(self) -> None:
+        arguments = [
+            "--vocabulary", "vocabulary.json",
+            "--syllable-vocabulary", "syllables.json",
+            "--train", "train.jsonl",
+            "--validation", "validation.jsonl",
+            "--backend", "cuda",
+            "--workers", "2",
+        ]
+        with patch.object(
+            Path, "read_text", side_effect=AssertionError("input read before validation")
+        ) as read_text:
+            with self.assertRaises(SystemExit) as raised:
+                compare_main(arguments)
+            self.assertEqual(raised.exception.code, 2)
+            read_text.assert_not_called()
 
     def test_variant_constants_separate_defaults_from_supported_controls(self) -> None:
         self.assertEqual(SUPPORTED_VARIANTS, ("A", "B", "C", "D"))
@@ -222,6 +297,224 @@ class ControlledComparisonTests(unittest.TestCase):
 
         self.assertEqual(len(set(counts)), 1)
         self.assertGreater(counts[0], 0)
+
+    def test_parameter_count_uses_dimensions_not_iterable_weights(self) -> None:
+        class NonIterable:
+            def __iter__(self):
+                raise AssertionError("parameter counting must not iterate weights")
+
+        model = comparison.AutoregressiveModel(51, 3932, seed=7)
+        parameter_owners = (
+            (model.representation.char_embedding, "weights"),
+            (model.representation.syllable_embedding, "weights"),
+            (model.heads.char, "weights"),
+            (model.heads.char, "bias"),
+            (model.heads.syllable, "weights"),
+            (model.heads.syllable, "bias"),
+            (model.heads.boundary, "weights"),
+            (model.heads.boundary, "bias"),
+        )
+        try:
+            for owner, attribute in parameter_owners:
+                setattr(owner, attribute, NonIterable())
+            self.assertEqual(count_trainable_parameters(model), 139432)
+        finally:
+            model.close()
+
+    def test_parallel_worker_closes_model_after_success_and_failure(self) -> None:
+        class FakeModel:
+            def __init__(self) -> None:
+                self.close_calls = 0
+
+            def close(self) -> None:
+                self.close_calls += 1
+
+        metrics = {
+            name: 0.0
+            for name in (
+                "char_loss",
+                "syllable_loss",
+                "boundary_loss",
+                "total_loss",
+                "char_accuracy",
+                "syllable_accuracy_all",
+                "syllable_accuracy_known",
+                "boundary_accuracy",
+                "boundary_precision",
+                "boundary_recall",
+                "boundary_f1",
+            )
+        }
+        for training_error in (None, RuntimeError("training failed")):
+            with self.subTest(training_error=training_error):
+                model = FakeModel()
+                with (
+                    patch.object(comparison, "AutoregressiveModel", return_value=model),
+                    patch.object(comparison, "count_trainable_parameters", return_value=139432),
+                    patch.object(comparison, "evaluate_multitask_examples", return_value=metrics),
+                    patch.object(
+                        comparison,
+                        "train_multitask_examples",
+                        side_effect=training_error,
+                        return_value=[],
+                    ),
+                ):
+                    _, _, record = comparison._execute_single_experiment(
+                        "D",
+                        7,
+                        self.examples,
+                        self.examples,
+                        self.vocabulary,
+                        5,
+                        1,
+                        0.05,
+                        0,
+                    )
+
+                self.assertEqual(
+                    record["status"], "failed" if training_error else "completed"
+                )
+                self.assertEqual(model.close_calls, 1)
+
+    def test_runner_reports_execution_config_separately_with_cpu_default(self) -> None:
+        report = run_controlled_experiments(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            syllable_vocab_size=5,
+            seeds=[7],
+            epochs=1,
+            learning_rate=0.05,
+            max_examples=1,
+            variants=("D",),
+            execution_config=ExecutionConfig(),
+        )
+
+        self.assertEqual(
+            report["execution_config"], {"backend": "cpu", "workers": 1}
+        )
+        self.assertEqual(report["experiment_config"]["variants"], ["D"])
+        self.assertEqual(report["experiment_config"]["phase"], "controlled_comparison")
+        self.assertNotIn("context_size", report["experiment_config"])
+        self.assertNotIn("backend", report["experiment_config"])
+        self.assertNotIn("workers", report["experiment_config"])
+        self.assertEqual(report["workers"], 1)
+
+    def test_runner_passes_explicit_cuda_backend_to_model_and_closes_model(self) -> None:
+        class FakeModel:
+            def __init__(self) -> None:
+                self.closed = False
+
+            def close(self) -> None:
+                self.closed = True
+
+        fake_backend = object()
+        fake_model = FakeModel()
+        metrics = {
+            name: 0.0
+            for name in (
+                "char_loss",
+                "syllable_loss",
+                "boundary_loss",
+                "total_loss",
+                "char_accuracy",
+                "syllable_accuracy_all",
+                "syllable_accuracy_known",
+                "boundary_accuracy",
+                "boundary_precision",
+                "boundary_recall",
+                "boundary_f1",
+            )
+        }
+        with (
+            patch.object(
+                comparison, "get_backend", create=True, return_value=fake_backend
+            ) as backend_factory,
+            patch.object(
+                comparison, "AutoregressiveModel", return_value=fake_model
+            ) as model_factory,
+            patch.object(comparison, "count_trainable_parameters", return_value=139432),
+            patch.object(comparison, "evaluate_multitask_examples", return_value=metrics),
+            patch.object(comparison, "train_multitask_examples", return_value=[]),
+        ):
+            report = run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                max_examples=1,
+                variants=("D",),
+                execution_config=ExecutionConfig(backend="cuda"),
+            )
+
+        backend_factory.assert_called_once_with("cuda")
+        model_factory.assert_called_once_with(
+            5, 5, seed=7, backend=fake_backend
+        )
+        self.assertTrue(fake_model.closed)
+        self.assertEqual(
+            report["execution_config"], {"backend": "cuda", "workers": 1}
+        )
+
+    def test_resume_rejects_backend_mismatch_before_backend_creation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "runner.json"
+            cpu_report = run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                max_examples=1,
+                checkpoint_path=checkpoint,
+                variants=("D",),
+                execution_config=ExecutionConfig(),
+            )
+            self.assertEqual(
+                cpu_report["experiment_config"]["variants"], ["D"]
+            )
+            self.assertNotIn("backend", cpu_report["experiment_config"])
+            self.assertNotIn("workers", cpu_report["experiment_config"])
+            self.assertEqual(
+                json.loads(checkpoint.read_text(encoding="utf-8"))["execution_config"],
+                {"backend": "cpu", "workers": 1},
+            )
+
+            for checkpoint_config, resume_config in (
+                (ExecutionConfig(backend="cpu"), ExecutionConfig(backend="cuda")),
+                (ExecutionConfig(backend="cuda"), ExecutionConfig(backend="cpu")),
+            ):
+                persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
+                persisted["execution_config"] = checkpoint_config.to_dict()
+                checkpoint.write_text(
+                    json.dumps(persisted), encoding="utf-8"
+                )
+                with patch.object(
+                    comparison,
+                    "_create_execution_backend",
+                    side_effect=AssertionError("backend created before resume validation"),
+                ) as backend_factory:
+                    with self.assertRaisesRegex(ValueError, "backend"):
+                        run_controlled_experiments(
+                            self.examples,
+                            self.examples,
+                            self.vocabulary,
+                            syllable_vocab_size=5,
+                            seeds=[7],
+                            epochs=1,
+                            learning_rate=0.05,
+                            max_examples=1,
+                            checkpoint_path=checkpoint,
+                            resume=True,
+                            variants=("D",),
+                            execution_config=resume_config,
+                        )
+                    backend_factory.assert_not_called()
 
     def test_runner_reports_each_variant_and_seed(self) -> None:
         report = self._run_historical(

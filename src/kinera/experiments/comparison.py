@@ -11,8 +11,10 @@ import resource
 import time
 import traceback
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+from kinera.backends import get_backend
+from kinera.experiments.config import ExperimentConfig, ExecutionConfig
 from kinera.language.vocabulary import CharacterVocabulary
 from kinera.nn.models.hybrid import AutoregressiveModel
 from kinera.training.evaluator import evaluate_multitask_examples
@@ -71,20 +73,24 @@ def prepare_variant_examples(
 
 
 def count_trainable_parameters(model: AutoregressiveModel) -> int:
-    """Conta escalares treináveis, mantendo a comparação explícita."""
-    total = 0
-    for table in (
-        model.representation.char_embedding.weights,
-        model.representation.syllable_embedding.weights,
-        model.heads.char.weights,
-        model.heads.char.bias,
-        model.heads.syllable.weights,
-        model.heads.syllable.bias,
-        model.heads.boundary.weights,
-        model.heads.boundary.bias,
-    ):
-        total += sum(len(row) if isinstance(row, list) else 1 for row in table)
+    """Conta parâmetros pelas dimensões, sem ler ou materializar seus valores."""
+    embeddings = (
+        model.representation.char_embedding,
+        model.representation.syllable_embedding,
+    )
+    total = sum(
+        embedding.vocab_size * embedding.embedding_dim for embedding in embeddings
+    )
+    for layer in (model.heads.char, model.heads.syllable, model.heads.boundary):
+        total += layer.output_size * layer.input_size + layer.output_size
     return total
+
+
+def _create_execution_backend(execution_config: ExecutionConfig) -> Any | None:
+    """Create an explicitly selected backend without importing CUDA on CPU runs."""
+    if execution_config.backend == "cpu":
+        return None
+    return get_backend(execution_config.backend)
 
 
 def run_controlled_experiments(
@@ -100,8 +106,9 @@ def run_controlled_experiments(
     syllable_unknown_id: int = 0,
     checkpoint_path: str | Path | None = None,
     resume: bool = False,
-    workers: int = 1,
+    workers: int | None = None,
     variants: tuple[str, ...] = DEFAULT_VARIANTS,
+    execution_config: ExecutionConfig | None = None,
 ) -> dict[str, Any]:
     """Executa as variantes selecionadas, com checkpoint por variante/seed."""
     variants = _validate_variant_selection(variants)
@@ -109,8 +116,13 @@ def run_controlled_experiments(
         raise ValueError("seeds não pode ser vazio")
     if any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds):
         raise TypeError("seeds deve conter inteiros")
-    if isinstance(workers, bool) or not isinstance(workers, int) or workers < 1:
-        raise ValueError("workers deve ser um inteiro positivo")
+    if execution_config is not None and not isinstance(execution_config, ExecutionConfig):
+        raise TypeError("execution_config deve ser ExecutionConfig")
+    if execution_config is None:
+        execution_config = ExecutionConfig(workers=1 if workers is None else workers)
+    elif workers is not None and workers != execution_config.workers:
+        raise ValueError("workers deve corresponder a execution_config.workers")
+    workers = execution_config.workers
     metric_names = (
         "char_loss",
         "syllable_loss",
@@ -125,27 +137,55 @@ def run_controlled_experiments(
         "boundary_f1",
     )
     checkpoint = Path(checkpoint_path) if checkpoint_path is not None else None
+    experiment_config = ExperimentConfig(
+        phase="controlled_comparison",
+        variants=variants,
+        seeds=tuple(seeds),
+        epochs=epochs,
+        learning_rate=learning_rate,
+        max_examples=max_examples,
+        context_size=None,
+    )
+    experiment_configuration = experiment_config.to_dict()
+    experiment_configuration.update(
+        {
+            "syllable_vocab_size": syllable_vocab_size,
+            "syllable_unknown_id": syllable_unknown_id,
+            "loss_weights": {"char": 1.0, "syllable": 0.7, "boundary": 0.3},
+        }
+    )
     configuration = {
-        "variants": list(variants),
-        "seeds": seeds.copy(),
-        "epochs": epochs,
-        "learning_rate": learning_rate,
-        "max_examples": max_examples,
-        "syllable_vocab_size": syllable_vocab_size,
-        "syllable_unknown_id": syllable_unknown_id,
+        **experiment_configuration,
+        "experiment_config": experiment_configuration.copy(),
+        "execution_config": execution_config.to_dict(),
         "workers": workers,
-        "loss_weights": {"char": 1.0, "syllable": 0.7, "boundary": 0.3},
     }
     if resume:
         if checkpoint is None or not checkpoint.exists():
             raise ValueError("resume exige checkpoint_path existente")
         persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
+        persisted_execution = persisted.get("execution_config")
+        if not isinstance(persisted_execution, dict):
+            raise ValueError("checkpoint backend ausente ou incompatível")
+        try:
+            persisted_execution_config = ExecutionConfig(
+                workers=cast(Any, persisted_execution.get("workers")),
+                backend=cast(Any, persisted_execution.get("backend")),
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError("checkpoint execution_config inválida") from exc
+        if persisted_execution_config.backend != execution_config.backend:
+            raise ValueError("checkpoint backend incompatível com a configuração atual")
         persisted_configuration = {
-            key: persisted.get(key) for key in configuration if key not in {"seeds", "workers"}
+            key: persisted.get(key)
+            for key in configuration
+            if key not in {"seeds", "workers", "experiment_config", "execution_config"}
         }
         persisted_seeds = set(persisted.get("seeds", []))
         current_configuration = {
-            key: configuration[key] for key in configuration if key not in {"seeds", "workers"}
+            key: configuration[key]
+            for key in configuration
+            if key not in {"seeds", "workers", "experiment_config", "execution_config"}
         }
         current_seeds = set(configuration["seeds"])
         if persisted_configuration != current_configuration or not persisted_seeds <= current_seeds:
@@ -233,6 +273,7 @@ def run_controlled_experiments(
             variants,
         )
 
+    backend = _create_execution_backend(execution_config)
     for variant in variants:
         prepared_train, prepared_validation = prepared_variants[variant]
         reports.setdefault(variant, [])
@@ -246,11 +287,13 @@ def run_controlled_experiments(
             if previous is not None:
                 reports[variant].remove(previous)
             started = time.perf_counter()
+            model: AutoregressiveModel | None = None
             try:
                 model = AutoregressiveModel(
                     len(vocabulary),
                     syllable_vocab_size,
                     seed=seed,
+                    backend=backend,
                 )
                 parameter_counts[variant] = count_trainable_parameters(model)
                 initial = evaluate_multitask_examples(
@@ -273,6 +316,8 @@ def run_controlled_experiments(
                     vocabulary,
                     syllable_unknown_id=syllable_unknown_id,
                 )
+                model.close()
+                model = None
                 reports[variant].append({
                     "seed": seed,
                     "status": "completed",
@@ -285,6 +330,12 @@ def run_controlled_experiments(
                     "duration_seconds": time.perf_counter() - started,
                 })
             except Exception:
+                error_traceback = traceback.format_exc()
+                if model is not None:
+                    try:
+                        model.close()
+                    except Exception:
+                        error_traceback += "\nCleanup failure:\n" + traceback.format_exc()
                 if checkpoint is None:
                     raise
                 reports[variant].append({
@@ -293,7 +344,7 @@ def run_controlled_experiments(
                     "pid": os.getpid(),
                     "max_rss_kb": _max_rss_kb(),
                     "error": "experiment failed",
-                    "traceback": traceback.format_exc(),
+                    "traceback": error_traceback,
                     "duration_seconds": time.perf_counter() - started,
                 })
             aggregates = _build_aggregates(reports, metric_names, variants)
@@ -336,6 +387,7 @@ def _execute_single_experiment(
     syllable_unknown_id: int,
 ) -> tuple[str, int, dict[str, Any]]:
     started = time.perf_counter()
+    model: AutoregressiveModel | None = None
     try:
         model = AutoregressiveModel(
             len(vocabulary),
@@ -363,6 +415,8 @@ def _execute_single_experiment(
             vocabulary,
             syllable_unknown_id=syllable_unknown_id,
         )
+        model.close()
+        model = None
         record = {
             "seed": seed,
             "status": "completed",
@@ -375,13 +429,19 @@ def _execute_single_experiment(
             "duration_seconds": time.perf_counter() - started,
         }
     except Exception:
+        error_traceback = traceback.format_exc()
+        if model is not None:
+            try:
+                model.close()
+            except Exception:
+                error_traceback += "\nCleanup failure:\n" + traceback.format_exc()
         record = {
             "seed": seed,
             "status": "failed",
             "pid": os.getpid(),
             "max_rss_kb": _max_rss_kb(),
             "error": "experiment failed",
-            "traceback": traceback.format_exc(),
+            "traceback": error_traceback,
             "duration_seconds": time.perf_counter() - started,
         }
     return variant, seed, record

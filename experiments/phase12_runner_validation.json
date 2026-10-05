@@ -1,0 +1,117 @@
+{
+  "phase": 12,
+  "baseline_commit": "e8414aa842a438f0e0765642329b4338ddefd0b2",
+  "validation_date": "2026-10-05",
+  "status": "gates_a_and_b_passed",
+  "numerics": {
+    "dtype": "float64",
+    "atol": 1e-12,
+    "rtol": 1e-12
+  },
+  "gate_a": {
+    "status": "passed",
+    "fixture": {
+      "training_examples": 2,
+      "epochs": 2,
+      "separate_validation_examples": 1
+    },
+    "cpu_full_suite": {
+      "total_tests": 408,
+      "skipped_cuda_only": 26,
+      "status": "ok"
+    },
+    "t4_full_suite": {
+      "total_tests": 408,
+      "skipped": 0,
+      "status": "ok"
+    },
+    "max_cpu_t4_absolute_error": 2.220446049250313e-16,
+    "d2h_scalar_budget": {
+      "train_plus_epoch_train_metrics": {
+        "shape": [1],
+        "float64": 28,
+        "int32": 44
+      },
+      "separate_validation_one_example": {
+        "shape": [1],
+        "float64": 4,
+        "int32": 5,
+        "callsite_dtype_shape_verified": true
+      },
+      "logit_or_gradient_vectors_transferred": false
+    },
+    "explicit_model_close_success_and_failure": true,
+    "independent_pre_gate_b_review": "pass_no_blockers"
+  },
+  "gate_b": {
+    "status": "passed",
+    "fixture": {
+      "character_vocab_size": 51,
+      "syllable_vocab_size": 3932,
+      "training_examples": 2,
+      "validation_examples": 2,
+      "variants": ["A", "C", "D"],
+      "seed": 7,
+      "epochs": 1,
+      "workers": 1,
+      "max_examples": 2
+    },
+    "report_comparison": {
+      "normalized_cpu_cuda_match": true,
+      "max_absolute_error": 4.440892098500626e-16,
+      "atol": 1e-12,
+      "rtol": 1e-12,
+      "ignored_fields": [
+        "duration_seconds",
+        "pid",
+        "max_rss_kb",
+        "hardware_fingerprint",
+        "runtime_fingerprint",
+        "execution_config.backend"
+      ]
+    },
+    "parameter_counts": {
+      "A": 139432,
+      "C": 139432,
+      "D": 139432
+    },
+    "resume": {
+      "cpu_to_cuda": "rejected_before_backend_creation",
+      "cuda_to_cpu": "rejected_before_backend_creation",
+      "cuda_to_cuda": "completed_without_duplicate_runs"
+    },
+    "generic_seed_runner_cuda": "rejected_before_worker_call",
+    "sequential_cuda_model_lifecycle": {
+      "models_created": 3,
+      "models_closed": 3,
+      "live_buffers_after_each_close": 0,
+      "unmatched_frees": 0
+    }
+  },
+  "environment": {
+    "cpu": {
+      "nvcc_available": false,
+      "nvidia_smi_available": false,
+      "cpu_comparison_imported_cuda_modules": false
+    },
+    "t4": {
+      "device": "Tesla T4",
+      "runtime_fingerprint": "af5677d5a58f450b87608e27e16d78f0",
+      "python": "3.13.15",
+      "cuda": "13.0",
+      "driver": "580.82.07"
+    }
+  },
+  "synced_tested_source_manifest": {
+    "file_count": 222,
+    "bytes": 1279828,
+    "sha256": "5a4c80314c3946b42c7448700eb7e13c2998eaafdda5bd7064f60a1e5dcaf1e3",
+    "remote_manifest_match": true
+  },
+  "out_of_scope_not_run": [
+    "CPU versus GPU performance benchmark",
+    "5k/10k or larger training",
+    "CUDA as default backend",
+    "Issue #13"
+  ]
+}

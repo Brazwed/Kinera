@@ -38,6 +38,7 @@ class Embedding:
             raise TypeError("seed deve ser um inteiro ou None")
 
         self.backend = resolve_backend(backend)
+        self._closed = False
         self._vocab_size = vocab_size
         self._embedding_dim = embedding_dim
         generator = Random(seed)
@@ -72,6 +73,7 @@ class Embedding:
 
     def forward(self, ids: list[int]) -> list[list[float]] | BackendBuffer:
         """Busca vetores na ordem dos IDs fornecidos."""
+        self._ensure_open()
         if not isinstance(ids, list):
             raise TypeError("ids deve ser uma lista")
         vocab_size = self.vocab_size
@@ -132,6 +134,7 @@ class Embedding:
 
     def backward(self, grad_output: list[list[float]] | BackendBuffer) -> None:
         """Acumula gradientes por ID; IDs repetidos somam suas contribuições."""
+        self._ensure_open()
         if self.last_ids is None or self.output is None:
             raise RuntimeError("backward exige um forward anterior")
         ids_count = (
@@ -193,6 +196,7 @@ class Embedding:
 
     def step(self, learning_rate: float) -> None:
         """Atualiza a tabela inteira usando os gradientes acumulados."""
+        self._ensure_open()
         self._validate_number(learning_rate, "learning_rate")
         if learning_rate < 0.0:
             raise ValueError("learning_rate não pode ser negativo")
@@ -205,6 +209,20 @@ class Embedding:
             float(learning_rate),
         )
         self._has_backward = False
+
+    def close(self) -> None:
+        """Release owned parameters and transient buffers; safe to repeat."""
+        if self._closed:
+            return
+        self.discard_forward_state()
+        self._release_buffers(self.weights, self.grad_weights)
+        self.weights = []
+        self.grad_weights = []
+        self._closed = True
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise RuntimeError("Embedding is closed")
 
     @staticmethod
     def _release_buffers(*buffers: object) -> None:

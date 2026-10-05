@@ -17,7 +17,7 @@ class ExperimentConfig:
     epochs: int
     learning_rate: float
     max_examples: int | None
-    context_size: int = 8
+    context_size: int | None = 8
     top_examples: int | None = None
 
     def __post_init__(self) -> None:
@@ -40,7 +40,11 @@ class ExperimentConfig:
             and (not isinstance(self.max_examples, int) or self.max_examples <= 0)
         ):
             raise ValueError("max_examples deve ser inteiro positivo ou None")
-        if isinstance(self.context_size, bool) or not isinstance(self.context_size, int) or self.context_size <= 0:
+        if self.context_size is not None and (
+            isinstance(self.context_size, bool)
+            or not isinstance(self.context_size, int)
+            or self.context_size <= 0
+        ):
             raise ValueError("context_size deve ser inteiro positivo")
         if self.top_examples is not None and (
             isinstance(self.top_examples, bool)
@@ -57,8 +61,9 @@ class ExperimentConfig:
             "epochs": self.epochs,
             "learning_rate": self.learning_rate,
             "max_examples": self.max_examples,
-            "context_size": self.context_size,
         }
+        if self.context_size is not None:
+            result["context_size"] = self.context_size
         if self.top_examples is not None:
             result["top_examples"] = self.top_examples
         return result
@@ -69,13 +74,18 @@ class ExecutionConfig:
     """Controles operacionais que não alteram a matemática do experimento."""
 
     workers: int = 1
+    backend: Literal["cpu", "cuda"] = "cpu"
 
     def __post_init__(self) -> None:
+        if not isinstance(self.backend, str) or self.backend not in {"cpu", "cuda"}:
+            raise ValueError("backend deve ser 'cpu' ou 'cuda'")
         if isinstance(self.workers, bool) or not isinstance(self.workers, int) or self.workers <= 0:
             raise ValueError("workers deve ser inteiro positivo")
+        if self.backend == "cuda" and self.workers != 1:
+            raise ValueError("backend='cuda' exige workers=1 nesta fase")
 
-    def to_dict(self) -> dict[str, int]:
-        return {"workers": self.workers}
+    def to_dict(self) -> dict[str, str | int]:
+        return {"backend": self.backend, "workers": self.workers}
 
 
 @dataclass

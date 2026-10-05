@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from kinera.language.vocabulary import CharacterVocabulary
 from kinera.training.autoregressive import (
@@ -82,6 +83,20 @@ class MultitaskTrainingWorkflowTests(unittest.TestCase):
         self.assertIn("boundary_f1", report)
         self.assertEqual(report["boundary_target_distribution"], {"0": 0, "1": 3})
 
+    def test_evaluator_uses_scalar_model_step_without_exporting_head_vectors(self) -> None:
+        model = self._model()
+        with patch.object(
+            model,
+            "forward_heads",
+            side_effect=AssertionError("evaluation must not export complete logits"),
+        ):
+            report = evaluate_multitask_examples(
+                model, self.examples, self.vocabulary, syllable_unknown_id=0
+            )
+
+        self.assertEqual(report["examples"], len(self.examples))
+        self.assertEqual(report["boundary_target_distribution"], {"0": 0, "1": 3})
+
     def test_evaluation_does_not_update_any_parameters(self) -> None:
         model = self._model()
         before = {
@@ -138,6 +153,63 @@ class MultitaskTrainingWorkflowTests(unittest.TestCase):
 
         self.assertNotEqual(before_char, model.representation.char_embedding.weights)
         self.assertNotEqual(before_syllable, model.representation.syllable_embedding.weights)
+
+    def test_multitask_eval_step_returns_scalars_and_releases_forward_state(self) -> None:
+        model = self._model()
+        example = self.examples[0]
+        result = model.multitask_eval_step(
+            example["context_ids"],
+            example["context_syllable_ids"],
+            example["context_feature_vectors"],
+            targets={
+                "char": example["target_char_id"],
+                "syllable": example["target_syllable_id"],
+                "boundary": float(example["target_is_syllable_end"]),
+            },
+        )
+
+        self.assertEqual(set(result), {"losses", "predictions"})
+        self.assertEqual(
+            set(result["losses"]),
+            {"char_loss", "syllable_loss", "boundary_loss", "total_loss"},
+        )
+        self.assertEqual(set(result["predictions"]), {"char", "syllable", "boundary"})
+        self.assertTrue(
+            all(
+                isinstance(value, (int, float)) and not isinstance(value, bool)
+                for value in result["losses"].values()
+            )
+        )
+        self.assertTrue(
+            all(
+                isinstance(value, int) and not isinstance(value, bool)
+                for value in result["predictions"].values()
+            )
+        )
+        self.assertIsNone(model.last_logits)
+        self.assertIsNone(model.last_pooled)
+        self.assertEqual(model._last_head_logits_backend, {})
+        self.assertIsNone(model.last_context_size)
+        self.assertIsNone(model.representation.last_output)
+        self.assertIsNone(model.representation.char_embedding.output)
+        self.assertIsNone(model.representation.syllable_embedding.output)
+        for head in (model.heads.char, model.heads.syllable, model.heads.boundary):
+            self.assertIsNone(head.last_input)
+            self.assertIsNone(head.output)
+
+        model.close()
+        model.close()
+        with self.assertRaisesRegex(RuntimeError, "closed"):
+            model.multitask_eval_step(
+                example["context_ids"],
+                example["context_syllable_ids"],
+                example["context_feature_vectors"],
+                targets={
+                    "char": example["target_char_id"],
+                    "syllable": example["target_syllable_id"],
+                    "boundary": float(example["target_is_syllable_end"]),
+                },
+            )
 
 
 if __name__ == "__main__":

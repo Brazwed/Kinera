@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import Any, cast
 
 from kinera.language.datasets.adapter import example_to_inputs
 from kinera.language.vocabulary import CharacterVocabulary
@@ -101,25 +101,26 @@ def evaluate_multitask_examples(
             syllable_unknown_id=syllable_unknown_id,
         )
         targets = _multitask_targets(example)
-        outputs = model.forward_heads(*inputs)
-        losses = loss_function.forward(outputs, targets)
+        result = model.multitask_eval_step(
+            *inputs,
+            targets=targets,
+            loss_function=loss_function,
+        )
+        losses = cast(dict[str, float], result["losses"])
+        predictions = cast(dict[str, int], result["predictions"])
         totals["char_loss"] += losses["char_loss"]
         totals["syllable_loss"] += losses["syllable_loss"]
         totals["boundary_loss"] += losses["boundary_loss"]
         totals["total_loss"] += losses["total_loss"]
-        totals["char_accuracy"] += max(
-            range(len(outputs["char"])), key=outputs["char"].__getitem__
-        ) == targets["char"]
-        syllable_prediction = max(
-            range(len(outputs["syllable"])), key=outputs["syllable"].__getitem__
-        )
+        totals["char_accuracy"] += predictions["char"] == targets["char"]
+        syllable_prediction = predictions["syllable"]
         syllable_correct = syllable_prediction == targets["syllable"]
         totals["syllable_accuracy"] += syllable_correct
         if targets["syllable"] != syllable_unknown_id:
             syllable_known_total += 1
             syllable_known_correct += syllable_correct
         boundary_target = int(targets["boundary"] >= 0.5)
-        boundary_prediction = int(outputs["boundary"][0] >= 0.0)
+        boundary_prediction = predictions["boundary"]
         boundary_target_distribution[str(boundary_target)] += 1
         totals["boundary_accuracy"] += boundary_prediction == boundary_target
         if boundary_prediction == 1 and boundary_target == 1:

@@ -41,6 +41,13 @@ def run_seed_jobs(
         raise TypeError("job_factory deve ser chamável ou None")
     if not isinstance(execution_config, dict):
         raise TypeError("execution_config deve ser dicionário")
+    backend = execution_config.get("backend", "cpu")
+    if not isinstance(backend, str) or backend not in {"cpu", "cuda"}:
+        raise ValueError("backend deve ser 'cpu' ou 'cuda'")
+    if backend == "cuda":
+        raise ValueError(
+            "run_seed_jobs não suporta seleção de backend CUDA; use o runner controlado"
+        )
     workers = execution_config.get("workers", 1)
     if isinstance(workers, bool) or not isinstance(workers, int) or workers <= 0:
         raise ValueError("workers deve ser inteiro positivo")

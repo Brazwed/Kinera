@@ -52,6 +52,25 @@ class MultiSeedRunnerTests(unittest.TestCase):
         self.assertEqual(resumed["completed_runs"], 2)
         self.assertEqual([run["seed"] for run in resumed["runs"]], [7, 42])
 
+    def test_generic_seed_runner_rejects_cuda_backend_before_worker_call(self) -> None:
+        worker_calls: list[int] = []
+
+        def worker(seed: int) -> dict[str, object]:
+            worker_calls.append(seed)
+            return {"seed": seed, "status": "completed"}
+
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "backend CUDA"):
+                run_seed_jobs(
+                    seeds=[7],
+                    experiment_config={"phase": "test", "epochs": 1},
+                    execution_config={"backend": "cuda", "workers": 1},
+                    checkpoint_path=Path(directory) / "runner.json",
+                    worker=worker,
+                )
+
+        self.assertEqual(worker_calls, [])
+
     def test_worker_failure_is_persisted_without_losing_completed_jobs(self) -> None:
         def worker(seed):
             if seed == 42:
