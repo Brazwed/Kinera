@@ -33,6 +33,7 @@ class MultiTaskHeads:
         self._validate_dimension(char_vocab_size, "char_vocab_size")
         self._validate_dimension(syllable_vocab_size, "syllable_vocab_size")
         self.backend = resolve_backend(backend)
+        self._closed = False
         self.char = CharacterHead(
             input_dim, char_vocab_size, seed=seed, backend=self.backend
         )
@@ -52,6 +53,7 @@ class MultiTaskHeads:
         self, representation: list[float] | BackendBuffer
     ) -> dict[str, list[float] | BackendBuffer]:
         """Calcula logits das três tarefas sobre uma entrada compartilhada."""
+        self._ensure_open()
         self._validate_representation(representation)
         return {
             "char": self.char.forward(representation),
@@ -64,6 +66,7 @@ class MultiTaskHeads:
         gradients: dict[str, list[float] | BackendBuffer],
     ) -> dict[str, list[float] | BackendBuffer]:
         """Propaga gradientes de cada head e devolve gradientes da entrada."""
+        self._ensure_open()
         if not isinstance(gradients, dict) or set(gradients) != {
             "char",
             "syllable",
@@ -88,9 +91,23 @@ class MultiTaskHeads:
 
     def step(self, learning_rate: float) -> None:
         """Atualiza os parâmetros das três cabeças."""
+        self._ensure_open()
         self.char.step(learning_rate)
         self.syllable.step(learning_rate)
         self.boundary.step(learning_rate)
+
+    def close(self) -> None:
+        """Close each head layer without closing the shared backend."""
+        if self._closed:
+            return
+        self.char.close()
+        self.syllable.close()
+        self.boundary.close()
+        self._closed = True
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise RuntimeError("MultiTaskHeads is closed")
 
     @staticmethod
     def _validate_dimension(value: object, name: str) -> None:

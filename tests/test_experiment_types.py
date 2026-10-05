@@ -28,6 +28,30 @@ class ExperimentTypesTests(unittest.TestCase):
         self.assertNotIn("workers", config.to_dict())
         self.assertEqual(execution.workers, 2)
 
+    def test_experiment_config_can_omit_a_fixed_context_size(self) -> None:
+        config = ExperimentConfig(
+            phase="controlled_comparison",
+            variants=("D",),
+            seeds=(7,),
+            epochs=1,
+            learning_rate=0.05,
+            max_examples=1,
+            context_size=None,
+        )
+
+        self.assertNotIn("context_size", config.to_dict())
+
+    def test_execution_config_selects_backend_and_enforces_cuda_workers(self) -> None:
+        cpu = ExecutionConfig()
+        self.assertEqual(cpu.to_dict(), {"backend": "cpu", "workers": 1})
+
+        cuda = ExecutionConfig(backend="cuda", workers=1)
+        self.assertEqual(cuda.to_dict(), {"backend": "cuda", "workers": 1})
+        with self.assertRaisesRegex(ValueError, "backend"):
+            ExecutionConfig(backend="vulkan", workers=1)
+        with self.assertRaisesRegex(ValueError, "workers=1"):
+            ExecutionConfig(backend="cuda", workers=2)
+
     def test_run_record_round_trip_and_status_aggregation(self) -> None:
         records = [
             RunRecord(seed=7, status="completed", payload={"loss": 1.0}),

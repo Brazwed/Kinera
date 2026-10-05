@@ -39,6 +39,7 @@ class Linear:
         self.input_size = input_size
         self.output_size = output_size
         self.backend = resolve_backend(backend)
+        self._closed = False
         generator = Random(seed)
         initial_weights = [
             [float(generator.uniform(-0.1, 0.1)) for _ in range(input_size)]
@@ -118,6 +119,7 @@ class Linear:
         self, inputs: list[float] | BackendBuffer
     ) -> list[float] | BackendBuffer:
         """Calcula y = W x + b, mantendo resultados de device no backend."""
+        self._ensure_open()
         prepared_weights = self._prepare_backend_array(
             self.weights, (self.output_size, self.input_size), "weights"
         )
@@ -157,6 +159,7 @@ class Linear:
         self, grad_output: list[float] | BackendBuffer
     ) -> list[float] | BackendBuffer:
         """Calcula gradientes dos parâmetros e da entrada."""
+        self._ensure_open()
         if self.last_input is None or self.output is None:
             raise RuntimeError("backward exige um forward anterior")
         prepared_gradient = self._prepare_backend_array(
@@ -204,6 +207,7 @@ class Linear:
 
     def step(self, learning_rate: float) -> None:
         """Atualiza pesos e biases com gradient descent."""
+        self._ensure_open()
         self._validate_number(learning_rate, "learning_rate")
         if learning_rate < 0.0:
             raise ValueError("learning_rate não pode ser negativo")
@@ -221,3 +225,28 @@ class Linear:
             rate,
         )
         self._has_backward = False
+
+    def close(self) -> None:
+        """Release owned parameters, gradients and activations; safe to repeat."""
+        if self._closed:
+            return
+        release_backend_buffers(
+            self.last_input,
+            self.output,
+            self.grad_weights,
+            self.grad_bias,
+            self.weights,
+            self.bias,
+        )
+        self.last_input = None
+        self.output = None
+        self.grad_weights = None
+        self.grad_bias = None
+        self.weights = []
+        self.bias = []
+        self._has_backward = False
+        self._closed = True
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise RuntimeError("Linear is closed")

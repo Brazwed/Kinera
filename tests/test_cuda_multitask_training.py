@@ -2,18 +2,28 @@
 
 from __future__ import annotations
 
+import json
 import math
 import os
+import sys
+import tempfile
 import unittest
 from collections import Counter
-from typing import cast
+from pathlib import Path
+from typing import Any, cast
 from unittest.mock import patch
 
 from kinera.backends.base import BackendBuffer, release_backend_buffers
 from kinera.backends.cpu.backend import CPUBackend
 from kinera.backends.cuda import CUDABackend, CudaBuffer
+from kinera.experiments import comparison
+from kinera.experiments.comparison import run_controlled_experiments
+from kinera.experiments.config import ExecutionConfig
+from kinera.language.vocabulary import CharacterVocabulary
 from kinera.nn.losses.multitask import MultiTaskLoss
 from kinera.nn.models.hybrid import AutoregressiveModel
+from kinera.training.evaluator import evaluate_multitask_examples
+from kinera.training.trainer import train_multitask_examples
 
 
 RUN_CUDA_TESTS = os.environ.get("KINERA_RUN_CUDA_TESTS") == "1"
@@ -42,18 +52,16 @@ class ResidentMultiTaskCudaEquivalenceTests(unittest.TestCase):
             backend=backend,
         )
 
-    def _release_cuda_model(self, model: AutoregressiveModel) -> None:
-        model.release_forward_state()
-        release_backend_buffers(
-            model.representation.char_embedding.weights,
-            model.representation.syllable_embedding.weights,
-            model.heads.char.weights,
-            model.heads.char.bias,
-            model.heads.syllable.weights,
-            model.heads.syllable.bias,
-            model.heads.boundary.weights,
-            model.heads.boundary.bias,
+    def _trainer_model(self, backend: CPUBackend | CUDABackend) -> AutoregressiveModel:
+        return AutoregressiveModel(
+            char_vocab_size=5,
+            syllable_vocab_size=3,
+            seed=7,
+            backend=backend,
         )
+
+    def _release_cuda_model(self, model: AutoregressiveModel) -> None:
+        model.close()
 
     def _host(self, backend: CUDABackend, value: object) -> object:
         if isinstance(value, BackendBuffer):
@@ -277,6 +285,581 @@ class ResidentMultiTaskCudaEquivalenceTests(unittest.TestCase):
         self.assertIsNone(step_cuda.heads.boundary.grad_weights)
         self.assertTrue(math.isfinite(max_error))
         print("PHASE11B_MULTITASK_MAX_ABS_ERROR", format(max_error, ".17g"))
+
+    def test_trainer_and_evaluator_two_epochs_match_cpu_oracle(self) -> None:
+        vocabulary = CharacterVocabulary(["<START>", "<END>", "<UNK>", "a", "b"])
+        train_examples = [
+            {
+                "context_ids": [0, 0],
+                "context_syllable_ids": [0, 0],
+                "context_feature_vectors": [[0.0] * 10, [0.0] * 10],
+                "target_char_id": 3,
+                "target_syllable_id": 1,
+                "target_is_syllable_end": 1,
+            },
+            {
+                "context_ids": [0, 3],
+                "context_syllable_ids": [0, 1],
+                "context_feature_vectors": [[0.0] * 10, [1.0] + [0.0] * 9],
+                "target_char_id": 4,
+                "target_syllable_id": 2,
+                "target_is_syllable_end": 1,
+            },
+        ]
+        validation_examples = [
+            {
+                "context_ids": [3, 4],
+                "context_syllable_ids": [1, 2],
+                "context_feature_vectors": [[1.0] + [0.0] * 9, [0.0, 1.0] + [0.0] * 8],
+                "target_char_id": 2,
+                "target_syllable_id": 0,
+                "target_is_syllable_end": 0,
+            }
+        ]
+        cpu_model = self._trainer_model(self.cpu)
+
+        def run_training(model: AutoregressiveModel) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+            captured: list[dict[str, Any]] = []
+            eval_step = model.multitask_eval_step
+
+            def capture(*args: Any, **kwargs: Any) -> dict[str, Any]:
+                result = eval_step(*args, **kwargs)
+                captured.append(result)
+                return result
+
+            with patch.object(model, "multitask_eval_step", side_effect=capture):
+                report = train_multitask_examples(
+                    model,
+                    train_examples,
+                    vocabulary,
+                    epochs=2,
+                    learning_rate=0.1,
+                )
+            return report, captured
+
+        def run_validation(
+            model: AutoregressiveModel,
+        ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+            captured: list[dict[str, Any]] = []
+            eval_step = model.multitask_eval_step
+
+            def capture(*args: Any, **kwargs: Any) -> dict[str, Any]:
+                result = eval_step(*args, **kwargs)
+                captured.append(result)
+                return result
+
+            with patch.object(model, "multitask_eval_step", side_effect=capture):
+                report = evaluate_multitask_examples(
+                    model,
+                    validation_examples,
+                    vocabulary,
+                    syllable_unknown_id=0,
+                )
+            return report, captured
+
+        cpu_training, cpu_train_steps = run_training(cpu_model)
+        cpu_validation, cpu_validation_steps = run_validation(cpu_model)
+        live_allocations: Counter[int] = Counter()
+        allocation_sizes: dict[int, int] = {}
+        unmatched_frees: list[int] = []
+        freed_pointers: list[int] = []
+        original_allocate = self.cuda.bridge.allocate
+        original_free = self.cuda.bridge.free
+
+        def tracked_allocate(device_id: int, nbytes: int) -> int:
+            pointer = original_allocate(device_id, nbytes)
+            live_allocations[pointer] += 1
+            allocation_sizes[pointer] = nbytes
+            return pointer
+
+        def tracked_free(device_id: int, pointer: int) -> None:
+            original_free(device_id, pointer)
+            freed_pointers.append(pointer)
+            if live_allocations[pointer] == 0:
+                unmatched_frees.append(pointer)
+            else:
+                live_allocations[pointer] -= 1
+                if live_allocations[pointer] == 0:
+                    del live_allocations[pointer]
+                    allocation_sizes.pop(pointer, None)
+
+        cuda_model: AutoregressiveModel | None = None
+        try:
+            with (
+                patch.object(self.cuda.bridge, "allocate", side_effect=tracked_allocate),
+                patch.object(self.cuda.bridge, "free", side_effect=tracked_free),
+            ):
+                cuda_model = self._trainer_model(self.cuda)
+                downloads: list[tuple[tuple[int, ...], str, str]] = []
+                original_copy_to_host = self.cuda.memory.copy_to_host
+
+                def record_copy_to_host(
+                    buffer: CudaBuffer, *args: Any, **kwargs: Any
+                ) -> object:
+                    caller = sys._getframe(1).f_code.co_name
+                    downloads.append((buffer.shape, buffer.dtype, caller))
+                    return original_copy_to_host(buffer, *args, **kwargs)
+
+                with patch.object(
+                    self.cuda.memory,
+                    "copy_to_host",
+                    new=record_copy_to_host,
+                ):
+                    cuda_training, cuda_train_steps = run_training(cuda_model)
+                    self.assertEqual(
+                        Counter((shape, dtype) for shape, dtype, _ in downloads),
+                        # Four train steps have six status scalars each. Four
+                        # epoch-evaluation examples export three loss statuses
+                        # and two argmax IDs apiece.
+                        Counter({((1,), "float64"): 28, ((1,), "int32"): 44}),
+                    )
+                    downloads.clear()
+                    cuda_validation, cuda_validation_steps = run_validation(cuda_model)
+                    self.assertEqual(
+                        Counter(downloads),
+                        # Exact scalar D2H purpose for one validation example.
+                        Counter(
+                            {
+                                ((1,), "float64", "cross_entropy_forward_buffer"): 2,
+                                ((1,), "float64", "binary_cross_entropy_with_logits_forward_buffer"): 1,
+                                ((1,), "float64", "buffer_to_host"): 1,
+                                ((1,), "int32", "_check_numeric_status"): 3,
+                                ((1,), "int32", "argmax"): 2,
+                            }
+                        ),
+                    )
+
+                self.assertEqual(cpu_training["epochs"], 2)
+                self.assertEqual(cuda_training["epochs"], 2)
+                self.assertEqual(len(cpu_training["history"]), 2)
+                self.assertEqual(len(cuda_training["history"]), 2)
+                max_error = 0.0
+                for cpu_epoch, cuda_epoch in zip(
+                    cpu_training["history"], cuda_training["history"]
+                ):
+                    for name, cpu_value in cpu_epoch.items():
+                        if name == "boundary_target_distribution":
+                            self.assertEqual(cuda_epoch[name], cpu_value)
+                        else:
+                            max_error = max(
+                                max_error,
+                                self._assert_close(cuda_epoch[name], cpu_value, name),
+                            )
+                for cpu_step, cuda_step in zip(cpu_train_steps, cuda_train_steps):
+                    self.assertEqual(cpu_step["predictions"], cuda_step["predictions"])
+                    for name, cpu_value in cpu_step["losses"].items():
+                        max_error = max(
+                            max_error,
+                            self._assert_close(cuda_step["losses"][name], cpu_value, name),
+                        )
+                for name, cpu_value in cpu_validation.items():
+                    if name == "boundary_target_distribution":
+                        self.assertEqual(cuda_validation[name], cpu_value)
+                    else:
+                        max_error = max(
+                            max_error,
+                            self._assert_close(cuda_validation[name], cpu_value, name),
+                        )
+                self.assertEqual(len(cpu_validation_steps), 1)
+                self.assertEqual(len(cuda_validation_steps), 1)
+                self.assertEqual(
+                    cpu_validation_steps[0]["predictions"],
+                    cuda_validation_steps[0]["predictions"],
+                )
+                for name, cpu_value in cpu_validation_steps[0]["losses"].items():
+                    max_error = max(
+                        max_error,
+                        self._assert_close(
+                            cuda_validation_steps[0]["losses"][name], cpu_value, name
+                        ),
+                    )
+
+                parameter_pairs = (
+                    ("char_embedding", cpu_model.representation.char_embedding.weights, cuda_model.representation.char_embedding.weights),
+                    ("syllable_embedding", cpu_model.representation.syllable_embedding.weights, cuda_model.representation.syllable_embedding.weights),
+                    ("char_head_weights", cpu_model.heads.char.weights, cuda_model.heads.char.weights),
+                    ("char_head_bias", cpu_model.heads.char.bias, cuda_model.heads.char.bias),
+                    ("syllable_head_weights", cpu_model.heads.syllable.weights, cuda_model.heads.syllable.weights),
+                    ("syllable_head_bias", cpu_model.heads.syllable.bias, cuda_model.heads.syllable.bias),
+                    ("boundary_head_weights", cpu_model.heads.boundary.weights, cuda_model.heads.boundary.weights),
+                    ("boundary_head_bias", cpu_model.heads.boundary.bias, cuda_model.heads.boundary.bias),
+                )
+                for name, cpu_value, cuda_value in parameter_pairs:
+                    max_error = max(
+                        max_error,
+                        self._assert_close(self._host(self.cuda, cuda_value), cpu_value, name),
+                    )
+                print("PHASE12_GATE_A_MAX_ABS_ERROR", format(max_error, ".17g"))
+
+                primary_parameter_values = (
+                    cuda_model.representation.char_embedding.weights,
+                    cuda_model.representation.syllable_embedding.weights,
+                    cuda_model.heads.char.weights,
+                    cuda_model.heads.char.bias,
+                    cuda_model.heads.syllable.weights,
+                    cuda_model.heads.syllable.bias,
+                    cuda_model.heads.boundary.weights,
+                    cuda_model.heads.boundary.bias,
+                )
+                primary_parameter_buffers = [
+                    value
+                    for value in primary_parameter_values
+                    if isinstance(value, CudaBuffer)
+                ]
+                primary_parameter_pointers = {
+                    buffer.pointer for buffer in primary_parameter_buffers
+                }
+                self.assertEqual(len(primary_parameter_buffers), 8)
+                live_before_failure_model = live_allocations.copy()
+                failed_model: AutoregressiveModel | None = None
+                try:
+                    failed_model = self._trainer_model(self.cuda)
+                    failed_parameter_values = (
+                        failed_model.representation.char_embedding.weights,
+                        failed_model.representation.syllable_embedding.weights,
+                        failed_model.heads.char.weights,
+                        failed_model.heads.char.bias,
+                        failed_model.heads.syllable.weights,
+                        failed_model.heads.syllable.bias,
+                        failed_model.heads.boundary.weights,
+                        failed_model.heads.boundary.bias,
+                    )
+                    failed_parameter_buffers = [
+                        value
+                        for value in failed_parameter_values
+                        if isinstance(value, CudaBuffer)
+                    ]
+                    failed_parameter_pointers = {
+                        buffer.pointer for buffer in failed_parameter_buffers
+                    }
+                    self.assertEqual(len(failed_parameter_buffers), 8)
+                    self.assertFalse(
+                        primary_parameter_pointers & failed_parameter_pointers,
+                        "separately owned models unexpectedly share CUDA parameter pointers",
+                    )
+                    example = validation_examples[0]
+                    with patch.object(
+                        self.cuda,
+                        "argmax",
+                        side_effect=RuntimeError("injected evaluation failure"),
+                    ):
+                        with self.assertRaisesRegex(RuntimeError, "injected evaluation failure"):
+                            failed_model.multitask_eval_step(
+                                example["context_ids"],
+                                example["context_syllable_ids"],
+                                example["context_feature_vectors"],
+                                targets={
+                                    "char": example["target_char_id"],
+                                    "syllable": example["target_syllable_id"],
+                                    "boundary": float(example["target_is_syllable_end"]),
+                                },
+                            )
+                    self.assertIsNone(failed_model.last_logits)
+                    self.assertIsNone(failed_model.last_pooled)
+                    self.assertEqual(failed_model._last_head_logits_backend, {})
+                finally:
+                    if failed_model is not None:
+                        failed_model.close()
+                self.assertTrue(
+                    all(not buffer.closed for buffer in primary_parameter_buffers),
+                    "closing the failed model closed another model's parameter buffer",
+                )
+                self.assertEqual(
+                    live_allocations,
+                    live_before_failure_model,
+                    "failed-model close changed live buffers owned by the primary model",
+                )
+        finally:
+            if cuda_model is not None:
+                with (
+                    patch.object(self.cuda.bridge, "allocate", side_effect=tracked_allocate),
+                    patch.object(self.cuda.bridge, "free", side_effect=tracked_free),
+                ):
+                    parameter_values = (
+                        cuda_model.representation.char_embedding.weights,
+                        cuda_model.representation.syllable_embedding.weights,
+                        cuda_model.heads.char.weights,
+                        cuda_model.heads.char.bias,
+                        cuda_model.heads.syllable.weights,
+                        cuda_model.heads.syllable.bias,
+                        cuda_model.heads.boundary.weights,
+                        cuda_model.heads.boundary.bias,
+                    )
+                    parameter_buffers = [
+                        value for value in parameter_values if isinstance(value, CudaBuffer)
+                    ]
+                    parameter_pointers = {buffer.pointer for buffer in parameter_buffers}
+                    managers_match = all(
+                        buffer._manager is self.cuda.memory for buffer in parameter_buffers
+                    )
+                    backend_matches = cuda_model.backend is self.cuda
+                    cuda_model.close()
+                    buffers_closed = all(buffer.closed for buffer in parameter_buffers)
+                    freed_parameter_pointers = parameter_pointers.issubset(
+                        set(freed_pointers)
+                    )
+                    self.assertTrue(
+                        managers_match and backend_matches and buffers_closed,
+                        "model close ownership diagnostic: "
+                        f"managers_match={managers_match}, backend_matches={backend_matches}, "
+                        f"buffers_closed={buffers_closed}",
+                    )
+                    self.assertTrue(
+                        freed_parameter_pointers,
+                        "model.close() did not free every saved parameter pointer",
+                    )
+                    self.assertEqual(unmatched_frees, [])
+                    remaining = [
+                        (pointer, count, allocation_sizes.get(pointer))
+                        for pointer, count in live_allocations.items()
+                    ]
+                    self.assertEqual(
+                        live_allocations,
+                        Counter(),
+                        f"unreleased CUDA allocations after model.close(): {remaining}",
+                    )
+            cpu_model.close()
+    def test_controlled_runner_matches_cpu_cuda_and_resumes_without_duplicate_runs(self) -> None:
+        vocabulary = CharacterVocabulary(
+            ["<START>", "<END>", "<UNK>", *(f"char-{index}" for index in range(48))]
+        )
+        self.assertEqual(len(vocabulary), 51)
+        train_examples = [
+            {
+                "context_ids": [0, 3],
+                "context_syllable_ids": [0, 1],
+                "context_feature_vectors": [[0.0] * 10, [1.0] + [0.0] * 9],
+                "target_char_id": 4,
+                "target_syllable_id": 2,
+                "target_is_syllable_end": 1,
+            },
+            {
+                "context_ids": [0, 4],
+                "context_syllable_ids": [0, 2],
+                "context_feature_vectors": [[0.0] * 10, [0.0, 1.0] + [0.0] * 8],
+                "target_char_id": 5,
+                "target_syllable_id": 3,
+                "target_is_syllable_end": 0,
+            },
+        ]
+        validation_examples = [
+            {
+                "context_ids": [4, 5],
+                "context_syllable_ids": [2, 3],
+                "context_feature_vectors": [[1.0] + [0.0] * 9, [0.0, 1.0] + [0.0] * 8],
+                "target_char_id": 6,
+                "target_syllable_id": 4,
+                "target_is_syllable_end": 1,
+            },
+            {
+                "context_ids": [5, 6],
+                "context_syllable_ids": [3, 4],
+                "context_feature_vectors": [[0.0, 1.0] + [0.0] * 8, [0.0, 0.0, 1.0] + [0.0] * 7],
+                "target_char_id": 7,
+                "target_syllable_id": 5,
+                "target_is_syllable_end": 0,
+            },
+        ]
+        run_args = {
+            "syllable_vocab_size": 3932,
+            "seeds": [7],
+            "epochs": 1,
+            "learning_rate": 0.05,
+            "max_examples": 2,
+            "variants": ("A", "C", "D"),
+        }
+        cpu_report = run_controlled_experiments(
+            train_examples,
+            validation_examples,
+            vocabulary,
+            **run_args,
+            execution_config=ExecutionConfig(backend="cpu", workers=1),
+        )
+        self.assertEqual(cpu_report["execution_config"], {"backend": "cpu", "workers": 1})
+        for variant in ("A", "C", "D"):
+            self.assertEqual(cpu_report["parameter_counts"][variant], 139432)
+
+        live_allocations: Counter[int] = Counter()
+        unmatched_frees: list[int] = []
+        original_allocate = self.cuda.bridge.allocate
+        original_free = self.cuda.bridge.free
+        original_init = AutoregressiveModel.__init__
+        original_close = AutoregressiveModel.close
+        model_counts = {"created": 0, "closed": 0}
+
+        def tracked_allocate(device_id: int, nbytes: int) -> int:
+            pointer = original_allocate(device_id, nbytes)
+            live_allocations[pointer] += 1
+            return pointer
+
+        def tracked_free(device_id: int, pointer: int) -> None:
+            original_free(device_id, pointer)
+            if live_allocations[pointer] == 0:
+                unmatched_frees.append(pointer)
+            else:
+                live_allocations[pointer] -= 1
+                if live_allocations[pointer] == 0:
+                    del live_allocations[pointer]
+
+        def tracked_init(model: AutoregressiveModel, *args: Any, **kwargs: Any) -> None:
+            if model_counts["created"]:
+                self.assertEqual(
+                    model_counts["closed"],
+                    model_counts["created"],
+                    "next CUDA model started before prior model.close()",
+                )
+                self.assertEqual(
+                    live_allocations,
+                    Counter(),
+                    "next CUDA model started with buffers owned by a previous run",
+                )
+            original_init(model, *args, **kwargs)
+            model_counts["created"] += 1
+
+        def tracked_close(model: AutoregressiveModel) -> None:
+            original_close(model)
+            model_counts["closed"] += 1
+            self.assertEqual(
+                live_allocations,
+                Counter(),
+                "model.close() left CUDA allocations live",
+            )
+
+        def assert_report_equivalent(expected: object, actual: object) -> list[float]:
+            maximum_error = [0.0]
+            volatile_fields = {
+                "duration_seconds",
+                "pid",
+                "max_rss_kb",
+                "hardware_fingerprint",
+                "runtime_fingerprint",
+            }
+
+            def compare(left: object, right: object, path: tuple[str, ...] = ()) -> None:
+                if isinstance(left, dict) and isinstance(right, dict):
+                    left_keys = set(left) - volatile_fields
+                    right_keys = set(right) - volatile_fields
+                    if path == ("execution_config",):
+                        left_keys.discard("backend")
+                        right_keys.discard("backend")
+                    self.assertEqual(left_keys, right_keys, f"report keys differ at {path}")
+                    for key in left_keys:
+                        compare(left[key], right[key], path + (str(key),))
+                    return
+                if isinstance(left, list) and isinstance(right, list):
+                    self.assertEqual(len(left), len(right), f"report list length differs at {path}")
+                    for index, (left_item, right_item) in enumerate(zip(left, right)):
+                        compare(left_item, right_item, path + (str(index),))
+                    return
+                if (
+                    isinstance(left, bool)
+                    or isinstance(right, bool)
+                    or isinstance(left, str)
+                    or isinstance(right, str)
+                    or left is None
+                    or right is None
+                ):
+                    self.assertEqual(left, right, f"report value differs at {path}")
+                    return
+                if isinstance(left, int) and isinstance(right, int):
+                    self.assertEqual(left, right, f"report integer differs at {path}")
+                    return
+                if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                    error = abs(float(left) - float(right))
+                    maximum_error[0] = max(maximum_error[0], error)
+                    self.assertLessEqual(
+                        error,
+                        ATOL + RTOL * abs(float(left)),
+                        f"report numeric value differs at {path}",
+                    )
+                    return
+                self.assertEqual(left, right, f"report value differs at {path}")
+
+            compare(expected, actual)
+            return maximum_error
+
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "cuda-report.json"
+            with (
+                patch.object(comparison, "get_backend", return_value=self.cuda) as backend_factory,
+                patch.object(self.cuda.bridge, "allocate", side_effect=tracked_allocate),
+                patch.object(self.cuda.bridge, "free", side_effect=tracked_free),
+                patch.object(AutoregressiveModel, "__init__", new=tracked_init),
+                patch.object(AutoregressiveModel, "close", new=tracked_close),
+            ):
+                cuda_report = run_controlled_experiments(
+                    train_examples,
+                    validation_examples,
+                    vocabulary,
+                    **run_args,
+                    checkpoint_path=checkpoint,
+                    execution_config=ExecutionConfig(backend="cuda", workers=1),
+                )
+            backend_factory.assert_called_once_with("cuda")
+            self.assertEqual(model_counts, {"created": 3, "closed": 3})
+            self.assertEqual(live_allocations, Counter())
+            self.assertEqual(unmatched_frees, [])
+            self.assertEqual(cuda_report["execution_config"], {"backend": "cuda", "workers": 1})
+            self.assertEqual(cuda_report["completed_runs"], 3)
+            for variant in ("A", "C", "D"):
+                self.assertEqual(cuda_report["parameter_counts"][variant], 139432)
+                self.assertEqual(len(cuda_report["runs"][variant]), 1)
+                self.assertEqual(cuda_report["runs"][variant][0]["status"], "completed")
+
+            max_error = assert_report_equivalent(cpu_report, cuda_report)[0]
+            persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
+            self.assertEqual(
+                persisted["execution_config"], {"backend": "cuda", "workers": 1}
+            )
+            self.assertEqual(
+                persisted["experiment_config"], cpu_report["experiment_config"]
+            )
+            print("PHASE12_GATE_B_MAX_ABS_ERROR", format(max_error, ".17g"))
+
+            with patch.object(
+                comparison,
+                "_create_execution_backend",
+                side_effect=AssertionError("backend created before resume validation"),
+            ) as backend_factory:
+                with self.assertRaisesRegex(ValueError, "backend"):
+                    run_controlled_experiments(
+                        train_examples,
+                        validation_examples,
+                        vocabulary,
+                        **run_args,
+                        checkpoint_path=checkpoint,
+                        resume=True,
+                        execution_config=ExecutionConfig(backend="cpu", workers=1),
+                    )
+                backend_factory.assert_not_called()
+
+            with (
+                patch.object(comparison, "get_backend", return_value=self.cuda),
+                patch.object(
+                    comparison,
+                    "AutoregressiveModel",
+                    side_effect=AssertionError("completed CUDA run was duplicated"),
+                ),
+                patch.object(
+                    comparison,
+                    "train_multitask_examples",
+                    side_effect=AssertionError("completed CUDA training was repeated"),
+                ),
+            ):
+                resumed_report = run_controlled_experiments(
+                    train_examples,
+                    validation_examples,
+                    vocabulary,
+                    **run_args,
+                    checkpoint_path=checkpoint,
+                    resume=True,
+                    execution_config=ExecutionConfig(backend="cuda", workers=1),
+                )
+            self.assertEqual(resumed_report["completed_runs"], 3)
+            self.assertEqual(
+                {variant: len(resumed_report["runs"][variant]) for variant in ("A", "C", "D")},
+                {"A": 1, "C": 1, "D": 1},
+            )
 
 
 if __name__ == "__main__":

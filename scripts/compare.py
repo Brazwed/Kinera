@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from kinera.experiments.comparison import run_controlled_experiments
+from kinera.experiments.config import ExecutionConfig
 from kinera.experiments.variants import DEFAULT_VARIANTS, SUPPORTED_VARIANTS
 from kinera.language.datasets.loader import load_jsonl
 from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
@@ -32,11 +33,25 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument(
+        "--backend",
+        choices=("cpu", "cuda"),
+        default="cpu",
+        help="backend de execução (padrão: cpu)",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        execution_config = ExecutionConfig(
+            workers=args.workers,
+            backend=args.backend,
+        )
+    except (TypeError, ValueError) as exc:
+        parser.error(str(exc))
     vocabulary = CharacterVocabulary.from_dict(
         json.loads(args.vocabulary.read_text(encoding="utf-8"))
     )
@@ -57,8 +72,8 @@ def main(argv: list[str] | None = None) -> None:
         max_examples=args.max_examples,
         checkpoint_path=args.checkpoint,
         resume=args.resume,
-        workers=args.workers,
         variants=tuple(args.variants),
+        execution_config=execution_config,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
 
