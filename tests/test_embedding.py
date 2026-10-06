@@ -1,6 +1,7 @@
 import math
 import unittest
 
+from kinera.backends import Backend, SupportsBufferZeros
 from kinera.backends.cpu.backend import CPUBackend
 from kinera.nn.embedding import Embedding
 
@@ -210,6 +211,42 @@ class EmbeddingBackendIntegrationTests(unittest.TestCase):
         self.assertEqual(len(backend.zero_buffers), 2)
         self.assertIsNot(backend.zero_buffers[0], backend.zero_buffers[1])
         self.assertIs(embedding.grad_weights, backend.zero_buffers[1])
+
+    def test_legacy_structural_backend_keeps_nested_zero_upload_fallback(self) -> None:
+        class LegacyStructuralBackend:
+            name = "legacy-cpu"
+
+            def __init__(self) -> None:
+                self._cpu = CPUBackend()
+                self.zero_uploads: list[object] = []
+                for attribute in dir(self._cpu):
+                    if attribute.startswith("_") or attribute in {
+                        "buffer_from_host",
+                        "buffer_zeros",
+                    }:
+                        continue
+                    method = getattr(self._cpu, attribute)
+                    if callable(method):
+                        setattr(self, attribute, method)
+
+            def buffer_from_host(self, values, *, shape, dtype="float64"):
+                expected_zeros = [[0.0, 0.0] for _ in range(3)]
+                if dtype == "float64" and shape == (3, 2) and values == expected_zeros:
+                    self.zero_uploads.append(values)
+                return self._cpu.buffer_from_host(values, shape=shape, dtype=dtype)
+
+        backend = LegacyStructuralBackend()
+        self.assertTrue(isinstance(backend, Backend))
+        self.assertFalse(isinstance(backend, SupportsBufferZeros))
+        self.assertFalse(hasattr(backend, "buffer_zeros"))
+        embedding = Embedding(vocab_size=3, embedding_dim=2, seed=7, backend=backend)
+        expected_zeros = [[0.0, 0.0] for _ in range(3)]
+        self.assertEqual(backend.zero_uploads, [expected_zeros])
+
+        embedding.forward([2, 0])
+
+        self.assertEqual(backend.zero_uploads, [expected_zeros, expected_zeros])
+        self.assertEqual(embedding.grad_weights, expected_zeros)
 
 
 if __name__ == "__main__":

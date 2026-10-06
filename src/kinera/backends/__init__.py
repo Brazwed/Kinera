@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from .base import Backend, BackendError, BackendUnavailableError
+from .base import (
+    Backend,
+    BackendError,
+    BackendUnavailableError,
+    SupportsBufferZeros,
+    create_zero_buffer,
+)
 
 
 def get_backend(name: str = "cpu") -> Backend:
@@ -34,6 +40,8 @@ __all__ = [
     "Backend",
     "BackendError",
     "BackendUnavailableError",
+    "SupportsBufferZeros",
+    "create_zero_buffer",
     "get_backend",
     "resolve_backend",
 ]

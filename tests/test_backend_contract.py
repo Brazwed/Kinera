@@ -5,6 +5,7 @@ from importlib.util import find_spec
 import math
 import unittest
 
+from kinera.backends import SupportsBufferZeros
 from kinera.backends.cpu.backend import CPUBackend
 from kinera.nn.losses.binary_cross_entropy import (
     binary_cross_entropy_with_logits,
@@ -120,6 +121,7 @@ class CPUBackendBufferContractTests(unittest.TestCase):
 
     def test_zero_buffer_returns_fresh_exact_float64_values(self) -> None:
         backend = CPUBackend()
+        self.assertIsInstance(backend, SupportsBufferZeros)
 
         first = backend.buffer_zeros(shape=(2, 3), dtype="float64")
         second = backend.buffer_zeros(shape=(2, 3), dtype="float64")

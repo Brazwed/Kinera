@@ -6,7 +6,7 @@ import math
 from random import Random
 from typing import cast
 
-from kinera.backends import Backend, resolve_backend
+from kinera.backends import Backend, create_zero_buffer, resolve_backend
 from kinera.backends.base import (
     BackendArray,
     BackendBuffer,
@@ -98,7 +98,8 @@ class Embedding:
                 if ids
                 else []
             )
-            zero_gradients = self.backend.buffer_zeros(
+            zero_gradients = create_zero_buffer(
+                self.backend,
                 shape=(vocab_size, embedding_dim),
                 dtype="float64",
             )

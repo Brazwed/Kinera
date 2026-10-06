@@ -3,7 +3,7 @@
 import ctypes
 import unittest
 
-from kinera.backends.base import Backend, BackendError
+from kinera.backends.base import Backend, BackendError, SupportsBufferZeros
 from kinera.backends.cuda import CUDABackend, CudaBuffer, CudaMemoryManager
 
 
@@ -193,6 +193,7 @@ class CudaBufferOwnershipTests(unittest.TestCase):
         )
 
         self.assertIsInstance(backend, Backend)
+        self.assertIsInstance(backend, SupportsBufferZeros)
         buffer = backend.buffer_zeros(shape=(2, 3), dtype="float64")
         self.assertEqual(buffer.shape, (2, 3))
         self.assertEqual(buffer.dtype, "float64")
