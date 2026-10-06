@@ -118,6 +118,38 @@ class CPUBackendBufferContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             backend.buffer_from_host([float("inf")], shape=(1,), dtype="float64")
 
+    def test_zero_buffer_returns_fresh_exact_float64_values(self) -> None:
+        backend = CPUBackend()
+
+        first = backend.buffer_zeros(shape=(2, 3), dtype="float64")
+        second = backend.buffer_zeros(shape=(2, 3), dtype="float64")
+
+        self.assertEqual(first, [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        self.assertEqual(second, first)
+        self.assertIsNot(first, second)
+        self.assertIsNot(first[0], first[1])
+        first[0][0] = 9.0
+        self.assertEqual(second[0][0], 0.0)
+        self.assertEqual(backend.buffer_zeros(shape=(3,), dtype="float64"), [0.0, 0.0, 0.0])
+        integers = backend.buffer_zeros(shape=(2,), dtype="int32")
+        self.assertEqual(integers, [0, 0])
+        self.assertTrue(all(type(value) is int for value in integers))
+
+    def test_zero_buffer_rejects_invalid_shapes_and_dtypes(self) -> None:
+        backend = CPUBackend()
+        for shape, error in (
+            ((), ValueError),
+            ((0, 2), ValueError),
+            ((True, 2), TypeError),
+            ((2.0, 2), TypeError),
+            ((2, 3, 4), ValueError),
+        ):
+            with self.subTest(shape=shape):
+                with self.assertRaises(error):
+                    backend.buffer_zeros(shape=shape, dtype="float64")
+        with self.assertRaises(ValueError):
+            backend.buffer_zeros(shape=(2, 3), dtype="float32")
+
 
 class ProbabilityBackendInjectionTests(unittest.TestCase):
     def test_public_probability_apis_use_the_selected_backend(self) -> None:

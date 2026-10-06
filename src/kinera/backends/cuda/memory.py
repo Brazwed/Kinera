@@ -101,6 +101,34 @@ class CudaMemoryManager:
             raise
         return buffer
 
+    def copy_zeros_to_device(
+        self,
+        shape: Sequence[int],
+        *,
+        dtype: str = "float64",
+        device_id: int = 0,
+    ) -> CudaBuffer:
+        """Upload a contiguous zeroed ctypes array into a fresh device buffer."""
+        normalized_shape = self._normalize_shape(shape)
+        self._validate_dtype(dtype)
+        if len(normalized_shape) not in {1, 2}:
+            raise ValueError("CUDA zero buffers support rank 1 or rank 2")
+
+        element_type = ctypes.c_double if dtype == "float64" else ctypes.c_int32
+        host_array = (element_type * math.prod(normalized_shape))()
+        buffer = self.allocate(normalized_shape, dtype=dtype, device_id=device_id)
+        try:
+            self.bridge.copy_to_device(
+                device_id,
+                buffer.pointer,
+                ctypes.addressof(host_array),
+                buffer.nbytes,
+            )
+        except Exception:
+            self.release(buffer)
+            raise
+        return buffer
+
     def copy_to_host(
         self, device_buffer: CudaBuffer, *, device_id: int | None = None
     ) -> HostArray:

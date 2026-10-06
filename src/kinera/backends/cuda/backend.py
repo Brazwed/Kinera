@@ -49,6 +49,15 @@ class CUDABackend:
     def is_available(self) -> bool:
         return self.runtime.is_available()
 
+    def buffer_zeros(
+        self,
+        *,
+        shape: tuple[int, ...],
+        dtype: str = "float64",
+    ) -> CudaBuffer:
+        """Create a fresh device buffer from contiguous zeroed host staging."""
+        return self.memory.copy_zeros_to_device(shape, dtype=dtype, device_id=0)
+
     def buffer_from_host(
         self,
         values: HostArray,

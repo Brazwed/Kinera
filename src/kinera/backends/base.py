@@ -69,6 +69,13 @@ class Backend(Protocol):
 
     name: str
 
+    def buffer_zeros(
+        self,
+        *,
+        shape: tuple[int, ...],
+        dtype: str = "float64",
+    ) -> BackendArray: ...
+
     def buffer_from_host(
         self,
         values: HostArray,

@@ -98,8 +98,7 @@ class Embedding:
                 if ids
                 else []
             )
-            zero_gradients = self.backend.buffer_from_host(
-                [[0.0] * embedding_dim for _ in range(vocab_size)],
+            zero_gradients = self.backend.buffer_zeros(
                 shape=(vocab_size, embedding_dim),
                 dtype="float64",
             )
