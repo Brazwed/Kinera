@@ -55,5 +55,11 @@ def aggregate_run_dicts(records: list[dict[str, Any]]) -> dict[str, int | str]:
     """Agrega status de registros JSON sem duplicar lógica nos runners."""
     normalized = []
     for record in records:
-        normalized.append({**record, "payload": record.get("payload", record.get("run", {}))})
+        normalized_record = {
+            **record,
+            "payload": record.get("payload", record.get("run", {})),
+        }
+        # Operational telemetry does not participate in scientific status.
+        normalized_record.pop("telemetry", None)
+        normalized.append(normalized_record)
     return aggregate_run_status([RunRecord.from_dict(record) for record in normalized])

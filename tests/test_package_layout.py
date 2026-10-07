@@ -4,6 +4,7 @@ import ast
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
+import os
 import subprocess
 import sys
 import unittest
@@ -84,6 +85,11 @@ class PackageLayoutTests(unittest.TestCase):
             "kinera.backends.cuda.memory",
             "kinera.backends.cuda.bridge",
             "kinera.nn.models.hybrid",
+            "kinera.monitor",
+            "kinera.monitor.metrics",
+            "kinera.monitor.telemetry",
+            "kinera.monitor.telemetry.records",
+            "kinera.monitor.telemetry.timing",
             "kinera.language.orthography.alignment",
             "kinera.language.orthography.features",
             "kinera.language.syllables.tokenizer",
@@ -114,6 +120,30 @@ class PackageLayoutTests(unittest.TestCase):
                     spec = None
                 self.assertIsNotNone(spec, f"{module_name} is missing from the target layout")
                 import_module(module_name)
+
+    def test_telemetry_import_is_cpu_only_and_does_not_call_clocks(self) -> None:
+        project_root = Path(__file__).resolve().parents[1]
+        environment = {
+            **os.environ,
+            "PYTHONPATH": str(project_root / "src"),
+        }
+        script = (
+            "import sys, time; "
+            "time.monotonic_ns = lambda: (_ for _ in ()).throw(AssertionError('clock called')); "
+            "import kinera.monitor; import kinera.monitor.telemetry; "
+            "import kinera.monitor.telemetry.records; "
+            "import kinera.monitor.telemetry.timing; "
+            "assert not any(name.startswith('kinera.backends.cuda') for name in sys.modules)"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=project_root,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_root_compatibility_entrypoints_are_runnable(self) -> None:
         project_root = Path(__file__).resolve().parents[1]

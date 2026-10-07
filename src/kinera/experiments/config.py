@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from kinera.monitor.metrics.aggregation import mean_std as _mean_std
+from kinera.monitor.telemetry.records import TelemetryRunRecord
 
 JobStatus = Literal["pending", "running", "completed", "failed"]
 
@@ -99,15 +100,18 @@ class RunRecord:
     payload: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
     traceback: str | None = None
+    telemetry: TelemetryRunRecord | None = None
 
     def __post_init__(self) -> None:
         if self.status not in {"pending", "running", "completed", "failed"}:
             raise ValueError(f"status inválido: {self.status}")
         if isinstance(self.seed, bool) or not isinstance(self.seed, int):
             raise TypeError("seed deve ser inteiro")
+        if self.telemetry is not None and not isinstance(self.telemetry, TelemetryRunRecord):
+            raise TypeError("telemetry deve ser TelemetryRunRecord ou None")
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "seed": self.seed,
             "status": self.status,
             "worker_pid": self.worker_pid,
@@ -116,6 +120,9 @@ class RunRecord:
             "error": self.error,
             "traceback": self.traceback,
         }
+        if self.telemetry is not None:
+            result["telemetry"] = self.telemetry.to_dict()
+        return result
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "RunRecord":
@@ -129,6 +136,11 @@ class RunRecord:
             payload=dict(value.get("payload", {})),
             error=value.get("error"),
             traceback=value.get("traceback"),
+            telemetry=(
+                None
+                if value.get("telemetry") is None
+                else TelemetryRunRecord.from_dict(value["telemetry"])
+            ),
         )
 
 
