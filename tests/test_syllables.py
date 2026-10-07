@@ -21,6 +21,26 @@ class SyllableSegmenterTests(unittest.TestCase):
             with self.subTest(word=word):
                 self.assertEqual(segment_word(word), syllables)
 
+    def test_m0_keeps_zero_support_fallbacks_and_segmenter_counts(self) -> None:
+        self.assertEqual(evaluate_records([]), {
+            "total": 0,
+            "scored": 0,
+            "exact_matches": 0,
+            "exact_accuracy": 0.0,
+            "boundary_correct": 0,
+            "boundary_total": 0,
+            "boundary_accuracy": 1.0,
+            "errors": {},
+        })
+        report = evaluate_records([{
+            "word_normalized": "banana",
+            "syllables": ["ba", "nana"],
+        }])
+        self.assertEqual(report["exact_accuracy"], 0.0)
+        self.assertEqual(report["boundary_correct"], 1)
+        self.assertEqual(report["boundary_total"], 1)
+        self.assertEqual(report["boundary_accuracy"], 1.0)
+
     def test_digraph_and_diphthong_cases(self) -> None:
         self.assertEqual(segment_word("chuva"), ["chu", "va"])
         self.assertEqual(segment_word("mãe"), ["mãe"])

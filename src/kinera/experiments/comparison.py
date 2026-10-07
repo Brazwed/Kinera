@@ -5,7 +5,6 @@ from __future__ import annotations
 import copy
 import concurrent.futures
 import json
-import math
 import os
 import resource
 import time
@@ -15,6 +14,7 @@ from typing import Any, cast
 
 from kinera.backends import get_backend
 from kinera.experiments.config import ExperimentConfig, ExecutionConfig
+from kinera.monitor.metrics.aggregation import mean_std
 from kinera.language.vocabulary import CharacterVocabulary
 from kinera.nn.models.hybrid import AutoregressiveModel
 from kinera.training.evaluator import evaluate_multitask_examples
@@ -588,10 +588,9 @@ def _build_aggregates(
         aggregates[variant] = {"mean": {}, "std": {}}
         for name in metric_names:
             values = [float(run["final_validation"][name]) for run in completed]
-            mean = sum(values) / len(values)
-            variance = sum((value - mean) ** 2 for value in values) / len(values)
-            aggregates[variant]["mean"][name] = mean
-            aggregates[variant]["std"][name] = math.sqrt(variance)
+            summary = mean_std(values)
+            aggregates[variant]["mean"][name] = summary["mean"]
+            aggregates[variant]["std"][name] = summary["std"]
     return aggregates
 
 

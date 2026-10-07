@@ -7,6 +7,7 @@ import time
 from collections import Counter, defaultdict
 from typing import Any
 
+from kinera.monitor.metrics.core import safe_ratio
 from kinera.language.datasets.adapter import example_to_inputs
 from kinera.language.vocabulary import CharacterVocabulary
 from kinera.nn.losses.cross_entropy import cross_entropy, softmax
@@ -222,10 +223,18 @@ def _summarize_pair(rows: list[dict[str, Any]]) -> dict[str, Any]:
         return {"examples": 0, "mean_delta_loss": 0.0, "accuracy_delta": 0.0}
     return {
         "examples": len(rows),
-        "mean_delta_loss": sum(row["delta_loss"] for row in rows) / len(rows),
-        "accuracy_delta": sum(row["delta_accuracy"] for row in rows) / len(rows),
-        "improved_loss_fraction": sum(row["delta_loss"] > 0 for row in rows) / len(rows),
-        "regressed_loss_fraction": sum(row["delta_loss"] < 0 for row in rows) / len(rows),
+        "mean_delta_loss": safe_ratio(
+            sum(row["delta_loss"] for row in rows), len(rows)
+        ),
+        "accuracy_delta": safe_ratio(
+            sum(row["delta_accuracy"] for row in rows), len(rows)
+        ),
+        "improved_loss_fraction": safe_ratio(
+            sum(row["delta_loss"] > 0 for row in rows), len(rows)
+        ),
+        "regressed_loss_fraction": safe_ratio(
+            sum(row["delta_loss"] < 0 for row in rows), len(rows)
+        ),
     }
 
 
@@ -251,7 +260,7 @@ def _coverage(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "examples": total,
         "active": groups["active"],
         "unavailable": groups["unavailable"],
-        "active_fraction": groups["active"] / total if total else 0.0,
+        "active_fraction": safe_ratio(groups["active"], total),
     }
 
 
@@ -278,7 +287,9 @@ def _target_char_effects(rows: dict[str, list[dict[str, Any]]]) -> dict[str, dic
             effects.append({
                 "target_char": target,
                 "examples": len(group),
-                "mean_delta_loss": sum(row["delta_loss"] for row in group) / len(group),
+                "mean_delta_loss": safe_ratio(
+                    sum(row["delta_loss"] for row in group), len(group)
+                ),
             })
         result[pair_name] = {
             "most_helped": sorted(effects, key=lambda row: row["mean_delta_loss"], reverse=True)[:10],

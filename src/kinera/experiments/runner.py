@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+from kinera.monitor.metrics.core import safe_ratio
 from kinera.nn.layers.neuron import Neuron
 from kinera.training.config import Sample, TrainingConfig
 from kinera.training.trainer import fit
@@ -55,9 +56,7 @@ class MultiSeedSummary:
 
     @property
     def convergence_rate(self) -> float:
-        if not self.results:
-            return 0.0
-        return self.converged_count / len(self.results)
+        return safe_ratio(self.converged_count, len(self.results))
 
 
 def run_single_seed(
@@ -85,7 +84,7 @@ def run_single_seed(
         initial_active_fraction = (
             None
             if initial_active_count is None
-            else initial_active_count / initial_sample_count
+            else safe_ratio(initial_active_count, initial_sample_count)
         )
         training_result = fit(
             neuron,

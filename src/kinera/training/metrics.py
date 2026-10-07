@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from kinera.monitor.metrics.core import safe_ratio
+
 
 def _multitask_targets(example: dict[str, Any]) -> dict[str, int | float]:
     target_char = example.get("target_char_id")
@@ -24,5 +26,5 @@ def _multitask_targets(example: dict[str, Any]) -> dict[str, int | float]:
         "boundary": float(target_boundary),
     }
 
-def _safe_ratio(numerator: float, denominator: float) -> float:
-    return 0.0 if denominator == 0.0 else numerator / denominator
+
+_safe_ratio = safe_ratio

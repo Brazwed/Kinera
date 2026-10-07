@@ -6,6 +6,8 @@ import unicodedata
 from collections import Counter
 from typing import Any
 
+from kinera.monitor.metrics.core import safe_ratio
+
 VOWELS = set("aeiouáéíóúâêôãõàü")
 DIPHTHONGS = {
     "ai",
@@ -117,11 +119,11 @@ def evaluate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         "total": len(records),
         "scored": scored,
         "exact_matches": exact_matches,
-        "exact_accuracy": exact_matches / scored if scored else 0.0,
+        "exact_accuracy": safe_ratio(exact_matches, scored),
         "boundary_correct": boundary_correct,
         "boundary_total": boundary_total,
-        "boundary_accuracy": (
-            boundary_correct / boundary_total if boundary_total else 1.0
+        "boundary_accuracy": safe_ratio(
+            boundary_correct, boundary_total, zero_denominator=1.0
         ),
         "errors": dict(errors),
     }
