@@ -210,6 +210,12 @@ class ReplayPlanTests(unittest.TestCase):
         no_replay = build_interleaved_plan(self.new_refs, (), replay_positions=())
         self.assertEqual(tuple(item.example_ref for item in no_replay), self.new_refs)
 
+    def test_plan_rejects_replay_positions_that_reorder_selected_subset(self) -> None:
+        with self.assertRaisesRegex(ValueError, "strictly increasing"):
+            build_interleaved_plan(
+                self.new_refs, self.replay_refs, replay_positions=(4, 1)
+            )
+
     def test_plan_rejects_invalid_positions_and_duplicate_input_refs(self) -> None:
         for positions in ((1,), (1, 1), (-1, 4), (1, 6), (True, 4), (1.0, 4)):
             with self.subTest(positions=positions), self.assertRaises((TypeError, ValueError)):

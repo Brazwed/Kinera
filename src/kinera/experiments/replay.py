@@ -195,6 +195,8 @@ def build_interleaved_plan(
     total = len(new_refs) + len(replay_refs)
     if any(position < 0 or position >= total for position in positions):
         raise ValueError("replay position is outside the final plan")
+    if positions != tuple(sorted(positions)):
+        raise ValueError("replay_positions must be strictly increasing")
     replay_at = {position: ref for position, ref in zip(positions, replay_refs)}
     plan: list[ReplayPlanItem] = []
     new_index = 0
