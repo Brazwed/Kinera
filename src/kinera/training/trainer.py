@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Any
+from typing import Any, Callable
 
 from kinera.monitor.metrics.core import mean_from_total, safe_ratio
 from kinera.language.datasets.adapter import example_to_inputs
@@ -174,6 +174,7 @@ def train_multitask_examples(
     syllable_unknown_id: int = 0,
     max_examples: int | None = None,
     loss_function: MultiTaskLoss | None = None,
+    step_observer: Callable[[int, int, int, dict[str, float]], object] | None = None,
 ) -> dict[str, Any]:
     """Treina as três heads e registra métricas por época."""
     if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs <= 0:
@@ -185,19 +186,23 @@ def train_multitask_examples(
         raise ValueError("max_examples deve selecionar ao menos um exemplo")
 
     history: list[dict[str, float]] = []
-    for _ in range(epochs):
-        for example in selected:
+    global_step = 0
+    for epoch in range(1, epochs + 1):
+        for example_index, example in enumerate(selected):
             inputs = example_to_inputs(
                 example,
                 vocabulary,
                 syllable_unknown_id=syllable_unknown_id,
             )
-            model.multitask_train_step(
+            scalar_report = model.multitask_train_step(
                 *inputs,
                 targets=_multitask_targets(example),
                 learning_rate=learning_rate,
                 loss_function=loss_function,
             )
+            global_step += 1
+            if step_observer is not None:
+                step_observer(epoch, example_index, global_step, scalar_report)
         metrics = evaluate_multitask_examples(
             model,
             selected,
