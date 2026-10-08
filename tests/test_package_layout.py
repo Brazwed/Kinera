@@ -145,6 +145,43 @@ class PackageLayoutTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_t2_collectors_import_without_reading_proc_or_loading_cuda(self) -> None:
+        project_root = Path(__file__).resolve().parents[1]
+        environment = {
+            **os.environ,
+            "PYTHONPATH": str(project_root / "src"),
+        }
+        script = """
+import pathlib, sys, time
+original_read_text = pathlib.Path.read_text
+pathlib.Path.read_text = lambda self, *a, **k: (
+    (_ for _ in ()).throw(AssertionError('proc read at import'))
+    if str(self).startswith(('/proc', '/sys/fs/cgroup'))
+    else original_read_text(self, *a, **k)
+)
+time.monotonic_ns = lambda: (_ for _ in ()).throw(AssertionError('clock read at import'))
+had_resource = 'resource' in sys.modules
+from kinera.monitor.telemetry import (
+    EnvironmentSnapshotRecord,
+    ResourceSnapshotRecord,
+    collect_environment_snapshot,
+    collect_resource_snapshot,
+)
+assert EnvironmentSnapshotRecord and ResourceSnapshotRecord
+assert collect_environment_snapshot and collect_resource_snapshot
+assert not any(name.startswith('kinera.backends.cuda') for name in sys.modules)
+assert ('resource' in sys.modules) == had_resource
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=project_root,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_root_compatibility_entrypoints_are_runnable(self) -> None:
         project_root = Path(__file__).resolve().parents[1]
         commands = (

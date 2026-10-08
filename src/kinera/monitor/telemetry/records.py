@@ -117,6 +117,71 @@ def _pid(value: object) -> int | None:
     return value
 
 
+def _nonnegative_integer(value: object, name: str) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise TelemetryRecordError(f"{name} deve ser inteiro não negativo ou None")
+    return value
+
+
+def _optional_nonempty_text(value: object, name: str) -> str | None:
+    text = _optional_text(value, name)
+    if text is not None and not text.strip():
+        raise TelemetryRecordError(f"{name} deve ser texto não vazio ou None")
+    return text
+
+
+def _validate_observation_maps(
+    values: dict[str, object],
+    sources: object,
+    unavailable: object,
+    not_applicable: object,
+    *,
+    name: str,
+) -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
+    allowed = set(values)
+
+    def checked_map(value: object, label: str) -> dict[str, str]:
+        if not isinstance(value, dict):
+            raise TelemetryRecordError(f"{name}.{label} deve ser um dicionário")
+        result: dict[str, str] = {}
+        for key, detail in value.items():
+            if not isinstance(key, str) or key not in allowed:
+                raise TelemetryRecordError(f"chave inválida em {name}.{label}")
+            if not isinstance(detail, str) or not detail.strip():
+                raise TelemetryRecordError(f"{name}.{label}[{key}] deve ser texto não vazio")
+            result[key] = detail
+        return result
+
+    checked_sources = checked_map(sources, "sources")
+    checked_unavailable = checked_map(unavailable, "unavailable")
+    checked_not_applicable = checked_map(not_applicable, "not_applicable")
+    if set(checked_unavailable) & set(checked_not_applicable):
+        raise TelemetryRecordError(f"{name} não pode marcar um campo unavailable e not_applicable")
+    for key, value in values.items():
+        has_source = key in checked_sources
+        has_reason = key in checked_unavailable or key in checked_not_applicable
+        if value is None:
+            if has_source or not has_reason:
+                raise TelemetryRecordError(
+                    f"{name}.{key} ausente exige unavailable/not_applicable e não pode ter source"
+                )
+        elif not has_source or has_reason:
+            raise TelemetryRecordError(
+                f"{name}.{key} disponível exige source e não pode ter motivo de ausência"
+            )
+    return checked_sources, checked_unavailable, checked_not_applicable
+
+
+def _diagnostic_list(value: object, name: str) -> list[str]:
+    if not isinstance(value, list):
+        raise TelemetryRecordError(f"{name} deve ser uma lista de textos")
+    if any(not isinstance(item, str) or not item.strip() for item in value):
+        raise TelemetryRecordError(f"{name} deve conter apenas textos não vazios")
+    return list(value)
+
+
 def _require_dict(value: object, name: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise TelemetryRecordError(f"{name} deve ser um dicionário")
@@ -415,37 +480,284 @@ class TelemetryRunRecord:
 
 
 @dataclass
+class EnvironmentSnapshotRecord:
+    """Opt-in T2a platform/CPU snapshot with field-level provenance.
+
+    ``os_release`` is the Linux distribution ``VERSION_ID`` (falling back to
+    ``PRETTY_NAME``); ``platform_version`` and ``kernel_release`` are the raw
+    ``platform.version()`` and ``platform.release()`` values. Logical count and
+    affinity are separate observations.
+    """
+
+    environment_schema_version: int
+    captured_at: str
+    python_version: str | None = None
+    python_executable: str | None = None
+    os_system: str | None = None
+    os_release: str | None = None
+    platform_version: str | None = None
+    kernel_release: str | None = None
+    architecture: str | None = None
+    cpu_model: str | None = None
+    logical_cpu_count: int | None = None
+    cpu_affinity: list[int] | None = None
+    sources: dict[str, str] = field(default_factory=dict)
+    unavailable: dict[str, str] = field(default_factory=dict)
+    not_applicable: dict[str, str] = field(default_factory=dict)
+    diagnostics: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.environment_schema_version = _schema_version(self.environment_schema_version)
+        captured_at = _timestamp(self.captured_at, "environment.captured_at")
+        if captured_at is None:
+            raise TelemetryRecordError("environment.captured_at é obrigatório")
+        self.captured_at = captured_at
+        for name in (
+            "python_version", "python_executable", "os_system", "os_release",
+            "platform_version", "kernel_release", "architecture", "cpu_model",
+        ):
+            setattr(self, name, _optional_nonempty_text(getattr(self, name), f"environment.{name}"))
+        self.logical_cpu_count = _nonnegative_integer(
+            self.logical_cpu_count, "environment.logical_cpu_count"
+        )
+        if self.cpu_affinity is not None:
+            if not isinstance(self.cpu_affinity, list) or any(
+                isinstance(cpu, bool) or not isinstance(cpu, int) or cpu < 0
+                for cpu in self.cpu_affinity
+            ):
+                raise TelemetryRecordError("environment.cpu_affinity deve conter CPUs não negativas")
+            if len(self.cpu_affinity) != len(set(self.cpu_affinity)):
+                raise TelemetryRecordError("environment.cpu_affinity não pode ter duplicatas")
+            self.cpu_affinity = list(self.cpu_affinity)
+        values = {
+            "captured_at": self.captured_at,
+            "python_version": self.python_version,
+            "python_executable": self.python_executable,
+            "os_system": self.os_system,
+            "os_release": self.os_release,
+            "platform_version": self.platform_version,
+            "kernel_release": self.kernel_release,
+            "architecture": self.architecture,
+            "cpu_model": self.cpu_model,
+            "logical_cpu_count": self.logical_cpu_count,
+            "cpu_affinity": self.cpu_affinity,
+        }
+        self.sources, self.unavailable, self.not_applicable = _validate_observation_maps(
+            values,
+            self.sources,
+            self.unavailable,
+            self.not_applicable,
+            name="environment",
+        )
+        self.diagnostics = _diagnostic_list(self.diagnostics, "environment.diagnostics")
+
+    def to_dict(self) -> dict[str, Any]:
+        self.__post_init__()
+        return {
+            "environment_schema_version": self.environment_schema_version,
+            "captured_at": self.captured_at,
+            "python_version": self.python_version,
+            "python_executable": self.python_executable,
+            "os_system": self.os_system,
+            "os_release": self.os_release,
+            "platform_version": self.platform_version,
+            "kernel_release": self.kernel_release,
+            "architecture": self.architecture,
+            "cpu_model": self.cpu_model,
+            "logical_cpu_count": self.logical_cpu_count,
+            "cpu_affinity": None if self.cpu_affinity is None else list(self.cpu_affinity),
+            "sources": dict(self.sources),
+            "unavailable": dict(self.unavailable),
+            "not_applicable": dict(self.not_applicable),
+            "diagnostics": list(self.diagnostics),
+        }
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> "EnvironmentSnapshotRecord":
+        record = _require_dict(value, "environment snapshot")
+        return cls(
+            environment_schema_version=_schema_version(record.get("environment_schema_version")),
+            captured_at=record["captured_at"],
+            python_version=record.get("python_version"),
+            python_executable=record.get("python_executable"),
+            os_system=record.get("os_system"),
+            os_release=record.get("os_release"),
+            platform_version=record.get("platform_version"),
+            kernel_release=record.get("kernel_release"),
+            architecture=record.get("architecture"),
+            cpu_model=record.get("cpu_model"),
+            logical_cpu_count=record.get("logical_cpu_count"),
+            cpu_affinity=record.get("cpu_affinity"),
+            sources=record.get("sources", {}),
+            unavailable=record.get("unavailable", {}),
+            not_applicable=record.get("not_applicable", {}),
+            diagnostics=record.get("diagnostics", []),
+        )
+
+
+@dataclass
+class ResourceSnapshotRecord:
+    """Point-in-time T2a process/cgroup snapshot with explicit units.
+
+    ``process_rss_bytes`` is ``/proc/self/status:VmRSS`` converted from kB by
+    1024. ``process_ru_maxrss_kib`` is Linux ``getrusage(RUSAGE_SELF)``'s
+    process high-water RSS in KiB. Cgroup v2 memory values are bytes; its
+    kernel ``memory.peak`` is not a sampled peak.
+    """
+
+    resources_schema_version: int
+    captured_at: str
+    process_rss_bytes: int | None = None
+    process_ru_maxrss_kib: int | None = None
+    cgroup_memory_current_bytes: int | None = None
+    cgroup_memory_peak_bytes: int | None = None
+    cgroup_memory_limit_bytes: int | None = None
+    cgroup_memory_limit_unlimited: bool | None = None
+    cgroup_version: Literal["v1", "v2"] | None = None
+    sources: dict[str, str] = field(default_factory=dict)
+    unavailable: dict[str, str] = field(default_factory=dict)
+    not_applicable: dict[str, str] = field(default_factory=dict)
+    diagnostics: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.resources_schema_version = _schema_version(self.resources_schema_version)
+        captured_at = _timestamp(self.captured_at, "resources.captured_at")
+        if captured_at is None:
+            raise TelemetryRecordError("resources.captured_at é obrigatório")
+        self.captured_at = captured_at
+        for name in (
+            "process_rss_bytes", "process_ru_maxrss_kib", "cgroup_memory_current_bytes",
+            "cgroup_memory_peak_bytes", "cgroup_memory_limit_bytes",
+        ):
+            setattr(self, name, _nonnegative_integer(getattr(self, name), f"resources.{name}"))
+        if self.cgroup_memory_limit_unlimited is not None and not isinstance(
+            self.cgroup_memory_limit_unlimited, bool
+        ):
+            raise TelemetryRecordError("resources.cgroup_memory_limit_unlimited deve ser bool ou None")
+        if self.cgroup_version is not None and (
+            not isinstance(self.cgroup_version, str)
+            or self.cgroup_version not in {"v1", "v2"}
+        ):
+            raise TelemetryRecordError("resources.cgroup_version deve ser v1, v2 ou None")
+        if self.cgroup_memory_limit_unlimited is True:
+            if self.cgroup_memory_limit_bytes is not None or self.cgroup_version != "v2":
+                raise TelemetryRecordError("limite ilimitado só é válido para cgroup v2 sem bytes")
+        elif self.cgroup_memory_limit_unlimited is False and self.cgroup_memory_limit_bytes is None:
+            raise TelemetryRecordError("limite finito exige cgroup_memory_limit_bytes")
+        elif self.cgroup_memory_limit_bytes is not None and self.cgroup_memory_limit_unlimited is not False:
+            raise TelemetryRecordError("limite numérico exige cgroup_memory_limit_unlimited=False")
+        values = {
+            "captured_at": self.captured_at,
+            "process_rss_bytes": self.process_rss_bytes,
+            "process_ru_maxrss_kib": self.process_ru_maxrss_kib,
+            "cgroup_memory_current_bytes": self.cgroup_memory_current_bytes,
+            "cgroup_memory_peak_bytes": self.cgroup_memory_peak_bytes,
+            "cgroup_memory_limit_bytes": self.cgroup_memory_limit_bytes,
+            "cgroup_memory_limit_unlimited": self.cgroup_memory_limit_unlimited,
+            "cgroup_version": self.cgroup_version,
+        }
+        self.sources, self.unavailable, self.not_applicable = _validate_observation_maps(
+            values,
+            self.sources,
+            self.unavailable,
+            self.not_applicable,
+            name="resources",
+        )
+        self.diagnostics = _diagnostic_list(self.diagnostics, "resources.diagnostics")
+
+    def to_dict(self) -> dict[str, Any]:
+        self.__post_init__()
+        return {
+            "resources_schema_version": self.resources_schema_version,
+            "captured_at": self.captured_at,
+            "process_rss_bytes": self.process_rss_bytes,
+            "process_ru_maxrss_kib": self.process_ru_maxrss_kib,
+            "cgroup_memory_current_bytes": self.cgroup_memory_current_bytes,
+            "cgroup_memory_peak_bytes": self.cgroup_memory_peak_bytes,
+            "cgroup_memory_limit_bytes": self.cgroup_memory_limit_bytes,
+            "cgroup_memory_limit_unlimited": self.cgroup_memory_limit_unlimited,
+            "cgroup_version": self.cgroup_version,
+            "sources": dict(self.sources),
+            "unavailable": dict(self.unavailable),
+            "not_applicable": dict(self.not_applicable),
+            "diagnostics": list(self.diagnostics),
+        }
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> "ResourceSnapshotRecord":
+        record = _require_dict(value, "resource snapshot")
+        return cls(
+            resources_schema_version=_schema_version(record.get("resources_schema_version")),
+            captured_at=record["captured_at"],
+            process_rss_bytes=record.get("process_rss_bytes"),
+            process_ru_maxrss_kib=record.get("process_ru_maxrss_kib"),
+            cgroup_memory_current_bytes=record.get("cgroup_memory_current_bytes"),
+            cgroup_memory_peak_bytes=record.get("cgroup_memory_peak_bytes"),
+            cgroup_memory_limit_bytes=record.get("cgroup_memory_limit_bytes"),
+            cgroup_memory_limit_unlimited=record.get("cgroup_memory_limit_unlimited"),
+            cgroup_version=record.get("cgroup_version"),
+            sources=record.get("sources", {}),
+            unavailable=record.get("unavailable", {}),
+            not_applicable=record.get("not_applicable", {}),
+            diagnostics=record.get("diagnostics", []),
+        )
+
+
+@dataclass
 class TelemetryEnvelope:
-    """Optional session-level telemetry section for an experiment report."""
+    """Optional session-level section; T2 snapshots remain independently versioned."""
 
     telemetry_schema_version: int
     session_id: str
     started_at: str | None = None
     finished_at: str | None = None
+    environment: EnvironmentSnapshotRecord | None = None
+    resources: ResourceSnapshotRecord | None = None
 
     def __post_init__(self) -> None:
         self.telemetry_schema_version = _schema_version(self.telemetry_schema_version)
         self.session_id = _required_id(self.session_id, "session_id")
         self.started_at = _timestamp(self.started_at, "started_at")
         self.finished_at = _timestamp(self.finished_at, "finished_at")
+        if self.environment is not None and not isinstance(
+            self.environment, EnvironmentSnapshotRecord
+        ):
+            raise TelemetryRecordError("environment deve ser EnvironmentSnapshotRecord ou None")
+        if self.resources is not None and not isinstance(
+            self.resources, ResourceSnapshotRecord
+        ):
+            raise TelemetryRecordError("resources deve ser ResourceSnapshotRecord ou None")
 
     def to_dict(self) -> dict[str, Any]:
         self.__post_init__()
-        return {
+        result = {
             "telemetry_schema_version": self.telemetry_schema_version,
             "session_id": self.session_id,
             "started_at": self.started_at,
             "finished_at": self.finished_at,
         }
+        if self.environment is not None:
+            result["environment"] = self.environment.to_dict()
+        if self.resources is not None:
+            result["resources"] = self.resources.to_dict()
+        return result
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "TelemetryEnvelope":
         record = _require_dict(value, "telemetry envelope")
+        environment = record.get("environment")
+        resources = record.get("resources")
         return cls(
             telemetry_schema_version=_schema_version(record.get("telemetry_schema_version")),
             session_id=record["session_id"],
             started_at=record.get("started_at"),
             finished_at=record.get("finished_at"),
+            environment=(
+                None if environment is None else EnvironmentSnapshotRecord.from_dict(environment)
+            ),
+            resources=(
+                None if resources is None else ResourceSnapshotRecord.from_dict(resources)
+            ),
         )
 
 
@@ -466,6 +778,10 @@ def _prepare_envelope_payload(
             for name in ("started_at", "finished_at"):
                 if name in payload:
                     payload[name] = getattr(validated, name)
+            if validated.environment is not None:
+                payload["environment"] = validated.environment.to_dict()
+            if validated.resources is not None:
+                payload["resources"] = validated.resources.to_dict()
         else:
             raise TelemetryRecordError("envelope deve ser TelemetryEnvelope ou dicionário")
         _ensure_telemetry_json_safe(payload, component)
