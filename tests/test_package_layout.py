@@ -111,6 +111,7 @@ class PackageLayoutTests(unittest.TestCase):
             "kinera.experiments.learning_memory",
             "kinera.experiments.retention",
             "kinera.experiments.learning_state",
+            "kinera.experiments.replay",
             "kinera.diagnostics.gradients",
             "kinera.diagnostics.syllables",
             "kinera.diagnostics.orthography",
