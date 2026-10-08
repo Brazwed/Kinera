@@ -1,6 +1,14 @@
+import copy
+import random
 import unittest
-from unittest.mock import patch
+from typing import Any
+from unittest.mock import Mock, patch
 
+from kinera.experiments.learning_memory import (
+    ExampleRef,
+    LearningMemory,
+    LearningMemoryRecorder,
+)
 from kinera.language.vocabulary import CharacterVocabulary
 from kinera.training.autoregressive import (
     AutoregressiveModel,
@@ -111,6 +119,149 @@ class MultitaskTrainingWorkflowTests(unittest.TestCase):
         self.assertEqual(before["char"], model.heads.char.weights)
         self.assertEqual(before["syllable"], model.heads.syllable.weights)
         self.assertEqual(before["boundary"], model.heads.boundary.weights)
+
+    def test_passive_recorder_is_equivalent_to_baseline_and_observes_each_update(self) -> None:
+        def run(observer_enabled: bool) -> tuple[Any, ...]:
+            model = self._model()
+            counters = {"train": 0, "eval": 0, "forward_heads": 0}
+            train_reports: list[dict[str, float]] = []
+            update_order: list[list[int]] = []
+            observer_calls: list[tuple[int, int, int, dict[str, float]]] = []
+            train_step = model.multitask_train_step
+            eval_step = model.multitask_eval_step
+            forward_heads = model._forward_heads_backend
+
+            def counted_train(*args: Any, **kwargs: Any) -> dict[str, float]:
+                counters["train"] += 1
+                update_order.append(list(args[0]))
+                report = train_step(*args, **kwargs)
+                train_reports.append(report.copy())
+                return report
+
+            def counted_eval(*args: Any, **kwargs: Any) -> dict[str, Any]:
+                counters["eval"] += 1
+                return eval_step(*args, **kwargs)
+
+            def counted_forward(*args: Any, **kwargs: Any) -> Any:
+                counters["forward_heads"] += 1
+                return forward_heads(*args, **kwargs)
+
+            memory = LearningMemory(capacity=3)
+            refs = tuple(ExampleRef("fixture:multitask", "train", i) for i in range(3))
+            recorder = LearningMemoryRecorder(refs, memory)
+
+            def observe(epoch: int, index: int, step: int, report: dict[str, float]) -> None:
+                observer_calls.append((epoch, index, step, report.copy()))
+                recorder(epoch, index, step, report)
+
+            random_state_before = random.getstate()
+            with (
+                patch.object(model, "multitask_train_step", side_effect=counted_train),
+                patch.object(model, "multitask_eval_step", side_effect=counted_eval),
+                patch.object(model, "_forward_heads_backend", side_effect=counted_forward),
+            ):
+                kwargs = {"step_observer": observe} if observer_enabled else {}
+                training_report = train_multitask_examples(
+                    model,
+                    self.examples,
+                    self.vocabulary,
+                    epochs=2,
+                    learning_rate=0.1,
+                    **kwargs,
+                )
+                evaluation = evaluate_multitask_examples(model, self.examples, self.vocabulary)
+            self.assertEqual(random.getstate(), random_state_before)
+            parameters = copy.deepcopy((
+                model.representation.char_embedding.weights,
+                model.representation.syllable_embedding.weights,
+                model.heads.char.weights,
+                model.heads.char.bias,
+                model.heads.syllable.weights,
+                model.heads.syllable.bias,
+                model.heads.boundary.weights,
+                model.heads.boundary.bias,
+            ))
+            return (
+                training_report,
+                parameters,
+                observer_calls,
+                counters,
+                evaluation,
+                memory.entries(),
+                train_reports,
+                update_order,
+            )
+
+        baseline = run(observer_enabled=False)
+        observed = run(observer_enabled=True)
+
+        self.assertEqual(observed[0], baseline[0])
+        self.assertEqual(observed[1], baseline[1])
+        self.assertEqual(observed[3], baseline[3])
+        self.assertEqual(observed[4], baseline[4])
+        self.assertEqual(observed[6], baseline[6])
+        self.assertEqual(observed[7], baseline[7])
+        self.assertEqual([call[3] for call in observed[2]], observed[6])
+        self.assertEqual(observed[3], {"train": 6, "eval": 9, "forward_heads": 15})
+        self.assertEqual(len(observed[2]), 6)
+        self.assertEqual(
+            [(epoch, index, step) for epoch, index, step, _ in observed[2]],
+            [(epoch, index, (epoch - 1) * 3 + index + 1) for epoch in (1, 2) for index in range(3)],
+        )
+        self.assertEqual(len(observed[5]), 3)
+        for index, entry in enumerate(observed[5]):
+            self.assertEqual(entry.example_ref, ExampleRef("fixture:multitask", "train", index))
+            self.assertEqual(entry.seen_count, 2)
+            self.assertEqual(entry.first_seen_step, index + 1)
+            self.assertEqual(entry.last_seen_step, index + 4)
+            self.assertEqual(entry.latest_event.char_loss, observed[6][index + 3]["char_loss"])
+            self.assertEqual(entry.latest_event.syllable_loss, observed[6][index + 3]["syllable_loss"])
+            self.assertEqual(entry.latest_event.boundary_loss, observed[6][index + 3]["boundary_loss"])
+            self.assertEqual(entry.latest_event.total_loss, observed[6][index + 3]["total_loss"])
+            self.assertEqual(observed[2][index + 3][3], observed[6][index + 3])
+
+    def test_step_observer_errors_propagate_after_one_successful_update(self) -> None:
+        model = self._model()
+        calls = 0
+
+        def failing_observer(epoch: int, index: int, step: int, report: dict[str, float]) -> None:
+            nonlocal calls
+            calls += 1
+            self.assertEqual((epoch, index, step), (1, 0, 1))
+            self.assertEqual(set(report), {"char_loss", "syllable_loss", "boundary_loss", "total_loss"})
+            raise RuntimeError("observer failed")
+
+        with patch.object(model, "multitask_train_step", wraps=model.multitask_train_step) as train_step:
+            with self.assertRaisesRegex(RuntimeError, "observer failed"):
+                train_multitask_examples(
+                    model,
+                    self.examples,
+                    self.vocabulary,
+                    epochs=2,
+                    learning_rate=0.1,
+                    step_observer=failing_observer,
+                )
+        self.assertEqual(calls, 1)
+        train_step.assert_called_once()
+
+    def test_step_observer_is_not_called_when_training_step_fails(self) -> None:
+        model = self._model()
+        observer = Mock()
+        with patch.object(
+            model,
+            "multitask_train_step",
+            side_effect=RuntimeError("step failed"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "step failed"):
+                train_multitask_examples(
+                    model,
+                    self.examples,
+                    self.vocabulary,
+                    epochs=1,
+                    learning_rate=0.1,
+                    step_observer=observer,
+                )
+        observer.assert_not_called()
 
     def test_training_is_reproducible_with_same_seed(self) -> None:
         first = train_multitask_examples(

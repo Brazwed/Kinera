@@ -108,6 +108,7 @@ class PackageLayoutTests(unittest.TestCase):
             "kinera.experiments.comparison",
             "kinera.experiments.multi_seed",
             "kinera.experiments.variants",
+            "kinera.experiments.learning_memory",
             "kinera.diagnostics.gradients",
             "kinera.diagnostics.syllables",
             "kinera.diagnostics.orthography",
@@ -120,6 +121,30 @@ class PackageLayoutTests(unittest.TestCase):
                     spec = None
                 self.assertIsNotNone(spec, f"{module_name} is missing from the target layout")
                 import_module(module_name)
+
+    def test_training_trainer_import_does_not_import_experiments(self) -> None:
+        project_root = Path(__file__).resolve().parents[1]
+        environment = {**os.environ, "PYTHONPATH": str(project_root / "src")}
+        script = """
+import builtins, sys
+original_import = builtins.__import__
+def guarded_import(name, *args, **kwargs):
+    if name == "kinera.experiments" or name.startswith("kinera.experiments."):
+        raise AssertionError("training imported experiments: " + name)
+    return original_import(name, *args, **kwargs)
+builtins.__import__ = guarded_import
+import kinera.training.trainer
+assert not any(name.startswith("kinera.experiments") for name in sys.modules)
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=project_root,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_telemetry_import_is_cpu_only_and_does_not_call_clocks(self) -> None:
         project_root = Path(__file__).resolve().parents[1]
