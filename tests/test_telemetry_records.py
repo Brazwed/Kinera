@@ -8,9 +8,12 @@ from kinera.monitor.telemetry.records import (
     TelemetryAttemptRecord,
     TelemetryEnvelope,
     TelemetryRecordError,
+    EnvironmentSnapshotRecord,
+    ResourceSnapshotRecord,
     TelemetryRunRecord,
     TelemetrySegmentRecord,
     TelemetryStageRecord,
+    _prepare_envelope_payload,
     merge_telemetry_run_records,
 )
 from kinera.monitor.telemetry.timing import TimingSession
@@ -18,6 +21,19 @@ from kinera.monitor.telemetry.timing import TimingSession
 
 UTC_START = "2026-01-02T03:04:05+00:00"
 UTC_END = "2026-01-02T03:04:06+00:00"
+ENVIRONMENT_FIELDS = (
+    "python_version", "python_executable", "os_system", "os_release", "platform_version",
+    "kernel_release", "architecture", "cpu_model", "logical_cpu_count", "cpu_affinity",
+)
+RESOURCE_FIELDS = (
+    "process_rss_bytes", "process_ru_maxrss_kib", "cgroup_memory_current_bytes",
+    "cgroup_memory_peak_bytes", "cgroup_memory_limit_bytes",
+    "cgroup_memory_limit_unlimited", "cgroup_version",
+)
+
+
+def unavailable_fields(fields: tuple[str, ...], present: set[str]) -> dict[str, str]:
+    return {name: "fixture intentionally omitted this field" for name in fields if name not in present}
 
 
 def failed_attempt(attempt_id: str = "attempt-1") -> TelemetryAttemptRecord:
@@ -88,6 +104,149 @@ class TelemetryRecordTests(unittest.TestCase):
         self.assertEqual(attempt.cleanup_status, "failed")
         self.assertEqual(attempt.cleanup_error, "close failed")
         self.assertEqual(attempt.segments[0].stages[0].parent_stage_id, None)
+
+    def test_envelope_round_trips_optional_t2_snapshots_without_bumping_t0_t1_schema(self) -> None:
+        environment = EnvironmentSnapshotRecord(
+            environment_schema_version=1,
+            captured_at=UTC_START,
+            python_version="3.14.7",
+            python_executable="/usr/bin/python3",
+            os_system="Linux",
+            os_release="24.04",
+            platform_version="build-1",
+            kernel_release="6.12.0",
+            architecture="x86_64",
+            cpu_model="fixture CPU",
+            logical_cpu_count=8,
+            cpu_affinity=[0, 2],
+            sources={
+                "captured_at": "datetime.now(timezone.utc)",
+                "python_version": "platform.python_version",
+                "python_executable": "sys.executable",
+                "os_system": "platform.system",
+                "os_release": "platform.freedesktop_os_release:VERSION_ID",
+                "platform_version": "platform.version",
+                "kernel_release": "platform.release",
+                "architecture": "platform.machine",
+                "cpu_model": "/proc/cpuinfo",
+                "logical_cpu_count": "os.cpu_count",
+                "cpu_affinity": "os.sched_getaffinity(0)",
+            },
+        )
+        resources = ResourceSnapshotRecord(
+            resources_schema_version=1,
+            captured_at=UTC_START,
+            process_rss_bytes=2048,
+            process_ru_maxrss_kib=1024,
+            cgroup_memory_current_bytes=4096,
+            cgroup_memory_peak_bytes=8192,
+            cgroup_memory_limit_bytes=None,
+            cgroup_memory_limit_unlimited=True,
+            cgroup_version="v2",
+            sources={
+                "captured_at": "datetime.now(timezone.utc)",
+                "process_rss_bytes": "/proc/self/status:VmRSS",
+                "process_ru_maxrss_kib": "resource.getrusage(RUSAGE_SELF)",
+                "cgroup_memory_current_bytes": "memory.current",
+                "cgroup_memory_peak_bytes": "memory.peak",
+                "cgroup_memory_limit_unlimited": "memory.max",
+                "cgroup_version": "/proc/self/cgroup+mountinfo",
+            },
+            not_applicable={"cgroup_memory_limit_bytes": "memory.max is unlimited"},
+        )
+        envelope = TelemetryEnvelope(
+            telemetry_schema_version=TELEMETRY_SCHEMA_VERSION,
+            session_id="session-t2",
+            environment=environment,
+            resources=resources,
+        )
+
+        encoded = json.loads(json.dumps(envelope.to_dict(), allow_nan=False))
+        restored = TelemetryEnvelope.from_dict(encoded)
+        old = TelemetryEnvelope.from_dict({
+            "telemetry_schema_version": TELEMETRY_SCHEMA_VERSION,
+            "session_id": "old-session",
+        }).to_dict()
+
+        self.assertEqual(envelope.telemetry_schema_version, TELEMETRY_SCHEMA_VERSION)
+        self.assertEqual(encoded["environment"]["environment_schema_version"], 1)
+        self.assertEqual(encoded["resources"]["resources_schema_version"], 1)
+        self.assertEqual(restored.to_dict(), encoded)
+        self.assertNotIn("environment", old)
+        self.assertNotIn("resources", old)
+
+    def test_envelope_payload_normalizes_nested_snapshot_timestamps_to_utc(self) -> None:
+        environment = EnvironmentSnapshotRecord(
+            environment_schema_version=1,
+            captured_at=UTC_START,
+            sources={"captured_at": "explicit UTC clock"},
+            unavailable=unavailable_fields(ENVIRONMENT_FIELDS, set()),
+        ).to_dict()
+        environment["captured_at"] = "2026-01-02T08:04:05+05:00"
+        raw_envelope = {
+            "telemetry_schema_version": TELEMETRY_SCHEMA_VERSION,
+            "session_id": "session-offset",
+            "environment": environment,
+        }
+
+        prepared = _prepare_envelope_payload(raw_envelope, component="test")
+
+        self.assertIsNotNone(prepared)
+        assert prepared is not None
+        self.assertEqual(
+            prepared["environment"]["captured_at"],
+            "2026-01-02T03:04:05+00:00",
+        )
+
+    def test_t2_snapshot_records_revalidate_numeric_values_and_utc_timestamp(self) -> None:
+        environment = EnvironmentSnapshotRecord(
+            environment_schema_version=1,
+            captured_at="2026-01-02T08:04:05+05:00",
+            logical_cpu_count=8,
+            sources={
+                "captured_at": "clock",
+                "logical_cpu_count": "os.cpu_count",
+            },
+            unavailable=unavailable_fields(ENVIRONMENT_FIELDS, {"logical_cpu_count"}),
+        )
+        self.assertEqual(environment.to_dict()["captured_at"], UTC_START)
+        environment.logical_cpu_count = -1
+        with self.assertRaises(TelemetryRecordError):
+            environment.to_dict()
+
+        resources = ResourceSnapshotRecord(
+            resources_schema_version=1,
+            captured_at=UTC_START,
+            process_rss_bytes=1024,
+            sources={
+                "captured_at": "clock",
+                "process_rss_bytes": "/proc/self/status:VmRSS",
+            },
+            unavailable=unavailable_fields(RESOURCE_FIELDS, {"process_rss_bytes"}),
+        )
+        resources.process_rss_bytes = -1
+        with self.assertRaises(TelemetryRecordError):
+            resources.to_dict()
+
+    def test_resource_snapshot_rejects_unhashable_cgroup_version(self) -> None:
+        record = ResourceSnapshotRecord(
+            resources_schema_version=1,
+            captured_at=UTC_START,
+            cgroup_version="v2",
+            sources={"captured_at": "clock", "cgroup_version": "fixture"},
+            unavailable=unavailable_fields(RESOURCE_FIELDS, {"cgroup_version"}),
+        )
+        setattr(record, "cgroup_version", {})
+        with self.assertRaises(TelemetryRecordError):
+            record.to_dict()
+
+    def test_t2_snapshot_absent_fields_require_availability_reason(self) -> None:
+        with self.assertRaises(TelemetryRecordError):
+            EnvironmentSnapshotRecord(
+                environment_schema_version=1,
+                captured_at=UTC_START,
+                sources={"captured_at": "clock"},
+            )
 
     def test_old_run_record_round_trip_does_not_invent_telemetry(self) -> None:
         old = {"seed": 7, "status": "completed", "payload": {"loss": 1.25}}
