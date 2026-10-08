@@ -116,14 +116,27 @@ class EmbeddingCudaIntegratedFixtureTests(unittest.TestCase):
         max_error = 0.0
 
         original_copy_to_device = self.backend.memory.copy_to_device
+        original_copy_zeros_to_device = self.backend.memory.copy_zeros_to_device
 
         def record_transfer(*args, **kwargs) -> CudaBuffer:
             buffer = original_copy_to_device(*args, **kwargs)
             transfers.append(buffer)
             return buffer
 
+        def record_zero_transfer(*args, **kwargs) -> CudaBuffer:
+            buffer = original_copy_zeros_to_device(*args, **kwargs)
+            transfers.append(buffer)
+            return buffer
+
         try:
-            with patch.object(self.backend.memory, "copy_to_device", side_effect=record_transfer):
+            with (
+                patch.object(self.backend.memory, "copy_to_device", side_effect=record_transfer),
+                patch.object(
+                    self.backend.memory,
+                    "copy_zeros_to_device",
+                    side_effect=record_zero_transfer,
+                ),
+            ):
                 cpu_output = cast(list[list[float]], cpu_layer.forward(ids.copy()))
                 cuda_output = cast(CudaBuffer, cuda_layer.forward(ids.copy()))
                 outputs.append(cuda_output)

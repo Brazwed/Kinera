@@ -3,7 +3,7 @@
 import ctypes
 import unittest
 
-from kinera.backends.base import BackendError
+from kinera.backends.base import Backend, BackendError, SupportsBufferZeros
 from kinera.backends.cuda import CUDABackend, CudaBuffer, CudaMemoryManager
 
 
@@ -81,6 +81,71 @@ class CudaBufferOwnershipTests(unittest.TestCase):
         self.assertEqual(host_values, [[1.25, -2.0], [3.5, 0.0]])
         self.assertEqual(self.bridge.device_to_host_copies, 1)
 
+    def test_zero_buffers_allocate_fresh_and_preserve_one_h2d_per_call(self) -> None:
+        first = self.manager.copy_zeros_to_device((2, 3), dtype="float64", device_id=0)
+        second = self.manager.copy_zeros_to_device((2, 3), dtype="float64", device_id=0)
+        expected_bytes = 2 * 3 * ctypes.sizeof(ctypes.c_double)
+
+        self.assertEqual(first.shape, (2, 3))
+        self.assertEqual(first.dtype, "float64")
+        self.assertEqual(first.nbytes, expected_bytes)
+        self.assertNotEqual(first.pointer, second.pointer)
+        self.assertEqual(self.bridge.host_to_device_copies, 2)
+        self.assertEqual(len(self.bridge.allocations), 2)
+        self.assertEqual(self.bridge.allocations[first.pointer], bytes(expected_bytes))
+        self.assertEqual(self.bridge.allocations[second.pointer], bytes(expected_bytes))
+        self.assertEqual(self.manager.copy_to_host(first), [[0.0] * 3, [0.0] * 3])
+        self.assertEqual(self.manager.copy_to_host(second), [[0.0] * 3, [0.0] * 3])
+
+        first_pointer, second_pointer = first.pointer, second.pointer
+        first.close()
+        first.close()
+        second.close()
+        self.assertEqual(self.bridge.freed, [first_pointer, second_pointer])
+        with self.assertRaisesRegex(BackendError, "released|closed"):
+            self.manager.copy_to_host(first)
+
+    def test_zero_buffer_validates_shape_dtype_and_int32_layout(self) -> None:
+        invalid_shapes = (
+            ((), ValueError),
+            ((0, 2), ValueError),
+            ((True, 2), TypeError),
+            ((2.0, 2), TypeError),
+            ((2, 3, 4), ValueError),
+        )
+        for shape, error in invalid_shapes:
+            with self.subTest(shape=shape):
+                allocations_before = len(self.bridge.allocations)
+                with self.assertRaises(error):
+                    self.manager.copy_zeros_to_device(shape, dtype="float64", device_id=0)
+                self.assertEqual(len(self.bridge.allocations), allocations_before)
+        with self.assertRaises(ValueError):
+            self.manager.copy_zeros_to_device((2, 3), dtype="float32", device_id=0)
+
+        buffer = self.manager.copy_zeros_to_device((3,), dtype="int32", device_id=0)
+        self.assertEqual(buffer.shape, (3,))
+        self.assertEqual(buffer.dtype, "int32")
+        self.assertEqual(buffer.nbytes, 3 * ctypes.sizeof(ctypes.c_int32))
+        self.assertEqual(self.bridge.allocations[buffer.pointer], bytes(buffer.nbytes))
+        self.assertEqual(self.manager.copy_to_host(buffer), [0, 0, 0])
+        buffer.close()
+
+    def test_zero_buffer_copy_failure_releases_the_new_allocation(self) -> None:
+        class FailingCopyBridge(FakeCudaBridge):
+            def copy_to_device(self, device_id: int, destination: int, source: int, nbytes: int) -> None:
+                super().copy_to_device(device_id, destination, source, nbytes)
+                raise RuntimeError("injected copy failure")
+
+        bridge = FailingCopyBridge()
+        manager = CudaMemoryManager(bridge=bridge)
+
+        with self.assertRaisesRegex(RuntimeError, "injected copy failure"):
+            manager.copy_zeros_to_device((2, 3), dtype="float64", device_id=0)
+
+        self.assertEqual(bridge.allocations, {})
+        self.assertEqual(bridge.freed, [1])
+        self.assertEqual(bridge.host_to_device_copies, 1)
+
     def test_release_is_idempotent_and_use_after_release_is_rejected(self) -> None:
         buffer = self.manager.copy_to_device([1.0, 2.0], shape=(2,))
         pointer = buffer.pointer
@@ -121,6 +186,21 @@ class CudaBufferOwnershipTests(unittest.TestCase):
         ) as buffer:
             self.assertEqual(buffer.dtype, "int32")
             self.assertEqual(backend.buffer_to_host(buffer), [2, 0, 2])
+
+    def test_cuda_backend_implements_contract_and_zero_factory(self) -> None:
+        backend = CUDABackend(
+            runtime=self.manager.runtime, memory_manager=self.manager
+        )
+
+        self.assertIsInstance(backend, Backend)
+        self.assertIsInstance(backend, SupportsBufferZeros)
+        buffer = backend.buffer_zeros(shape=(2, 3), dtype="float64")
+        self.assertEqual(buffer.shape, (2, 3))
+        self.assertEqual(buffer.dtype, "float64")
+        self.assertEqual(buffer.nbytes, 2 * 3 * ctypes.sizeof(ctypes.c_double))
+        self.assertEqual(self.bridge.host_to_device_copies, 1)
+        self.assertEqual(self.bridge.allocations[buffer.pointer], bytes(buffer.nbytes))
+        buffer.close()
 
     def test_int32_buffer_rejects_bool_float_and_out_of_range_ids(self) -> None:
         cases = (

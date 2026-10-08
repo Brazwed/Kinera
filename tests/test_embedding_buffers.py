@@ -47,6 +47,7 @@ class InMemoryCudaBridge(CudaBridge):
         self._next_pointer = 1
         self.allocations: dict[int, bytearray] = {}
         self.copy_to_device_calls = 0
+        self.copy_to_device_log: list[tuple[int, int]] = []
         self.copy_to_host_calls = 0
 
     def device_count(self) -> int:
@@ -65,6 +66,7 @@ class InMemoryCudaBridge(CudaBridge):
         self, device_id: int, destination: int, source: int, nbytes: int
     ) -> None:
         self.copy_to_device_calls += 1
+        self.copy_to_device_log.append((destination, nbytes))
         self.allocations[destination][:nbytes] = ctypes.string_at(source, nbytes)
 
     def copy_to_host(
@@ -123,8 +125,13 @@ class EmbeddingCudaStorageTests(unittest.TestCase):
         embedding = Embedding(vocab_size=3, embedding_dim=2, seed=7, backend=backend)
         original_weights = cast(CudaBuffer, embedding.weights)
         original_gradients = cast(CudaBuffer, embedding.grad_weights)
+        original_gradient_pointer = original_gradients.pointer
+        copies_before_forward = bridge.copy_to_device_calls
+        uploads_before_forward = len(bridge.copy_to_device_log)
         try:
             output = embedding.forward([1, 0])
+            self.assertEqual(bridge.copy_to_device_calls, copies_before_forward + 2)
+            self.assertEqual(len(bridge.copy_to_device_log) - uploads_before_forward, 2)
             self.assertIsInstance(seen_ids[0], CudaBuffer)
             ids_buffer = cast(CudaBuffer, seen_ids[0])
             self.assertEqual(ids_buffer.dtype, "int32")
@@ -136,6 +143,10 @@ class EmbeddingCudaStorageTests(unittest.TestCase):
             self.assertIsInstance(embedding.grad_weights, CudaBuffer)
             gradients = cast(CudaBuffer, embedding.grad_weights)
             self.assertEqual(gradients.shape, (3, 2))
+            self.assertEqual(bridge.allocations[gradients.pointer], bytes(gradients.nbytes))
+            self.assertIn((gradients.pointer, gradients.nbytes), bridge.copy_to_device_log)
+            self.assertTrue(original_gradients.closed)
+            self.assertNotIn(original_gradient_pointer, bridge.allocations)
         finally:
             buffers = [
                 original_weights,

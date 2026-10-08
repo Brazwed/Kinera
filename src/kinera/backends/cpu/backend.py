@@ -35,6 +35,28 @@ class CPUBackend:
             )
         return cast(HostArray, copied)
 
+    def buffer_zeros(
+        self,
+        *,
+        shape: tuple[int, ...],
+        dtype: str = "float64",
+    ) -> HostArray:
+        """Create a fresh zero-filled CPU list buffer for a supported shape."""
+        normalized_shape = self._normalize_shape(shape)
+        if dtype not in {"float64", "int32"}:
+            raise ValueError("CPU backend supports buffer dtypes 'float64' and 'int32'")
+        if len(normalized_shape) not in {1, 2}:
+            raise ValueError("CPU buffer_zeros supports rank 1 or rank 2")
+
+        zero: float | int = 0.0 if dtype == "float64" else 0
+        if len(normalized_shape) == 1:
+            return cast(HostArray, [zero for _ in range(normalized_shape[0])])
+        rows, columns = normalized_shape
+        return cast(
+            HostArray,
+            [[zero for _ in range(columns)] for _ in range(rows)],
+        )
+
     def buffer_to_host(self, buffer: BackendArray) -> HostArray:
         """Return an independent Python-list copy of CPU-owned buffer data."""
         if not isinstance(buffer, list):

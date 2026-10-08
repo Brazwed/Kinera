@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Protocol, cast, runtime_checkable
 
 
 class BackendError(RuntimeError):
@@ -46,6 +46,18 @@ FloatArray = list[float] | list[list[float]]
 IntArray = list[int] | list[list[int]]
 HostArray = FloatArray | IntArray
 BackendArray = HostArray | BackendBuffer
+
+
+@runtime_checkable
+class SupportsBufferZeros(Protocol):
+    """Optional capability for backends with direct zero-buffer staging."""
+
+    def buffer_zeros(
+        self,
+        *,
+        shape: tuple[int, ...],
+        dtype: str = "float64",
+    ) -> BackendArray: ...
 
 
 def release_backend_buffers(*buffers: object) -> None:
@@ -161,3 +173,39 @@ class Backend(Protocol):
     def binary_cross_entropy_with_logits_gradient(
         self, logit: float, target: float
     ) -> float: ...
+
+
+def create_zero_buffer(
+    backend: Backend,
+    *,
+    shape: tuple[int, ...],
+    dtype: str = "float64",
+) -> BackendArray:
+    """Use optional direct zero staging or preserve the legacy host-list path."""
+    normalized_shape = _normalize_zero_shape(shape)
+    if isinstance(backend, SupportsBufferZeros):
+        return backend.buffer_zeros(shape=normalized_shape, dtype=dtype)
+
+    zero: float | int = 0 if dtype == "int32" else 0.0
+    if len(normalized_shape) == 1:
+        host_values = cast(HostArray, [zero for _ in range(normalized_shape[0])])
+    else:
+        rows, columns = normalized_shape
+        host_values = cast(
+            HostArray,
+            [[zero for _ in range(columns)] for _ in range(rows)],
+        )
+    return backend.buffer_from_host(host_values, shape=normalized_shape, dtype=dtype)
+
+
+def _normalize_zero_shape(shape: tuple[int, ...]) -> tuple[int, ...]:
+    if not isinstance(shape, tuple) or not shape:
+        raise ValueError("shape must be a non-empty tuple")
+    for axis, dimension in enumerate(shape):
+        if isinstance(dimension, bool) or not isinstance(dimension, int):
+            raise TypeError(f"shape[{axis}] must be an integer")
+        if dimension <= 0:
+            raise ValueError(f"shape[{axis}] must be positive")
+    if len(shape) not in {1, 2}:
+        raise ValueError("zero buffers support rank 1 or rank 2")
+    return shape
