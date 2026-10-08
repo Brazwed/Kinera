@@ -6,7 +6,7 @@ import math
 from typing import cast
 
 from kinera.backends.base import BackendArray, HostArray
-from kinera.backends.cpu.ops import activations, embedding, linear, probability
+from kinera.backends.cpu.ops import activations, embedding, linear, neuron, probability
 
 
 class CPUBackend:
@@ -193,27 +193,15 @@ class CPUBackend:
         return max(range(len(logits)), key=logits.__getitem__)
 
     def neuron_forward(self, weights, bias, inputs, activation, negative_slope):
-        z = sum(input_value * weight for input_value, weight in zip(inputs, weights)) + bias
-        return z, activations.forward(activation, z, negative_slope)
+        return neuron.forward(weights, bias, inputs, activation, negative_slope)
 
     def neuron_backward(
         self, weights, inputs, z, grad_output, activation, negative_slope
     ):
-        grad_z = float(grad_output) * activations.derivative(
-            activation, z, negative_slope
-        )
-        grad_weights = [grad_z * input_value for input_value in inputs]
-        grad_bias = grad_z
-        grad_inputs = [grad_z * weight for weight in weights]
-        return grad_weights, grad_bias, grad_inputs
+        return neuron.backward(weights, inputs, z, grad_output, activation, negative_slope)
 
     def neuron_step(self, weights, bias, grad_weights, grad_bias, learning_rate):
-        weights = [
-            weight - float(learning_rate) * gradient
-            for weight, gradient in zip(weights, grad_weights)
-        ]
-        bias -= float(learning_rate) * grad_bias
-        return weights, bias
+        return neuron.step(weights, bias, grad_weights, grad_bias, learning_rate)
 
     def activation(self, name, value, negative_slope=0.01):
         return activations.forward(name, value, negative_slope)
