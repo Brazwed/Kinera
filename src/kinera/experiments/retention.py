@@ -14,6 +14,7 @@ from kinera.experiments.learning_memory import ExampleRef
 
 if TYPE_CHECKING:
     from kinera.language.vocabulary import CharacterVocabulary
+    from kinera.nn.losses.multitask import MultiTaskLoss
     from kinera.nn.models.hybrid import AutoregressiveModel
 
 
@@ -60,9 +61,10 @@ class RetentionProbeGroup:
 
 @dataclass(frozen=True, slots=True)
 class ProbeObservation:
-    """One scalar evaluation result and its actual evaluated-example support."""
+    """One scalar result tied to the exact immutable probe population."""
 
     group_id: str
+    example_refs: tuple[ExampleRef, ...]
     primary_metric: str
     direction: MetricDirection
     competence: float
@@ -72,6 +74,14 @@ class ProbeObservation:
         _non_empty_string(self.group_id, "group_id")
         _non_empty_string(self.primary_metric, "primary_metric")
         _validate_direction(self.direction)
+        if not isinstance(self.example_refs, tuple):
+            raise TypeError("example_refs must be a tuple")
+        if not self.example_refs:
+            raise ValueError("example_refs must not be empty")
+        if any(not isinstance(ref, ExampleRef) for ref in self.example_refs):
+            raise TypeError("example_refs must contain only ExampleRef values")
+        if len(set(self.example_refs)) != len(self.example_refs):
+            raise ValueError("example_refs must be unique")
         if isinstance(self.competence, bool) or not isinstance(
             self.competence, (int, float)
         ):
@@ -84,6 +94,8 @@ class ProbeObservation:
             or self.support <= 0
         ):
             raise ValueError("support must be a positive integer")
+        if self.support != len(self.example_refs):
+            raise ValueError("support must equal the number of example_refs")
 
 
 def resolve_probe_examples(
@@ -127,13 +139,22 @@ def evaluate_retention_probe(
     aligned_refs: Sequence[ExampleRef],
     aligned_examples: Sequence[dict[str, Any]],
     vocabulary: CharacterVocabulary,
+    *,
+    syllable_unknown_id: int = 0,
+    loss_function: MultiTaskLoss | None = None,
 ) -> ProbeObservation:
     """Evaluate a probe through the existing evaluator, with no training path."""
     resolved = resolve_probe_examples(group, aligned_refs, aligned_examples)
     # Keep evaluator/backend imports out of the experimental module import path.
     from kinera.training.evaluator import evaluate_multitask_examples
 
-    report = evaluate_multitask_examples(model, list(resolved), vocabulary)
+    report = evaluate_multitask_examples(
+        model,
+        list(resolved),
+        vocabulary,
+        syllable_unknown_id=syllable_unknown_id,
+        loss_function=loss_function,
+    )
     if not isinstance(report, Mapping):
         raise TypeError("evaluator report must be a mapping")
     if group.primary_metric == "examples":
@@ -158,6 +179,7 @@ def evaluate_retention_probe(
         raise ValueError("evaluator support does not match resolved probe examples")
     return ProbeObservation(
         group_id=group.group_id,
+        example_refs=group.example_refs,
         primary_metric=group.primary_metric,
         direction=group.direction,
         competence=float(competence),

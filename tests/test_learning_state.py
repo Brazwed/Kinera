@@ -95,21 +95,33 @@ class RetentionProbeGroupTests(unittest.TestCase):
 
 class ProbeObservationTests(unittest.TestCase):
     def test_observation_requires_finite_competence_and_positive_support(self) -> None:
+        ref_0 = ExampleRef("fixture:l2", "probe", 0)
+        ref_1 = ExampleRef("fixture:l2", "probe", 1)
         observation = ProbeObservation(
-            "vowels", "char_accuracy", "higher_is_better", 0.75, 3
+            "vowels",
+            (ref_0, ref_1, ExampleRef("fixture:l2", "probe", 2)),
+            "char_accuracy",
+            "higher_is_better",
+            0.75,
+            3,
         )
         self.assertEqual(observation.competence, 0.75)
         self.assertEqual(observation.support, 3)
+        self.assertEqual(len(observation.example_refs), observation.support)
         with self.assertRaises((AttributeError, TypeError)):
             observation.support = 4  # type: ignore[misc]
         invalid = (
-            ("", "char_accuracy", "higher_is_better", 0.75, 3),
-            ("vowels", "", "higher_is_better", 0.75, 3),
-            ("vowels", "char_accuracy", "higher_is_better", math.nan, 3),
-            ("vowels", "char_accuracy", "higher_is_better", math.inf, 3),
-            ("vowels", "char_accuracy", "higher_is_better", 0.75, 0),
-            ("vowels", "char_accuracy", "higher_is_better", 0.75, True),
-            ("vowels", "char_accuracy", "unknown", 0.75, 3),
+            ("", (ref_0,), "char_accuracy", "higher_is_better", 0.75, 1),
+            ("vowels", (), "char_accuracy", "higher_is_better", 0.75, 1),
+            ("vowels", ("not-a-ref",), "char_accuracy", "higher_is_better", 0.75, 1),
+            ("vowels", (ref_0, ref_0), "char_accuracy", "higher_is_better", 0.75, 2),
+            ("vowels", (ref_0, ref_1), "char_accuracy", "higher_is_better", 0.75, 1),
+            ("vowels", (ref_0,), "", "higher_is_better", 0.75, 1),
+            ("vowels", (ref_0,), "char_accuracy", "higher_is_better", math.nan, 1),
+            ("vowels", (ref_0,), "char_accuracy", "higher_is_better", math.inf, 1),
+            ("vowels", (ref_0,), "char_accuracy", "higher_is_better", 0.75, 0),
+            ("vowels", (ref_0,), "char_accuracy", "higher_is_better", 0.75, True),
+            ("vowels", (ref_0,), "char_accuracy", "unknown", 0.75, 1),
         )
         for args in invalid:
             with self.subTest(args=args), self.assertRaises((TypeError, ValueError)):
@@ -126,6 +138,7 @@ class ProbeObservationTests(unittest.TestCase):
         model = object()
         vocabulary = object()
         report = {"char_accuracy": 0.625, "examples": 2}
+        loss_function = object()
 
         with patch(
             "kinera.training.evaluator.evaluate_multitask_examples",
@@ -137,13 +150,24 @@ class ProbeObservationTests(unittest.TestCase):
                 refs,
                 examples,
                 vocabulary,
+                syllable_unknown_id=7,
+                loss_function=loss_function,  # type: ignore[arg-type]
             )
 
+        self.assertEqual(observation.example_refs, group.example_refs)
         self.assertEqual(
             observation,
-            ProbeObservation("vowels", "char_accuracy", "higher_is_better", 0.625, 2),
+            ProbeObservation(
+                "vowels", group.example_refs, "char_accuracy", "higher_is_better", 0.625, 2
+            ),
         )
-        evaluator.assert_called_once_with(model, [examples[1], examples[0]], vocabulary)
+        evaluator.assert_called_once_with(
+            model,
+            [examples[1], examples[0]],
+            vocabulary,
+            syllable_unknown_id=7,
+            loss_function=loss_function,
+        )
 
     def test_probe_requires_available_scalar_metric_and_exact_positive_support(self) -> None:
         ref = ExampleRef("fixture:l2", "probe", 0)
@@ -199,8 +223,10 @@ class LearningStateTests(unittest.TestCase):
         group_id: str = "vowels",
         metric: str = "char_accuracy",
         direction: str = "higher_is_better",
+        example_refs: tuple[ExampleRef, ...] | None = None,
     ) -> ProbeObservation:
-        return ProbeObservation(group_id, metric, direction, competence, 4)  # type: ignore[arg-type]
+        refs = example_refs or (ExampleRef(f"fixture:{group_id}", "probe", 0),)
+        return ProbeObservation(group_id, refs, metric, direction, competence, len(refs))  # type: ignore[arg-type]
 
     def test_forgetting_uses_exact_metric_direction_without_thresholds(self) -> None:
         cases = (
@@ -261,6 +287,7 @@ class LearningStateTests(unittest.TestCase):
             ("vowels", 0.8, 0.5, math.inf, 2, 0, 12, "UNRESOLVED"),
             ("vowels", 0.8, 0.5, -0.1, 2, 0, 12, "UNRESOLVED"),
             ("vowels", 0.8, 0.5, 0.3, 2, 0, -1, "UNRESOLVED"),
+            ("vowels", 0.8, 0.5, 0.3, 2, 0, 0, "UNRESOLVED"),
             ("vowels", 0.8, 0.5, 0.3, 2, 0, 12, "UNKNOWN"),
         )
         for args in invalid:
@@ -294,6 +321,27 @@ class LearningStateTests(unittest.TestCase):
             build_learning_state(
                 observation,
                 observation,
+                status="LEARNING",
+                last_practiced_step=10,
+            )
+
+    def test_pair_build_rejects_different_probe_refs_even_when_other_fields_match(self) -> None:
+        reference_refs = tuple(
+            ExampleRef("fixture:population-a", "probe", index) for index in range(4)
+        )
+        current_refs = tuple(
+            ExampleRef("fixture:population-b", "probe", index) for index in range(4)
+        )
+        reference = self._observation(0.8, example_refs=reference_refs)
+        current = self._observation(0.5, example_refs=current_refs)
+        self.assertEqual(reference.group_id, current.group_id)
+        self.assertEqual(reference.primary_metric, current.primary_metric)
+        self.assertEqual(reference.direction, current.direction)
+        self.assertEqual(reference.support, current.support)
+        with self.assertRaisesRegex(ValueError, "example_refs"):
+            build_learning_state(
+                reference,
+                current,
                 status="LEARNING",
                 last_practiced_step=10,
             )

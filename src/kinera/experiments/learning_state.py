@@ -127,9 +127,9 @@ class LearningState:
         if self.last_practiced_step is not None and (
             isinstance(self.last_practiced_step, bool)
             or not isinstance(self.last_practiced_step, int)
-            or self.last_practiced_step < 0
+            or self.last_practiced_step < 1
         ):
-            raise ValueError("last_practiced_step must be a non-negative integer or None")
+            raise ValueError("last_practiced_step must be a positive integer or None")
         if self.status not in _VALID_STATUSES:
             raise ValueError(f"status must be one of {_VALID_STATUSES!r}")
 
@@ -150,6 +150,8 @@ def build_learning_state(
         raise TypeError("reference and current must be ProbeObservation values")
     if reference.group_id != current.group_id:
         raise ValueError("reference/current group_id must match")
+    if reference.example_refs != current.example_refs:
+        raise ValueError("reference/current example_refs must match")
     if reference.primary_metric != current.primary_metric:
         raise ValueError("reference/current primary_metric must match")
     if reference.direction != current.direction:
