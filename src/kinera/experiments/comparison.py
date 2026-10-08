@@ -15,6 +15,11 @@ from typing import Any, cast
 from kinera.backends import get_backend
 from kinera.experiments.config import ExperimentConfig, ExecutionConfig
 from kinera.monitor.metrics.aggregation import mean_std
+from kinera.monitor.telemetry.records import (
+    TelemetryEnvelope,
+    _merge_run_payloads,
+    _prepare_envelope_payload,
+)
 from kinera.language.vocabulary import CharacterVocabulary
 from kinera.nn.models.hybrid import AutoregressiveModel
 from kinera.training.evaluator import evaluate_multitask_examples
@@ -109,6 +114,7 @@ def run_controlled_experiments(
     workers: int | None = None,
     variants: tuple[str, ...] = DEFAULT_VARIANTS,
     execution_config: ExecutionConfig | None = None,
+    telemetry: TelemetryEnvelope | dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Executa as variantes selecionadas, com checkpoint por variante/seed."""
     variants = _validate_variant_selection(variants)
@@ -137,6 +143,7 @@ def run_controlled_experiments(
         "boundary_f1",
     )
     checkpoint = Path(checkpoint_path) if checkpoint_path is not None else None
+    telemetry_section = _serialize_telemetry_envelope(telemetry)
     experiment_config = ExperimentConfig(
         phase="controlled_comparison",
         variants=variants,
@@ -164,6 +171,11 @@ def run_controlled_experiments(
         if checkpoint is None or not checkpoint.exists():
             raise ValueError("resume exige checkpoint_path existente")
         persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
+        persisted_telemetry = persisted.get("telemetry")
+        if persisted_telemetry is not None:
+            restored_telemetry = _serialize_telemetry_envelope(persisted_telemetry)
+            if restored_telemetry is not None:
+                telemetry_section = restored_telemetry
         persisted_execution = persisted.get("execution_config")
         if not isinstance(persisted_execution, dict):
             raise ValueError("checkpoint backend ausente ou incompatível")
@@ -225,6 +237,7 @@ def run_controlled_experiments(
                 parameter_counts,
                 input_usage,
                 metric_names,
+                telemetry=telemetry_section,
             ),
         )
 
@@ -271,6 +284,7 @@ def run_controlled_experiments(
             metric_names,
             workers,
             variants,
+            telemetry_section,
         )
 
     backend = _create_execution_backend(execution_config)
@@ -318,7 +332,7 @@ def run_controlled_experiments(
                 )
                 model.close()
                 model = None
-                reports[variant].append({
+                completed_record = {
                     "seed": seed,
                     "status": "completed",
                     "pid": os.getpid(),
@@ -328,7 +342,10 @@ def run_controlled_experiments(
                     "final_validation": final,
                     "parameter_count": parameter_counts[variant],
                     "duration_seconds": time.perf_counter() - started,
-                })
+                }
+                reports[variant].append(
+                    _preserve_run_telemetry(previous, completed_record)
+                )
             except Exception:
                 error_traceback = traceback.format_exc()
                 if model is not None:
@@ -338,7 +355,7 @@ def run_controlled_experiments(
                         error_traceback += "\nCleanup failure:\n" + traceback.format_exc()
                 if checkpoint is None:
                     raise
-                reports[variant].append({
+                failed_record = {
                     "seed": seed,
                     "status": "failed",
                     "pid": os.getpid(),
@@ -346,7 +363,10 @@ def run_controlled_experiments(
                     "error": "experiment failed",
                     "traceback": error_traceback,
                     "duration_seconds": time.perf_counter() - started,
-                })
+                }
+                reports[variant].append(
+                    _preserve_run_telemetry(previous, failed_record)
+                )
             aggregates = _build_aggregates(reports, metric_names, variants)
             if checkpoint is not None:
                 _persist_checkpoint(
@@ -358,6 +378,7 @@ def run_controlled_experiments(
                         parameter_counts,
                         input_usage,
                         metric_names,
+                        telemetry=telemetry_section,
                     ),
                 )
 
@@ -369,6 +390,7 @@ def run_controlled_experiments(
         parameter_counts,
         input_usage,
         metric_names,
+        telemetry=telemetry_section,
     )
     if checkpoint is not None:
         _persist_checkpoint(checkpoint, result)
@@ -465,6 +487,7 @@ def _run_parallel_experiments(
     metric_names: tuple[str, ...],
     workers: int,
     variants: tuple[str, ...],
+    telemetry_section: dict[str, Any] | None,
 ) -> dict[str, Any]:
     del resume
     for variant in variants:
@@ -484,11 +507,10 @@ def _run_parallel_experiments(
                     continue
                 if previous is not None:
                     reports[variant].remove(previous)
-                reports[variant].append({
-                    "seed": seed,
-                    "status": "pending",
-                    "pid": None,
-                })
+                pending_record = {"seed": seed, "status": "pending", "pid": None}
+                if previous is not None and previous.get("telemetry") is not None:
+                    pending_record["telemetry"] = copy.deepcopy(previous["telemetry"])
+                reports[variant].append(pending_record)
                 pending_jobs.append((variant, seed, train_examples, validation_examples))
         if checkpoint is not None:
             _persist_checkpoint(
@@ -500,6 +522,7 @@ def _run_parallel_experiments(
                     parameter_counts,
                     input_usage,
                     metric_names,
+                    telemetry=telemetry_section,
                 ),
             )
         for variant, seed, train_examples, validation_examples in pending_jobs:
@@ -528,6 +551,7 @@ def _run_parallel_experiments(
                     parameter_counts,
                     input_usage,
                     metric_names,
+                    telemetry=telemetry_section,
                 ),
             )
         for future in concurrent.futures.as_completed(futures):
@@ -544,9 +568,10 @@ def _run_parallel_experiments(
                     "traceback": traceback.format_exc(),
                 }
             existing = next(run for run in reports[variant] if run.get("seed") == seed)
-            reports[variant][reports[variant].index(existing)] = record
-            if record.get("status") == "completed":
-                parameter_counts[variant] = record["parameter_count"]
+            replacement = _preserve_run_telemetry(existing, record)
+            reports[variant][reports[variant].index(existing)] = replacement
+            if replacement.get("status") == "completed":
+                parameter_counts[variant] = replacement["parameter_count"]
             aggregates = _build_aggregates(reports, metric_names, variants)
             if checkpoint is not None:
                 _persist_checkpoint(
@@ -558,6 +583,7 @@ def _run_parallel_experiments(
                         parameter_counts,
                         input_usage,
                         metric_names,
+                        telemetry=telemetry_section,
                     ),
                 )
 
@@ -569,6 +595,7 @@ def _run_parallel_experiments(
         parameter_counts,
         input_usage,
         metric_names,
+        telemetry=telemetry_section,
     )
     if checkpoint is not None:
         _persist_checkpoint(checkpoint, result)
@@ -594,6 +621,28 @@ def _build_aggregates(
     return aggregates
 
 
+def _sanitize_report_telemetry(
+    reports: dict[str, list[dict[str, Any]]],
+) -> None:
+    for variant, runs in reports.items():
+        for run in runs:
+            if "telemetry" not in run:
+                continue
+            telemetry = run.get("telemetry")
+            if telemetry is None:
+                run.pop("telemetry", None)
+                continue
+            prepared = _merge_run_payloads(
+                None,
+                telemetry,
+                component=f"experiments.comparison.report.{variant}",
+            )
+            if prepared is None:
+                run.pop("telemetry", None)
+            else:
+                run["telemetry"] = prepared
+
+
 def _checkpoint_report(
     configuration: dict[str, Any],
     reports: dict[str, list[dict[str, Any]]],
@@ -601,8 +650,10 @@ def _checkpoint_report(
     parameter_counts: dict[str, int],
     input_usage: dict[str, dict[str, int]],
     metric_names: tuple[str, ...],
+    telemetry: TelemetryEnvelope | dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     del metric_names
+    _sanitize_report_telemetry(reports)
     completed_runs = sum(
         run.get("status") == "completed"
         for variant in configuration["variants"]
@@ -614,7 +665,7 @@ def _checkpoint_report(
         for run in reports.get(variant, [])
     )
     total_runs = len(configuration["variants"]) * len(configuration["seeds"])
-    return {
+    report = {
         **configuration,
         "status": "failed" if failed_runs else ("completed" if completed_runs == total_runs else "running"),
         "total_runs": total_runs,
@@ -625,6 +676,38 @@ def _checkpoint_report(
         "parameter_counts": parameter_counts,
         "input_usage": input_usage,
     }
+    telemetry_section = _serialize_telemetry_envelope(telemetry)
+    if telemetry_section is not None:
+        report["telemetry"] = telemetry_section
+    return report
+
+
+def _serialize_telemetry_envelope(
+    value: TelemetryEnvelope | dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    return _prepare_envelope_payload(
+        value,
+        component="experiments.comparison.envelope",
+    )
+
+
+def _preserve_run_telemetry(
+    previous: dict[str, Any] | None,
+    replacement: dict[str, Any],
+) -> dict[str, Any]:
+    result = dict(replacement)
+    prior = previous.get("telemetry") if previous is not None else None
+    incoming = result.get("telemetry")
+    merged = _merge_run_payloads(
+        prior,
+        incoming,
+        component="experiments.comparison.run",
+    )
+    if merged is None:
+        result.pop("telemetry", None)
+    else:
+        result["telemetry"] = merged
+    return result
 
 
 def _persist_checkpoint(path: Path, report: dict[str, Any]) -> None:
