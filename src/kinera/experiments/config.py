@@ -6,6 +6,8 @@ import math
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from kinera.monitor.metrics.aggregation import mean_std as _mean_std
+
 JobStatus = Literal["pending", "running", "completed", "failed"]
 
 
@@ -153,11 +155,8 @@ def aggregate_run_status(records: list[RunRecord]) -> dict[str, int | str]:
 
 
 def mean_std(values: list[float]) -> dict[str, float]:
-    if not values:
-        raise ValueError("values não pode ser vazio")
-    mean = sum(values) / len(values)
-    variance = sum((value - mean) ** 2 for value in values) / len(values)
-    return {"mean": mean, "std": math.sqrt(variance)}
+    """Compatibilidade histórica; a implementação canônica fica em monitor.metrics."""
+    return _mean_std(values)
 
 
 def aggregate_metric_paths(

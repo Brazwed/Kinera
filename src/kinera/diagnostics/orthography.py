@@ -7,6 +7,8 @@ import time
 from collections import defaultdict
 from typing import Any
 
+from kinera.monitor.metrics.core import safe_ratio
+
 from kinera.language.orthography.features import character_features
 from kinera.language.vocabulary import CharacterVocabulary
 from kinera.nn.losses.cross_entropy import cross_entropy, softmax
@@ -137,10 +139,22 @@ def _summarize(rows: list[dict[str, Any]]) -> dict[str, float | int]:
         return {"count": 0}
     return {
         "count": count,
-        "mean_delta_loss": sum(row["delta_loss"] for row in rows) / count,
-        "delta_accuracy": sum(row["delta_accuracy"] for row in rows) / count,
-        "mean_base_prob_correct": sum(row["base_prob_correct"] for row in rows) / count,
-        "mean_augmented_prob_correct": sum(row["augmented_prob_correct"] for row in rows) / count,
-        "improved_loss_fraction": sum(row["delta_loss"] > 0 for row in rows) / count,
-        "regressed_loss_fraction": sum(row["delta_loss"] < 0 for row in rows) / count,
+        "mean_delta_loss": safe_ratio(
+            sum(row["delta_loss"] for row in rows), count
+        ),
+        "delta_accuracy": safe_ratio(
+            sum(row["delta_accuracy"] for row in rows), count
+        ),
+        "mean_base_prob_correct": safe_ratio(
+            sum(row["base_prob_correct"] for row in rows), count
+        ),
+        "mean_augmented_prob_correct": safe_ratio(
+            sum(row["augmented_prob_correct"] for row in rows), count
+        ),
+        "improved_loss_fraction": safe_ratio(
+            sum(row["delta_loss"] > 0 for row in rows), count
+        ),
+        "regressed_loss_fraction": safe_ratio(
+            sum(row["delta_loss"] < 0 for row in rows), count
+        ),
     }

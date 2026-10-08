@@ -12,7 +12,8 @@ from kinera.nn.losses import MultiTaskLoss
 from kinera.nn.losses.cross_entropy import cross_entropy
 from kinera.nn.models.hybrid import AutoregressiveModel
 from kinera.training.common import Sample, _restore, _snapshot, _validate_samples
-from kinera.training.metrics import _multitask_targets, _safe_ratio
+from kinera.monitor.metrics.core import mean_from_total, safe_ratio
+from kinera.training.metrics import _multitask_targets
 
 
 def evaluate(neuron: Neuron, samples: list[Sample]) -> float:
@@ -24,7 +25,7 @@ def evaluate(neuron: Neuron, samples: list[Sample]) -> float:
         for inputs, target in samples:
             prediction = neuron.forward(inputs)
             total_loss += 0.5 * (prediction - target) ** 2
-        return total_loss / len(samples)
+        return mean_from_total(total_loss, len(samples))
     finally:
         _restore(neuron, snapshot)
 
@@ -59,8 +60,8 @@ def evaluate_examples(
         correct += max(range(len(logits)), key=logits.__getitem__) == target_id
     return {
         "examples": len(selected),
-        "loss": total_loss / len(selected),
-        "accuracy": correct / len(selected),
+        "loss": safe_ratio(total_loss, len(selected)),
+        "accuracy": safe_ratio(correct, len(selected)),
     }
 
 def evaluate_multitask_examples(
@@ -130,23 +131,23 @@ def evaluate_multitask_examples(
         elif boundary_target == 1:
             boundary_false_negative += 1
     count = len(selected)
-    boundary_precision = _safe_ratio(
+    boundary_precision = safe_ratio(
         boundary_true_positive,
         boundary_true_positive + boundary_false_positive,
     )
-    boundary_recall = _safe_ratio(
+    boundary_recall = safe_ratio(
         boundary_true_positive,
         boundary_true_positive + boundary_false_negative,
     )
-    boundary_f1 = _safe_ratio(
+    boundary_f1 = safe_ratio(
         2.0 * boundary_precision * boundary_recall,
         boundary_precision + boundary_recall,
     )
     return {
         "examples": count,
-        **{name: value / count for name, value in totals.items()},
-        "syllable_accuracy_all": totals["syllable_accuracy"] / count,
-        "syllable_accuracy_known": _safe_ratio(
+        **{name: safe_ratio(value, count) for name, value in totals.items()},
+        "syllable_accuracy_all": safe_ratio(totals["syllable_accuracy"], count),
+        "syllable_accuracy_known": safe_ratio(
             syllable_known_correct, syllable_known_total
         ),
         "boundary_target_distribution": boundary_target_distribution,

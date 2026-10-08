@@ -6,6 +6,7 @@ import math
 import random
 from typing import Any
 
+from kinera.monitor.metrics.core import mean_from_total, safe_ratio
 from kinera.language.datasets.adapter import example_to_inputs
 from kinera.language.vocabulary import CharacterVocabulary
 from kinera.nn.layers.neuron import Neuron
@@ -51,7 +52,7 @@ def train_epoch(
         total_loss += 0.5 * error**2
         neuron.backward(error)
         neuron.step(learning_rate)
-    return total_loss / len(samples)
+    return mean_from_total(total_loss, len(samples))
 
 def fit(
     neuron: Neuron,
@@ -157,8 +158,8 @@ def train_examples(
             correct += prediction == target_id
         history.append(
             {
-                "loss": total_loss / len(selected),
-                "accuracy": correct / len(selected),
+                "loss": safe_ratio(total_loss, len(selected)),
+                "accuracy": safe_ratio(correct, len(selected)),
             }
         )
     return {"epochs": epochs, "examples": len(selected), "history": history}
