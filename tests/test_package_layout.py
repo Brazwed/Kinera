@@ -109,6 +109,8 @@ class PackageLayoutTests(unittest.TestCase):
             "kinera.experiments.multi_seed",
             "kinera.experiments.variants",
             "kinera.experiments.learning_memory",
+            "kinera.experiments.retention",
+            "kinera.experiments.learning_state",
             "kinera.diagnostics.gradients",
             "kinera.diagnostics.syllables",
             "kinera.diagnostics.orthography",
