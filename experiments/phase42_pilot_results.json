@@ -2,7 +2,7 @@
   "schema_version": 1,
   "phase": "42-expanded-pilot",
   "baseline_commit": "5dba2cc3843510e14db8b8cb1e309cb9f323c280",
-  "runner_commit": "5dba2ccd6fadd3c2406223e3ec28657cc1fb9138",
+  "runner_commit": "71ea4ce47e5381d8a94a13213460e208bc9c7780",
   "protocol_validated": true,
   "leakage_prevented": true,
   "conditions_evaluated": [
@@ -84,8 +84,8 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 14.010461718333923,
-      "peak_ram_bytes": 395944
+      "mean_cpu_time_seconds": 13.938164095333681,
+      "peak_ram_bytes": 395745
     },
     "medium": {
       "level": "medium",
@@ -155,7 +155,7 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 15.572501070666476,
+      "mean_cpu_time_seconds": 15.53061104699979,
       "peak_ram_bytes": 146912
     },
     "high": {
@@ -226,7 +226,7 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.6666666666666666,
-      "mean_cpu_time_seconds": 16.83143965900005,
+      "mean_cpu_time_seconds": 16.939251011666784,
       "peak_ram_bytes": 146448
     }
   },
@@ -667,8 +667,8 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 14.023368085001493,
-      "peak_ram_bytes": 395944
+      "cpu_time_seconds": 13.95481314799872,
+      "peak_ram_bytes": 395745
     },
     {
       "level": "low",
@@ -1106,7 +1106,7 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 14.037349078998886,
+      "cpu_time_seconds": 13.97483112700138,
       "peak_ram_bytes": 192064
     },
     {
@@ -1545,7 +1545,7 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 13.970667991001392,
+      "cpu_time_seconds": 13.88484801100094,
       "peak_ram_bytes": 154696
     },
     {
@@ -1984,7 +1984,7 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 15.65000324599896,
+      "cpu_time_seconds": 15.378311053998914,
       "peak_ram_bytes": 146912
     },
     {
@@ -2423,7 +2423,7 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 15.558797781000976,
+      "cpu_time_seconds": 15.49890854700061,
       "peak_ram_bytes": 146600
     },
     {
@@ -2862,7 +2862,7 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 15.508702184999493,
+      "cpu_time_seconds": 15.714613539999846,
       "peak_ram_bytes": 146344
     },
     {
@@ -3301,7 +3301,7 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 16.80731700999968,
+      "cpu_time_seconds": 17.074404094000784,
       "peak_ram_bytes": 146448
     },
     {
@@ -3740,7 +3740,7 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 16.863843335000638,
+      "cpu_time_seconds": 16.79590297699906,
       "peak_ram_bytes": 146320
     },
     {
@@ -4179,15 +4179,15 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 16.82315863199983,
+      "cpu_time_seconds": 16.947445964000508,
       "peak_ram_bytes": 146272
     }
   ],
   "cost_profile": {
-    "total_cpu_time_seconds": 139.24769505499899,
-    "peak_ram_bytes": 395944,
-    "peak_ram_mb": 0.37760162353515625,
-    "projected_scaled_hours_cpu": 26.86105228684394,
+    "total_cpu_time_seconds": 139.22879009699864,
+    "peak_ram_bytes": 395745,
+    "peak_ram_mb": 0.3774118423461914,
+    "projected_scaled_hours_cpu": 26.85740549710622,
     "scaling_recommendation": "google_colab_pro",
     "recommendation_rationale": "The full-scale experiment is projected to take approximately 26.9 hours on a single CPU thread. A GPU-accelerated environment on Google Colab Pro (with T4/V100/A100) is recommended to achieve 10x-50x speedups and enable parallel seed execution without saturating workstation CPU cycles."
   },
