@@ -2,7 +2,7 @@
   "schema_version": 1,
   "phase": "42-expanded-pilot",
   "baseline_commit": "5dba2ccd6fadd3c2406223e3ec28657cc1fb9138",
-  "runner_commit": "3d329381f4b37a33791c637443b94ae902b929be",
+  "runner_commit": "3e15cceb0967e03ed8f41817fcade595fd81bc56",
   "protocol_validated": true,
   "leakage_prevented": true,
   "conditions_evaluated": [
@@ -24,7 +24,37 @@
         43,
         44
       ],
+      "probe_partition_sets": {
+        "positive_ref_internal_groups": [
+          "probe-int-malas",
+          "probe-int-patos",
+          "probe-int-sapos"
+        ],
+        "zero_ref_internal_groups": [
+          "probe-int-fogos"
+        ],
+        "positive_ref_holdout_groups": [
+          "probe-hold-maleta",
+          "probe-hold-pateta",
+          "probe-hold-sapato"
+        ],
+        "zero_ref_holdout_groups": [
+          "probe-hold-foguete"
+        ]
+      },
       "c_vs_b_recovery_advantage": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "c_vs_b_retention_advantage": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "c_vs_b_holdout_retention_advantage": {
         "mean": 0.0,
         "std": 0.0,
         "min": 0.0,
@@ -82,6 +112,46 @@
           "max": 1.0
         }
       },
+      "zero_ref_acquisition": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
       "new_competence_delta_during_replay": {
         "A": {
           "mean": 0.0,
@@ -104,9 +174,9 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 17.40371355700093,
-      "peak_ram_bytes": 418635,
-      "peak_rss_bytes": 34476032
+      "mean_cpu_time_seconds": 16.918722158666544,
+      "peak_ram_bytes": 420678,
+      "peak_rss_bytes": 34660352
     },
     "medium": {
       "level": "medium",
@@ -116,7 +186,37 @@
         43,
         44
       ],
+      "probe_partition_sets": {
+        "positive_ref_internal_groups": [
+          "probe-int-malas",
+          "probe-int-patos",
+          "probe-int-sapos"
+        ],
+        "zero_ref_internal_groups": [
+          "probe-int-fogos"
+        ],
+        "positive_ref_holdout_groups": [
+          "probe-hold-maleta",
+          "probe-hold-pateta",
+          "probe-hold-sapato"
+        ],
+        "zero_ref_holdout_groups": [
+          "probe-hold-foguete"
+        ]
+      },
       "c_vs_b_recovery_advantage": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "c_vs_b_retention_advantage": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "c_vs_b_holdout_retention_advantage": {
         "mean": 0.0,
         "std": 0.0,
         "min": 0.0,
@@ -172,6 +272,46 @@
           "std": 0.0,
           "min": 1.0,
           "max": 1.0
+        }
+      },
+      "zero_ref_acquisition": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
         }
       },
       "new_competence_delta_during_replay": {
@@ -196,9 +336,9 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 18.73673079533425,
-      "peak_ram_bytes": 178296,
-      "peak_rss_bytes": 34476032
+      "mean_cpu_time_seconds": 18.663546731331735,
+      "peak_ram_bytes": 181080,
+      "peak_rss_bytes": 34660352
     },
     "high": {
       "level": "high",
@@ -208,17 +348,47 @@
         43,
         44
       ],
+      "probe_partition_sets": {
+        "positive_ref_internal_groups": [
+          "probe-int-malas",
+          "probe-int-patos",
+          "probe-int-sapos"
+        ],
+        "zero_ref_internal_groups": [
+          "probe-int-fogos"
+        ],
+        "positive_ref_holdout_groups": [
+          "probe-hold-maleta",
+          "probe-hold-pateta",
+          "probe-hold-sapato"
+        ],
+        "zero_ref_holdout_groups": [
+          "probe-hold-foguete"
+        ]
+      },
       "c_vs_b_recovery_advantage": {
         "mean": 0.3333333333333333,
         "std": 0.23570226039551584,
         "min": 0.0,
         "max": 0.5
       },
-      "c_vs_b_tradeoff_advantage": {
-        "mean": 0.2222222222222222,
-        "std": 0.15713484026367722,
+      "c_vs_b_retention_advantage": {
+        "mean": 0.6666666666666666,
+        "std": 0.4714045207910317,
         "min": 0.0,
-        "max": 0.3333333333333333
+        "max": 1.0
+      },
+      "c_vs_b_holdout_retention_advantage": {
+        "mean": 0.6666666666666666,
+        "std": 0.4714045207910317,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "c_vs_b_tradeoff_advantage": {
+        "mean": 0.4444444444444444,
+        "std": 0.31426968052735443,
+        "min": 0.0,
+        "max": 0.6666666666666666
       },
       "c_vs_b_plasticity_delta": {
         "mean": 0.0,
@@ -228,15 +398,15 @@
       },
       "retention_ratio": {
         "A": {
-          "mean": 0.25,
+          "mean": 0.0,
           "std": 0.0,
-          "min": 0.25,
-          "max": 0.25
+          "min": 0.0,
+          "max": 0.0
         },
         "B": {
-          "mean": 0.5,
-          "std": 0.3535533905932738,
-          "min": 0.25,
+          "mean": 0.3333333333333333,
+          "std": 0.4714045207910317,
+          "min": 0.0,
           "max": 1.0
         },
         "C": {
@@ -248,15 +418,15 @@
       },
       "holdout_retention_ratio": {
         "A": {
-          "mean": 0.25,
+          "mean": 0.0,
           "std": 0.0,
-          "min": 0.25,
-          "max": 0.25
+          "min": 0.0,
+          "max": 0.0
         },
         "B": {
-          "mean": 0.5,
-          "std": 0.3535533905932738,
-          "min": 0.25,
+          "mean": 0.3333333333333333,
+          "std": 0.4714045207910317,
+          "min": 0.0,
           "max": 1.0
         },
         "C": {
@@ -264,6 +434,46 @@
           "std": 0.0,
           "min": 1.0,
           "max": 1.0
+        }
+      },
+      "zero_ref_acquisition": {
+        "A": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "B": {
+          "mean": 0.6666666666666666,
+          "std": 0.4714045207910317,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "B": {
+          "mean": 0.6666666666666666,
+          "std": 0.4714045207910317,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
         }
       },
       "new_competence_delta_during_replay": {
@@ -288,9 +498,9 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 18.903075253000377,
-      "peak_ram_bytes": 177808,
-      "peak_rss_bytes": 34476032
+      "mean_cpu_time_seconds": 20.035558369999006,
+      "peak_ram_bytes": 180400,
+      "peak_rss_bytes": 34660352
     }
   },
   "seed_results": [
@@ -730,9 +940,147 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 17.494997263002006,
-      "peak_ram_bytes": 418635,
-      "peak_rss_bytes": 34476032
+      "zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 17.04872772700037,
+      "peak_ram_bytes": 420678,
+      "peak_rss_bytes": 34660352
     },
     {
       "level": "low",
@@ -1170,9 +1518,147 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 17.360011310000118,
-      "peak_ram_bytes": 226936,
-      "peak_rss_bytes": 34476032
+      "zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 16.840613719999965,
+      "peak_ram_bytes": 230240,
+      "peak_rss_bytes": 34660352
     },
     {
       "level": "low",
@@ -1610,9 +2096,147 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 17.35613209800067,
-      "peak_ram_bytes": 191400,
-      "peak_rss_bytes": 34476032
+      "zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 16.8668250289993,
+      "peak_ram_bytes": 194064,
+      "peak_rss_bytes": 34660352
     },
     {
       "level": "medium",
@@ -2050,9 +2674,147 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 19.448310029001732,
-      "peak_ram_bytes": 178296,
-      "peak_rss_bytes": 34476032
+      "zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 18.8608931029994,
+      "peak_ram_bytes": 181080,
+      "peak_rss_bytes": 34660352
     },
     {
       "level": "medium",
@@ -2490,9 +3252,147 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 18.905965969002864,
-      "peak_ram_bytes": 177984,
-      "peak_rss_bytes": 34476032
+      "zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 18.659006571997452,
+      "peak_ram_bytes": 180648,
+      "peak_rss_bytes": 34660352
     },
     {
       "level": "medium",
@@ -2930,9 +3830,147 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 17.85591638799815,
-      "peak_ram_bytes": 177728,
-      "peak_rss_bytes": 34476032
+      "zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 18.470740518998355,
+      "peak_ram_bytes": 180392,
+      "peak_rss_bytes": 34660352
     },
     {
       "level": "high",
@@ -2999,8 +4037,8 @@
           "mean_recovery_delta": 0.0,
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": null,
-          "mean_retention_ratio": 0.25,
-          "stability_plasticity_tradeoff": 0.3333333333333333,
+          "mean_retention_ratio": 0.0,
+          "stability_plasticity_tradeoff": 0.0,
           "candidate_pool": [
             {
               "example_ref": {
@@ -3118,8 +4156,8 @@
           "mean_recovery_delta": 0.0,
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": 0.0,
-          "mean_retention_ratio": 0.25,
-          "stability_plasticity_tradeoff": 0.3333333333333333,
+          "mean_retention_ratio": 0.0,
+          "stability_plasticity_tradeoff": 0.0,
           "candidate_pool": [
             {
               "example_ref": {
@@ -3355,7 +4393,7 @@
         "c_vs_a_recovery_advantage": 0.5,
         "c_vs_b_utility_advantage": 0.25,
         "c_vs_b_plasticity_delta": 0.0,
-        "c_vs_b_tradeoff_advantage": 0.3333333333333333,
+        "c_vs_b_tradeoff_advantage": 0.6666666666666666,
         "b_vs_a_update_overhead": 1.0,
         "c_vs_a_update_overhead": 1.0,
         "b_vs_a_compute_overhead": 1.0,
@@ -3366,13 +4404,151 @@
         "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
       },
       "holdout_retention_ratio": {
-        "A": 0.25,
-        "B": 0.25,
+        "A": 0.0,
+        "B": 0.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 18.887514293001004,
-      "peak_ram_bytes": 177808,
-      "peak_rss_bytes": 34476032
+      "zero_ref_acquisition": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 20.051556374997745,
+      "peak_ram_bytes": 180400,
+      "peak_rss_bytes": 34660352
     },
     {
       "level": "high",
@@ -3439,8 +4615,8 @@
           "mean_recovery_delta": 0.0,
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": null,
-          "mean_retention_ratio": 0.25,
-          "stability_plasticity_tradeoff": 0.3333333333333333,
+          "mean_retention_ratio": 0.0,
+          "stability_plasticity_tradeoff": 0.0,
           "candidate_pool": [
             {
               "example_ref": {
@@ -3806,13 +4982,151 @@
         "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
       },
       "holdout_retention_ratio": {
-        "A": 0.25,
+        "A": 0.0,
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 18.916555569001503,
-      "peak_ram_bytes": 177752,
-      "peak_rss_bytes": 34476032
+      "zero_ref_acquisition": {
+        "A": 1.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 1.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 19.981279613999504,
+      "peak_ram_bytes": 180248,
+      "peak_rss_bytes": 34660352
     },
     {
       "level": "high",
@@ -3879,8 +5193,8 @@
           "mean_recovery_delta": 0.0,
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": null,
-          "mean_retention_ratio": 0.25,
-          "stability_plasticity_tradeoff": 0.3333333333333333,
+          "mean_retention_ratio": 0.0,
+          "stability_plasticity_tradeoff": 0.0,
           "candidate_pool": [
             {
               "example_ref": {
@@ -3998,8 +5312,8 @@
           "mean_recovery_delta": 0.0,
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": 0.0,
-          "mean_retention_ratio": 0.25,
-          "stability_plasticity_tradeoff": 0.3333333333333333,
+          "mean_retention_ratio": 0.0,
+          "stability_plasticity_tradeoff": 0.0,
           "candidate_pool": [
             {
               "example_ref": {
@@ -4235,7 +5549,7 @@
         "c_vs_a_recovery_advantage": 0.5,
         "c_vs_b_utility_advantage": 0.25,
         "c_vs_b_plasticity_delta": 0.0,
-        "c_vs_b_tradeoff_advantage": 0.3333333333333333,
+        "c_vs_b_tradeoff_advantage": 0.6666666666666666,
         "b_vs_a_update_overhead": 1.0,
         "c_vs_a_update_overhead": 1.0,
         "b_vs_a_compute_overhead": 1.0,
@@ -4246,32 +5560,172 @@
         "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
       },
       "holdout_retention_ratio": {
-        "A": 0.25,
-        "B": 0.25,
+        "A": 0.0,
+        "B": 0.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 18.90515589699862,
-      "peak_ram_bytes": 177632,
-      "peak_rss_bytes": 34476032
+      "zero_ref_acquisition": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 20.073839120999764,
+      "peak_ram_bytes": 180104,
+      "peak_rss_bytes": 34660352
     }
   ],
   "cost_profile": {
-    "total_cpu_time_seconds": 165.14116973699856,
-    "peak_ram_bytes": 418635,
-    "peak_ram_mb": 0.39924144744873047,
-    "peak_rss_bytes": 34476032,
-    "peak_rss_mb": 32.87890625,
-    "projected_scaled_hours_cpu": 17.69774195569686,
+    "total_cpu_time_seconds": 166.8654390869997,
+    "peak_ram_bytes": 420678,
+    "peak_ram_mb": 0.40118980407714844,
+    "peak_rss_bytes": 34660352,
+    "peak_rss_mb": 33.0546875,
+    "projected_scaled_hours_cpu": 17.88252733699842,
     "scaling_recommendation": "local_cpu",
-    "recommendation_rationale": "Parametric projection for full-scale experiment (10 seeds, 500 words, 50 epochs): 17.70 single-thread CPU core-hours (scaling factor 385.8x from 165.1s pilot). Peak process RSS measured 32.9 MB (Python heap 0.40 MB). Execution is fully viable on the local machine using multi-core parallelization (estimated ~132.7 min across 8 cores). Cloud or GPU resources are not required or recommended at this stage because GPU speedup has not been benchmarked for small-batch autoregressive transitions and local resources are sufficient."
+    "recommendation_rationale": "Parametric projection for full-scale experiment (10 seeds, 500 words, 50 epochs): 17.88 single-thread CPU core-hours (scaling factor 385.8x from 166.9s pilot). Peak process RSS measured 33.1 MB (Python heap 0.40 MB). Execution is fully viable on the local machine using multi-core parallelization (estimated ~134.1 min across 8 cores). Cloud or GPU resources are not required or recommended at this stage because GPU speedup has not been benchmarked for small-batch autoregressive transitions and local resources are sufficient."
   },
   "conclusions": {
     "protocol_validated": true,
     "fairness_confirmed_all_seeds": true,
     "leakage_prevented": true,
     "high_interference_mean_recovery_advantage": 0.3333333333333333,
-    "high_interference_mean_retention_advantage": 0.5,
+    "high_interference_mean_retention_advantage": 0.6666666666666666,
+    "high_interference_zero_ref_acquisition_b": 0.6666666666666666,
+    "high_interference_zero_ref_acquisition_c": 0.0,
     "high_interference_superiority_fraction": 0.0,
-    "summary_claim": "Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (3 seeds) are strictly confirmed. Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive mean recovery advantage over uniform random replay (B) (+0.3333) and a mean retention ratio advantage (+0.5000, with holdout retention 1.00 vs 0.50). Note on metric semantics: recovery advantage (+0.3333) measures marginal competence gain during replay relative to post-interference state (mean_recovery_delta C 0.50 vs B 0.1667), whereas retention ratio advantage (+0.5000) measures total competence preserved relative to pre-interference baseline reference (mean_retention_ratio C 1.00 vs B 0.50). Under low and medium interference, recovery advantage is zero because baseline forgetting is absent (all candidate forgetting scores are 0.0), causing C to select candidates via deterministic FIFO tie-breaking. Under high interference, candidate scores are differentiated (three candidates with score 1.0 vs one candidate with score 0.0); C actively discriminates and excludes the unforgotten candidate, whereas random replay (B) wastes 50% of its budget on the unforgotten item in 2 of 3 seeds (seeds 42 and 44). Between forgotten candidates with identical score 1.0, C selects via FIFO. Regarding plasticity, initial acquisition delta (c_vs_b_plasticity_delta) is 0.0 across all conditions (both variants acquire the new task equally prior to replay), but during replay C experiences retroactive competence loss on the new task (-0.50) due to back-interference from replaying old onset weights, explaining why strict empirical superiority across seeds was 0.0%. The holdout evaluation measures Property A (retention of shared phonetic-orthographic transitions across isolated lexical records) rather than full lexical generalization to unseen words (Property C) or unseen transitions (Property B). Because this pilot evaluated 3 exploratory seeds on synthetic micro-fixtures, these results provide methodological validation of the protocol rather than definitive proof of general superiority across all linguistic contexts. The protocol is verified, reproducible, and ready for scaled execution on local CPU."
+    "summary_claim": "Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (3 seeds) are strictly confirmed. Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive mean recovery advantage over uniform random replay (B) (+0.3333 across all 4 old task probes) and a mean positive-reference retention ratio advantage (+0.6667, with C retaining 1.0000 vs B retaining 0.3333 on both internal probes [probe-int-malas, probe-int-patos, probe-int-sapos] and holdout probes [probe-hold-maleta, probe-hold-pateta, probe-hold-sapato]). Note on metric semantics and probe partitioning: retention is strictly computed over probes with positive initial reference competence (ref > 0.0, i.e., the 3 probes initially learned to 1.0). The 4th probe (probe-int-fogos / probe-hold-foguete) had initial reference competence ref = 0.0 and is excluded from retention to prevent nonexistent initial competence from inflating retention when post >= 0.0; its competence gain (post - ref) is tracked separately in zero_ref_acquisition (under high interference: mean 0.6667 for B and 0.0000 for C). Under low and medium interference, recovery advantage is zero because baseline forgetting is absent (all candidate forgetting scores are 0.0), causing C to select candidates via deterministic FIFO tie-breaking. Under high interference, candidate scores are differentiated (three candidates with score 1.0 vs one candidate with score 0.0); C actively discriminates and excludes the unforgotten candidate, whereas random replay (B) wastes 50% of its budget on the unforgotten item in 2 of 3 seeds (seeds 42 and 44), losing all 3 positive-reference competences (retention 0.0) in those seeds. Between forgotten candidates with identical score 1.0, C selects via FIFO. Regarding plasticity, initial acquisition delta (c_vs_b_plasticity_delta) is 0.0 across all conditions (both variants acquire the new task equally prior to replay), but during replay C experiences retroactive competence loss on the new task (-0.50) due to back-interference from replaying old onset weights, explaining why strict empirical superiority across seeds was 0.0%. The holdout evaluation measures Property A (retention of shared phonetic-orthographic transitions across isolated lexical records) rather than full lexical generalization to unseen words (Property C) or unseen transitions (Property B). Because this pilot evaluated 3 exploratory seeds on synthetic micro-fixtures, these results provide methodological validation of the protocol rather than definitive proof of general superiority across all linguistic contexts. The protocol is verified, reproducible, and ready for scaled execution on local CPU."
   }
 }
