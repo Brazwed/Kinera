@@ -3,7 +3,7 @@
   "phase": "34-L4",
   "description": "Scientific validation of controlled learning replay (Variants A, B, C)",
   "baseline_commit": "b4c12df395c930ec93cb4aaf2eab55dd49329988",
-  "runner_commit": "0faf8b523ab50eec5686bee7030b2c057225f11a",
+  "runner_commit": "c2f5cca95a2e0628be27fea6a9ba427de28c3872",
   "status": "VALIDATED",
   "protocol": {
     "variants": {
@@ -32,47 +32,47 @@
           "variant": "A",
           "replay_budget": 0,
           "old_competence_reference": [
-            1.0,
-            1.0
+            1,
+            1
           ],
           "old_competence_pre": [
-            0.0,
-            1.0
+            0,
+            1
           ],
           "old_competence_post": [
-            0.0,
-            1.0
+            0,
+            1
           ],
           "old_forgetting_pre": [
-            1.0,
-            0.0
+            1,
+            0
           ],
           "old_forgetting_post": [
-            1.0,
-            0.0
+            1,
+            0
           ],
           "old_recovery_delta": [
-            0.0,
-            0.0
+            0,
+            0
           ],
           "net_stability_delta": [
-            -1.0,
-            0.0
+            -1,
+            0
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 1.0,
-          "new_competence_post": 1.0,
-          "new_competence_reference": 1.0,
-          "new_competence_delta": 0.0,
-          "plasticity_acquisition": 1.0,
-          "new_competence_delta_during_replay": 0.0,
+          "new_competence_initial": 0,
+          "new_competence_acquired": 1,
+          "new_competence_post": 1,
+          "new_competence_reference": 1,
+          "new_competence_delta": 0,
+          "plasticity_acquisition": 1,
+          "new_competence_delta_during_replay": 0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 0,
             "total_updates": 1,
             "replay_seed": null
           },
-          "mean_recovery_delta": 0.0,
+          "mean_recovery_delta": 0,
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": null,
           "mean_retention_ratio": 0.5,
@@ -87,7 +87,7 @@
               "group_ids": [
                 "g1-interfered"
               ],
-              "forgetting_score": 1.0,
+              "forgetting_score": 1,
               "selected": false,
               "selection_reason": null
             },
@@ -100,7 +100,7 @@
               "group_ids": [
                 "g2-stable"
               ],
-              "forgetting_score": 0.0,
+              "forgetting_score": 0,
               "selected": false,
               "selection_reason": null
             }
@@ -111,49 +111,49 @@
           "variant": "B",
           "replay_budget": 1,
           "old_competence_reference": [
-            1.0,
-            1.0
+            1,
+            1
           ],
           "old_competence_pre": [
-            0.0,
-            1.0
+            0,
+            1
           ],
           "old_competence_post": [
-            0.0,
-            1.0
+            0,
+            1
           ],
           "old_forgetting_pre": [
-            1.0,
-            0.0
+            1,
+            0
           ],
           "old_forgetting_post": [
-            1.0,
-            0.0
+            1,
+            0
           ],
           "old_recovery_delta": [
-            0.0,
-            0.0
+            0,
+            0
           ],
           "net_stability_delta": [
-            -1.0,
-            0.0
+            -1,
+            0
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 1.0,
-          "new_competence_post": 1.0,
-          "new_competence_reference": 1.0,
-          "new_competence_delta": 0.0,
-          "plasticity_acquisition": 1.0,
-          "new_competence_delta_during_replay": 0.0,
+          "new_competence_initial": 0,
+          "new_competence_acquired": 1,
+          "new_competence_post": 1,
+          "new_competence_reference": 1,
+          "new_competence_delta": 0,
+          "plasticity_acquisition": 1,
+          "new_competence_delta_during_replay": 0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 1,
             "total_updates": 2,
             "replay_seed": 0
           },
-          "mean_recovery_delta": 0.0,
+          "mean_recovery_delta": 0,
           "mean_net_stability_delta": -0.5,
-          "mean_replay_utility": 0.0,
+          "mean_replay_utility": 0,
           "mean_retention_ratio": 0.5,
           "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
@@ -166,7 +166,7 @@
               "group_ids": [
                 "g1-interfered"
               ],
-              "forgetting_score": 1.0,
+              "forgetting_score": 1,
               "selected": false,
               "selection_reason": null
             },
@@ -179,7 +179,7 @@
               "group_ids": [
                 "g2-stable"
               ],
-              "forgetting_score": 0.0,
+              "forgetting_score": 0,
               "selected": true,
               "selection_reason": "uniform_random_sample"
             }
@@ -194,7 +194,7 @@
               "group_ids": [
                 "g2-stable"
               ],
-              "forgetting_score": 0.0,
+              "forgetting_score": 0,
               "selected": true,
               "selection_reason": "uniform_random_sample"
             }
@@ -204,49 +204,49 @@
           "variant": "C",
           "replay_budget": 1,
           "old_competence_reference": [
-            1.0,
-            1.0
+            1,
+            1
           ],
           "old_competence_pre": [
-            0.0,
-            1.0
+            0,
+            1
           ],
           "old_competence_post": [
-            0.0,
-            1.0
+            0,
+            1
           ],
           "old_forgetting_pre": [
-            1.0,
-            0.0
+            1,
+            0
           ],
           "old_forgetting_post": [
-            1.0,
-            0.0
+            1,
+            0
           ],
           "old_recovery_delta": [
-            0.0,
-            0.0
+            0,
+            0
           ],
           "net_stability_delta": [
-            -1.0,
-            0.0
+            -1,
+            0
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 1.0,
-          "new_competence_post": 1.0,
-          "new_competence_reference": 1.0,
-          "new_competence_delta": 0.0,
-          "plasticity_acquisition": 1.0,
-          "new_competence_delta_during_replay": 0.0,
+          "new_competence_initial": 0,
+          "new_competence_acquired": 1,
+          "new_competence_post": 1,
+          "new_competence_reference": 1,
+          "new_competence_delta": 0,
+          "plasticity_acquisition": 1,
+          "new_competence_delta_during_replay": 0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 1,
             "total_updates": 2,
             "replay_seed": null
           },
-          "mean_recovery_delta": 0.0,
+          "mean_recovery_delta": 0,
           "mean_net_stability_delta": -0.5,
-          "mean_replay_utility": 0.0,
+          "mean_replay_utility": 0,
           "mean_retention_ratio": 0.5,
           "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
@@ -259,7 +259,7 @@
               "group_ids": [
                 "g1-interfered"
               ],
-              "forgetting_score": 1.0,
+              "forgetting_score": 1,
               "selected": true,
               "selection_reason": "max_forgetting_score"
             },
@@ -272,7 +272,7 @@
               "group_ids": [
                 "g2-stable"
               ],
-              "forgetting_score": 0.0,
+              "forgetting_score": 0,
               "selected": false,
               "selection_reason": null
             }
@@ -287,7 +287,7 @@
               "group_ids": [
                 "g1-interfered"
               ],
-              "forgetting_score": 1.0,
+              "forgetting_score": 1,
               "selected": true,
               "selection_reason": "max_forgetting_score"
             }
@@ -295,15 +295,15 @@
         }
       },
       "comparison": {
-        "c_vs_b_recovery_advantage": 0.0,
-        "c_vs_a_recovery_advantage": 0.0,
-        "c_vs_b_utility_advantage": 0.0,
-        "c_vs_b_plasticity_delta": 0.0,
-        "c_vs_b_tradeoff_advantage": 0.0,
-        "b_vs_a_update_overhead": 1.0,
-        "c_vs_a_update_overhead": 1.0,
-        "b_vs_a_compute_overhead": 1.0,
-        "c_vs_a_compute_overhead": 1.0,
+        "c_vs_b_recovery_advantage": 0,
+        "c_vs_a_recovery_advantage": 0,
+        "c_vs_b_utility_advantage": 0,
+        "c_vs_b_plasticity_delta": 0,
+        "c_vs_b_tradeoff_advantage": 0,
+        "b_vs_a_update_overhead": 1,
+        "c_vs_a_update_overhead": 1,
+        "b_vs_a_compute_overhead": 1,
+        "c_vs_a_compute_overhead": 1,
         "is_fairly_matched_budget": true,
         "is_directed_superior": false,
         "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
@@ -318,47 +318,47 @@
           "variant": "A",
           "replay_budget": 0,
           "old_competence_reference": [
-            1.0,
-            1.0
+            1,
+            1
           ],
           "old_competence_pre": [
-            1.0,
-            0.0
+            1,
+            0
           ],
           "old_competence_post": [
-            1.0,
-            0.0
+            1,
+            0
           ],
           "old_forgetting_pre": [
-            0.0,
-            1.0
+            0,
+            1
           ],
           "old_forgetting_post": [
-            0.0,
-            1.0
+            0,
+            1
           ],
           "old_recovery_delta": [
-            0.0,
-            0.0
+            0,
+            0
           ],
           "net_stability_delta": [
-            0.0,
-            -1.0
+            0,
+            -1
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 1.0,
-          "new_competence_post": 1.0,
-          "new_competence_reference": 1.0,
-          "new_competence_delta": 0.0,
-          "plasticity_acquisition": 1.0,
-          "new_competence_delta_during_replay": 0.0,
+          "new_competence_initial": 0,
+          "new_competence_acquired": 1,
+          "new_competence_post": 1,
+          "new_competence_reference": 1,
+          "new_competence_delta": 0,
+          "plasticity_acquisition": 1,
+          "new_competence_delta_during_replay": 0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 0,
             "total_updates": 1,
             "replay_seed": null
           },
-          "mean_recovery_delta": 0.0,
+          "mean_recovery_delta": 0,
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": null,
           "mean_retention_ratio": 0.5,
@@ -373,7 +373,7 @@
               "group_ids": [
                 "probe-sapo"
               ],
-              "forgetting_score": 0.0,
+              "forgetting_score": 0,
               "selected": false,
               "selection_reason": null
             },
@@ -386,7 +386,7 @@
               "group_ids": [
                 "probe-bola"
               ],
-              "forgetting_score": 1.0,
+              "forgetting_score": 1,
               "selected": false,
               "selection_reason": null
             }
@@ -397,49 +397,49 @@
           "variant": "B",
           "replay_budget": 1,
           "old_competence_reference": [
-            1.0,
-            1.0
+            1,
+            1
           ],
           "old_competence_pre": [
-            1.0,
-            0.0
+            1,
+            0
           ],
           "old_competence_post": [
-            1.0,
-            0.0
+            1,
+            0
           ],
           "old_forgetting_pre": [
-            0.0,
-            1.0
+            0,
+            1
           ],
           "old_forgetting_post": [
-            0.0,
-            1.0
+            0,
+            1
           ],
           "old_recovery_delta": [
-            0.0,
-            0.0
+            0,
+            0
           ],
           "net_stability_delta": [
-            0.0,
-            -1.0
+            0,
+            -1
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 1.0,
-          "new_competence_post": 1.0,
-          "new_competence_reference": 1.0,
-          "new_competence_delta": 0.0,
-          "plasticity_acquisition": 1.0,
-          "new_competence_delta_during_replay": 0.0,
+          "new_competence_initial": 0,
+          "new_competence_acquired": 1,
+          "new_competence_post": 1,
+          "new_competence_reference": 1,
+          "new_competence_delta": 0,
+          "plasticity_acquisition": 1,
+          "new_competence_delta_during_replay": 0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 1,
             "total_updates": 2,
             "replay_seed": 1
           },
-          "mean_recovery_delta": 0.0,
+          "mean_recovery_delta": 0,
           "mean_net_stability_delta": -0.5,
-          "mean_replay_utility": 0.0,
+          "mean_replay_utility": 0,
           "mean_retention_ratio": 0.5,
           "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
@@ -452,7 +452,7 @@
               "group_ids": [
                 "probe-sapo"
               ],
-              "forgetting_score": 0.0,
+              "forgetting_score": 0,
               "selected": true,
               "selection_reason": "uniform_random_sample"
             },
@@ -465,7 +465,7 @@
               "group_ids": [
                 "probe-bola"
               ],
-              "forgetting_score": 1.0,
+              "forgetting_score": 1,
               "selected": false,
               "selection_reason": null
             }
@@ -480,7 +480,7 @@
               "group_ids": [
                 "probe-sapo"
               ],
-              "forgetting_score": 0.0,
+              "forgetting_score": 0,
               "selected": true,
               "selection_reason": "uniform_random_sample"
             }
@@ -490,49 +490,49 @@
           "variant": "C",
           "replay_budget": 1,
           "old_competence_reference": [
-            1.0,
-            1.0
+            1,
+            1
           ],
           "old_competence_pre": [
-            1.0,
-            0.0
+            1,
+            0
           ],
           "old_competence_post": [
-            1.0,
-            0.0
+            1,
+            0
           ],
           "old_forgetting_pre": [
-            0.0,
-            1.0
+            0,
+            1
           ],
           "old_forgetting_post": [
-            0.0,
-            1.0
+            0,
+            1
           ],
           "old_recovery_delta": [
-            0.0,
-            0.0
+            0,
+            0
           ],
           "net_stability_delta": [
-            0.0,
-            -1.0
+            0,
+            -1
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 1.0,
-          "new_competence_post": 1.0,
-          "new_competence_reference": 1.0,
-          "new_competence_delta": 0.0,
-          "plasticity_acquisition": 1.0,
-          "new_competence_delta_during_replay": 0.0,
+          "new_competence_initial": 0,
+          "new_competence_acquired": 1,
+          "new_competence_post": 1,
+          "new_competence_reference": 1,
+          "new_competence_delta": 0,
+          "plasticity_acquisition": 1,
+          "new_competence_delta_during_replay": 0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 1,
             "total_updates": 2,
             "replay_seed": null
           },
-          "mean_recovery_delta": 0.0,
+          "mean_recovery_delta": 0,
           "mean_net_stability_delta": -0.5,
-          "mean_replay_utility": 0.0,
+          "mean_replay_utility": 0,
           "mean_retention_ratio": 0.5,
           "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
@@ -545,7 +545,7 @@
               "group_ids": [
                 "probe-sapo"
               ],
-              "forgetting_score": 0.0,
+              "forgetting_score": 0,
               "selected": false,
               "selection_reason": null
             },
@@ -558,7 +558,7 @@
               "group_ids": [
                 "probe-bola"
               ],
-              "forgetting_score": 1.0,
+              "forgetting_score": 1,
               "selected": true,
               "selection_reason": "max_forgetting_score"
             }
@@ -573,7 +573,7 @@
               "group_ids": [
                 "probe-bola"
               ],
-              "forgetting_score": 1.0,
+              "forgetting_score": 1,
               "selected": true,
               "selection_reason": "max_forgetting_score"
             }
@@ -581,15 +581,15 @@
         }
       },
       "comparison": {
-        "c_vs_b_recovery_advantage": 0.0,
-        "c_vs_a_recovery_advantage": 0.0,
-        "c_vs_b_utility_advantage": 0.0,
-        "c_vs_b_plasticity_delta": 0.0,
-        "c_vs_b_tradeoff_advantage": 0.0,
-        "b_vs_a_update_overhead": 1.0,
-        "c_vs_a_update_overhead": 1.0,
-        "b_vs_a_compute_overhead": 1.0,
-        "c_vs_a_compute_overhead": 1.0,
+        "c_vs_b_recovery_advantage": 0,
+        "c_vs_a_recovery_advantage": 0,
+        "c_vs_b_utility_advantage": 0,
+        "c_vs_b_plasticity_delta": 0,
+        "c_vs_b_tradeoff_advantage": 0,
+        "b_vs_a_update_overhead": 1,
+        "c_vs_a_update_overhead": 1,
+        "b_vs_a_compute_overhead": 1,
+        "c_vs_a_compute_overhead": 1,
         "is_fairly_matched_budget": true,
         "is_directed_superior": false,
         "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
@@ -602,6 +602,8 @@
     "fairness_confirmed": true,
     "replay_budget_matched": true,
     "empirical_superiority_demonstrated": false,
-    "claim": "The controlled replay protocol, measurement hooks, fairness constraints, and accounting are mathematically and empirically validated. However, under the evaluated micro-fixtures, directed replay (C) does not show empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled experiments."
+    "claim": "The controlled replay protocol, measurement hooks, fairness constraints, and accounting are mathematically and empirically validated. However, under the evaluated micro-fixtures, directed replay (C) does not show empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled experiments.",
+    "superiority_observed_in_any_fixture": false,
+    "superiority_consistent_across_fixtures": false
   }
 }
