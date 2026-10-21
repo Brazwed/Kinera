@@ -157,6 +157,40 @@ class ScientificMetricsTests(unittest.TestCase):
         self.assertAlmostEqual(replay_delta_diff, -0.4)
         self.assertNotEqual(comp.c_vs_b_plasticity_delta, replay_delta_diff)
 
+    def test_compare_scientific_variants_summary_claim_consistency(self) -> None:
+        ref = ExampleRef("f", "s", 0)
+        acc_a = ReplayAccounting(1, 0, 1)
+        acc_b = ReplayAccounting(1, 1, 2, selected_refs=(ref,))
+        acc_c = ReplayAccounting(1, 1, 2, selected_refs=(ref,))
+
+        # Case 1: C is not superior (recovery delta is identical to B, 0.0 vs 0.0)
+        eval_a = ScientificVariantEvaluation(
+            "A", (1.0,), (0.5,), (0.5,), (0.5,), (0.5,), (0.0,), (-0.5,),
+            0.0, 1.0, 1.0, 1.0, 0.0, acc_a, 0, 0.0, -0.5, None, 0.5, 0.5, (), ()
+        )
+        eval_b = ScientificVariantEvaluation(
+            "B", (1.0,), (0.5,), (0.5,), (0.5,), (0.5,), (0.0,), (-0.5,),
+            0.0, 1.0, 1.0, 1.0, 0.0, acc_b, 1, 0.0, -0.5, 0.0, 0.5, 0.5, (), ()
+        )
+        eval_c_equal = ScientificVariantEvaluation(
+            "C", (1.0,), (0.5,), (0.5,), (0.5,), (0.5,), (0.0,), (-0.5,),
+            0.0, 1.0, 1.0, 1.0, 0.0, acc_c, 1, 0.0, -0.5, 0.0, 0.5, 0.5, (), ()
+        )
+        comp_not_superior = compare_scientific_variants(eval_a, eval_b, eval_c_equal)
+        self.assertFalse(comp_not_superior.is_directed_superior)
+        self.assertIn("does not demonstrate empirical superiority", comp_not_superior.summary_claim)
+        self.assertIn("deferred pending scaled corpora experiments", comp_not_superior.summary_claim)
+
+        # Case 2: C is superior (recovery delta 0.4 > 0.0, non-inferior plasticity and replay delta)
+        eval_c_superior = ScientificVariantEvaluation(
+            "C", (1.0,), (0.5,), (0.9,), (0.5,), (0.1,), (0.4,), (-0.1,),
+            0.0, 1.0, 1.0, 1.0, 0.0, acc_c, 1, 0.4, -0.1, 0.4, 0.9, 0.947, (), ()
+        )
+        comp_superior = compare_scientific_variants(eval_a, eval_b, eval_c_superior)
+        self.assertTrue(comp_superior.is_directed_superior)
+        self.assertIn("demonstrates empirical superiority", comp_superior.summary_claim)
+        self.assertNotIn("does not demonstrate", comp_superior.summary_claim)
+
 
 class ScientificProtocolExecutionTests(unittest.TestCase):
     def test_synthetic_protocol_is_reproducible_and_fair(self) -> None:

@@ -78,12 +78,24 @@ def main() -> None:
             "protocol_validated": True,
             "fairness_confirmed": True,
             "replay_budget_matched": True,
-            "empirical_superiority_demonstrated": False,
+            "empirical_superiority_demonstrated": (
+                synthetic_results["comparison"]["is_directed_superior"]
+                or natural_results["comparison"]["is_directed_superior"]
+            ),
             "claim": (
                 "The controlled replay protocol, measurement hooks, fairness constraints, and "
-                "accounting are mathematically and empirically validated. However, under the evaluated "
-                "micro-fixtures, directed replay (C) does not show empirical superiority over uniform "
-                "random replay (B). Promotion to core architecture is deferred pending scaled experiments."
+                "accounting are mathematically and empirically validated. Directed replay (C) "
+                "demonstrated empirical superiority under the evaluated fixture conditions."
+                if (
+                    synthetic_results["comparison"]["is_directed_superior"]
+                    or natural_results["comparison"]["is_directed_superior"]
+                )
+                else (
+                    "The controlled replay protocol, measurement hooks, fairness constraints, and "
+                    "accounting are mathematically and empirically validated. However, under the evaluated "
+                    "micro-fixtures, directed replay (C) does not show empirical superiority over uniform "
+                    "random replay (B). Promotion to core architecture is deferred pending scaled experiments."
+                )
             ),
         },
     }

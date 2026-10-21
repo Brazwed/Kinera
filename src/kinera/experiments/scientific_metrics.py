@@ -321,12 +321,20 @@ def compare_scientific_variants(
         and (eval_c.new_competence_delta_during_replay >= eval_b.new_competence_delta_during_replay)
     )
 
-    claim = (
-        "Protocol execution and accounting fairness are validated. "
-        "Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical "
-        "superiority over uniform random replay (B). Promotion to core architecture is deferred "
-        "pending scaled corpora experiments."
-    )
+    if is_superior:
+        claim = (
+            "Protocol execution and accounting fairness are validated. "
+            "Under the evaluated conditions, directed replay (C) demonstrates empirical "
+            "superiority over uniform random replay (B) with positive recovery advantage "
+            "while maintaining non-inferior plasticity and replay retention."
+        )
+    else:
+        claim = (
+            "Protocol execution and accounting fairness are validated. "
+            "Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical "
+            "superiority over uniform random replay (B). Promotion to core architecture is deferred "
+            "pending scaled corpora experiments."
+        )
 
     return ScientificComparison(
         c_vs_b_recovery_advantage=c_vs_b_rec,
