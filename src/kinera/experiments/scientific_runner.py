@@ -568,10 +568,15 @@ def derive_protocol_conclusions(
         and natural_results["evaluations"]["B"]["replay_budget"] == natural_results["evaluations"]["C"]["replay_budget"]
     )
 
+    # Defaults remain conservative when fairness checks fail; no superiority claim
+    # is admissible unless both fixture comparisons satisfy the matched-budget protocol.
+    superiority_observed_in_any_fixture = False
+    superiority_consistent_across_fixtures = False
+    empirical_superiority = False
+
     if not (fairness_confirmed and replay_budget_matched):
         overall_status = "INVALID_UNFAIR_BUDGET"
         protocol_validated = False
-        empirical_superiority = False
         claim = (
             "Update budgets or accounting between baseline and replay variants were not fairly matched. "
             "Fairness constraints were violated; therefore, protocol validation failed and the comparison "
