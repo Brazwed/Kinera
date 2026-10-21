@@ -16,3 +16,4 @@ data/raw/
 # Local experiment outputs
 checkpoints/*.json
 !.gitkeep
+uv.lock
