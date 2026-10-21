@@ -1,0 +1,270 @@
+{
+  "schema_version": 1,
+  "phase": "34-L4",
+  "description": "Scientific validation of controlled learning replay (Variants A, B, C)",
+  "baseline_commit": "b4c12df395c930ec93cb4aaf2eab55dd49329988",
+  "status": "VALIDATED",
+  "protocol": {
+    "variants": {
+      "A": "New updates only (no replay baseline)",
+      "B": "New updates + uniform random replay (fair budget)",
+      "C": "New updates + directed replay prioritized by forgetting_score"
+    },
+    "metrics": [
+      "retained_competence",
+      "recovery_delta",
+      "replay_utility",
+      "stability_plasticity_tradeoff",
+      "compute_overhead"
+    ]
+  },
+  "results": {
+    "synthetic_fixture": {
+      "fixture_type": "synthetic",
+      "replay_seed": 0,
+      "evaluations": {
+        "A": {
+          "variant": "A",
+          "old_competence_reference": [
+            1.0,
+            1.0
+          ],
+          "old_competence_pre": [
+            0.0,
+            1.0
+          ],
+          "old_competence_post": [
+            0.0,
+            1.0
+          ],
+          "old_forgetting_pre": [
+            1.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            1.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0
+          ],
+          "new_competence_reference": 1.0,
+          "new_competence_post": 1.0,
+          "new_competence_delta": 0.0,
+          "accounting": {
+            "new_updates": 1,
+            "replay_updates": 0,
+            "total_updates": 1,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_replay_utility": null
+        },
+        "B": {
+          "variant": "B",
+          "old_competence_reference": [
+            1.0,
+            1.0
+          ],
+          "old_competence_pre": [
+            0.0,
+            1.0
+          ],
+          "old_competence_post": [
+            0.0,
+            1.0
+          ],
+          "old_forgetting_pre": [
+            1.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            1.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0
+          ],
+          "new_competence_reference": 1.0,
+          "new_competence_post": 1.0,
+          "new_competence_delta": 0.0,
+          "accounting": {
+            "new_updates": 1,
+            "replay_updates": 1,
+            "total_updates": 2,
+            "replay_seed": 0
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_replay_utility": 0.0
+        },
+        "C": {
+          "variant": "C",
+          "old_competence_reference": [
+            1.0,
+            1.0
+          ],
+          "old_competence_pre": [
+            0.0,
+            1.0
+          ],
+          "old_competence_post": [
+            0.0,
+            1.0
+          ],
+          "old_forgetting_pre": [
+            1.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            1.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0
+          ],
+          "new_competence_reference": 1.0,
+          "new_competence_post": 1.0,
+          "new_competence_delta": 0.0,
+          "accounting": {
+            "new_updates": 1,
+            "replay_updates": 1,
+            "total_updates": 2,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_replay_utility": 0.0
+        }
+      },
+      "comparison": {
+        "c_vs_b_recovery_advantage": 0.0,
+        "c_vs_a_recovery_advantage": 0.0,
+        "c_vs_b_utility_advantage": 0.0,
+        "c_vs_b_plasticity_delta": 0.0,
+        "b_vs_a_compute_overhead": 1.0,
+        "c_vs_a_compute_overhead": 1.0,
+        "is_fairly_matched_budget": true,
+        "summary_claim": "Evaluation conducted under strict L4 fair-budget constraints. No general linguistic superiority is claimed unless supported across scaled corpora."
+      }
+    },
+    "natural_fixture": {
+      "fixture_type": "natural",
+      "replay_seed": 42,
+      "evaluations": {
+        "A": {
+          "variant": "A",
+          "old_competence_reference": [
+            0.0
+          ],
+          "old_competence_pre": [
+            0.0
+          ],
+          "old_competence_post": [
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0
+          ],
+          "new_competence_reference": 0.0,
+          "new_competence_post": 0.0,
+          "new_competence_delta": 0.0,
+          "accounting": {
+            "new_updates": 1,
+            "replay_updates": 0,
+            "total_updates": 1,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_replay_utility": null
+        },
+        "B": {
+          "variant": "B",
+          "old_competence_reference": [
+            0.0
+          ],
+          "old_competence_pre": [
+            0.0
+          ],
+          "old_competence_post": [
+            1.0
+          ],
+          "old_forgetting_pre": [
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0
+          ],
+          "old_recovery_delta": [
+            1.0
+          ],
+          "new_competence_reference": 0.0,
+          "new_competence_post": 0.0,
+          "new_competence_delta": 0.0,
+          "accounting": {
+            "new_updates": 1,
+            "replay_updates": 1,
+            "total_updates": 2,
+            "replay_seed": 42
+          },
+          "mean_recovery_delta": 1.0,
+          "mean_replay_utility": 1.0
+        },
+        "C": {
+          "variant": "C",
+          "old_competence_reference": [
+            0.0
+          ],
+          "old_competence_pre": [
+            0.0
+          ],
+          "old_competence_post": [
+            1.0
+          ],
+          "old_forgetting_pre": [
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0
+          ],
+          "old_recovery_delta": [
+            1.0
+          ],
+          "new_competence_reference": 0.0,
+          "new_competence_post": 0.0,
+          "new_competence_delta": 0.0,
+          "accounting": {
+            "new_updates": 1,
+            "replay_updates": 1,
+            "total_updates": 2,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 1.0,
+          "mean_replay_utility": 1.0
+        }
+      },
+      "comparison": {
+        "c_vs_b_recovery_advantage": 0.0,
+        "c_vs_a_recovery_advantage": 1.0,
+        "c_vs_b_utility_advantage": 0.0,
+        "c_vs_b_plasticity_delta": 0.0,
+        "b_vs_a_compute_overhead": 1.0,
+        "c_vs_a_compute_overhead": 1.0,
+        "is_fairly_matched_budget": true,
+        "summary_claim": "Evaluation conducted under strict L4 fair-budget constraints. No general linguistic superiority is claimed unless supported across scaled corpora."
+      }
+    }
+  },
+  "conclusions": {
+    "fairness_confirmed": true,
+    "replay_budget_matched": true,
+    "claim": "Mechanistic fairness between random (B) and directed (C) replay confirmed under equal budgets. L4 validation complete. Ready for architectural decision L5."
+  }
+}
