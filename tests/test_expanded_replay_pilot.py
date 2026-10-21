@@ -276,16 +276,22 @@ class ExpandedPilotExecutionTests(unittest.TestCase):
         report = run_expanded_pilot(
             seeds=(42, 43),
             conditions=("low", "high"),
-            baseline_commit="5dba2cc",
+            baseline_commit="5dba2ccd6fadd3c2406223e3ec28657cc1fb9138",
             runner_commit="test_commit",
         )
         self.assertEqual(report["schema_version"], 1)
         self.assertEqual(report["phase"], "42-expanded-pilot")
+        self.assertEqual(report["baseline_commit"], "5dba2ccd6fadd3c2406223e3ec28657cc1fb9138")
+        self.assertEqual(report["runner_commit"], "test_commit")
         self.assertTrue(report["protocol_validated"])
         self.assertTrue(report["leakage_prevented"])
         self.assertEqual(report["conditions_evaluated"], ["low", "high"])
         self.assertEqual(report["seeds_evaluated"], [42, 43])
         self.assertIn("condition_aggregates", report)
+        self.assertIn("new_competence_delta_during_replay", report["condition_aggregates"]["high"])
+        self.assertIn("A", report["condition_aggregates"]["high"]["new_competence_delta_during_replay"])
+        self.assertIn("B", report["condition_aggregates"]["high"]["new_competence_delta_during_replay"])
+        self.assertIn("C", report["condition_aggregates"]["high"]["new_competence_delta_during_replay"])
         self.assertIn("cost_profile", report)
         self.assertIn("conclusions", report)
         self.assertTrue(report["conclusions"]["fairness_confirmed_all_seeds"])

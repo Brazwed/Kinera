@@ -17,7 +17,7 @@ import sys
 from kinera.experiments.expanded_pilot import run_expanded_pilot
 
 # Baseline commit approved on main (merge commit of PR #41)
-APPROVED_BASELINE_COMMIT = "5dba2cc3843510e14db8b8cb1e309cb9f323c280"
+APPROVED_BASELINE_COMMIT = "5dba2ccd6fadd3c2406223e3ec28657cc1fb9138"
 
 
 def main() -> None:

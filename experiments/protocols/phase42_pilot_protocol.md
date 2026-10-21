@@ -5,7 +5,7 @@
 - **Projeto:** Brazwed/Kinera
 - **Issue Vinculada:** [#42 — Research — Experimento ampliado de replay: A/B/C em condições controladas](https://github.com/Brazwed/Kinera/issues/42)
 - **Issue Pai:** [#34 — Research: Learning Memory e metacognição para aprendizado contínuo](https://github.com/Brazwed/Kinera/issues/34)
-- **Baseline Aprovado:** `5dba2cc` (Merge do PR #41 na branch `main`)
+- **Baseline Aprovado:** `5dba2ccd6fadd3c2406223e3ec28657cc1fb9138` (Merge do PR #41 na branch `main`)
 - **Fase:** 42 — Piloto Experimental Local de Baixo Custo
 - **Ambiente de Execução:** CPU Intel Xeon E5-2680 v4 (Ubuntu Linux, Python 3.12, ambiente puramente CPU determinístico)
 
@@ -115,13 +115,15 @@ Para eliminar a fragilidade de emparelhamento por listas paralelas posicionais, 
   - Sonda nova: `probe-new-{level}-{train_word}` (ex.: `probe-new-high-medo`)
   - Sonda holdout nova: `probe-new-hold-{level}-{holdout_word}` (ex.: `probe-new-hold-high-meta`)
 
-### 4.4 Auditoria do Seletor C e Desempates Determinísticos
+### 4.4 Auditoria do Seletor C, Scores e Desempates Determinísticos
 
 O algoritmo de seleção da Variante C (`select_directed_replay`):
 1. **Cálculo de `forgetting_score`:** Derivado estritamente das sondas internas de controle ($P_{old, internal}$):
    $$\text{forgetting\_score} = \max(0.0, C_{ref} - C_{pre})$$
-2. **Priorização:** Ordena candidatos em ordem estritamente decrescente de `forgetting_score`.
-3. **Desempate Determinístico:** Em caso de empate em score (ex.: múltiplos itens com esquecimento máximo $1.0$ ou nulo $0.0$), o desempate é feito pela ordem original de admissão no pool (FIFO, determinístico, sem amostragem aleatória).
+2. **Priorização e Discriminação de Esquecimento:** Ordena candidatos em ordem estritamente decrescente de `forgetting_score`.
+   - **Em Baixa e Média Interferência:** O modelo retém 100% de competência antiga; todos os 4 candidatos apresentam $\text{forgetting\_score} = 0.0$. Portanto, a seleção de C nessas condições opera estritamente via desempate determinístico FIFO (selecionando os índices 0 e 1, `malas` e `patos`), sem discriminação informada por esquecimento.
+   - **Em Alta Interferência:** Os scores revelam diferenciação real: três candidatos sofrem esquecimento total ($\text{forgetting\_score} = 1.0$ para `malas`, `patos` e `sapos`), enquanto um item é preservado ($\text{forgetting\_score} = 0.0$ para `fogos`). A Variante C **exclui ativamente** o candidato de score 0.0. Entre os 3 candidatos empatados em score 1.0, seleciona os índices 0 e 1 (`malas` e `patos`) via regra estável FIFO. Em contraste, a Variante B (sorteio uniforme) seleciona `fogos` em 2 de 3 sementes (42 e 44), desperdiçando 50% de seu orçamento em uma experiência não esquecida.
+3. **Desempate Determinístico:** Em caso de empate em score, o desempate é feito pela ordem original de admissão no pool (FIFO, determinístico, sem amostragem aleatória).
 4. **Isolamento Causal Estrito:** O seletor C recebe apenas `candidates` e `budget`. Ele possui zero dependência e zero acesso aos resultados da avaliação holdout final ($P_{old, holdout}$).
 5. **Paridade de Orçamento:** O número de itens selecionados $K_{replay}$ e o número de atualizações físicas de gradiente ($E_{replay} = 1$) são rigorosamente idênticos entre B e C.
 
@@ -164,8 +166,13 @@ Todas as métricas são limitadas, finitas e puramente CPU:
    $$\text{Retention Ratio} = \min\left(\max\left(0.0, \frac{C_{post}}{C_{ref}}\right), 1.0\right)$$
 2. **Plasticidade Adquirida ($P \in [0.0, 1.0]$):**
    $$P = C_{new, acquired} - C_{new, initial}$$
+   - Mede a taxa de aprendizagem na tarefa nova imediatamente após o treinamento interferente e **antes** de qualquer replay.
+   - Como B e C adquirem a tarefa nova sob parâmetros idênticos antes do replay, $P_C \equiv P_B$ e portanto a métrica `c_vs_b_plasticity_delta` ($P_C - P_B$) é rigorosamente **0.0** em todas as condições e sementes.
 3. **Variação na Nova Tarefa durante o Replay ($\Delta_{new, replay}$):**
    $$\Delta_{new, replay} = C_{new, post} - C_{new, acquired}$$
+   - Mede o impacto retroativo gerado pelo replay sobre a tarefa nova recém-adquirida (*back-interference*).
+   - Em alta interferência, ao atualizar os pesos para reter os onsets de `mala` e `pato`, a Variante C degrada os onsets de `medo` e `povo` ($\Delta_{new, replay} = -0.50$ em todas as sementes).
+   - Essa penalidade explica por que a regra de superioridade estrita rejeita declarar C superior (fração de superioridade 0,0%).
 4. **Recuperação de Competência Antiga ($\Delta_{rec}$):**
    $$\Delta_{rec} = C_{old, post} - C_{old, pre}$$
 5. **Trade-off Estabilidade-Plasticidade ($T \in [0.0, 1.0]$):**
