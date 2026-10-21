@@ -1,0 +1,609 @@
+{
+  "schema_version": 1,
+  "phase": "34-L4",
+  "description": "Scientific validation of controlled learning replay (Variants A, B, C)",
+  "baseline_commit": "b4c12df395c930ec93cb4aaf2eab55dd49329988",
+  "runner_commit": "0239422202c32bf87998752216a1dca6a950a75d",
+  "status": "VALIDATED",
+  "protocol": {
+    "variants": {
+      "A": "New updates only (no replay baseline)",
+      "B": "New updates + uniform random replay (fair budget)",
+      "C": "New updates + directed replay prioritized by forgetting_score"
+    },
+    "metrics": [
+      "retained_competence",
+      "retention_ratio",
+      "recovery_delta",
+      "replay_utility",
+      "plasticity_acquisition",
+      "new_competence_delta_during_replay",
+      "stability_plasticity_tradeoff",
+      "update_overhead"
+    ],
+    "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy."
+  },
+  "results": {
+    "synthetic_fixture": {
+      "fixture_type": "synthetic",
+      "replay_seed": 0,
+      "evaluations": {
+        "A": {
+          "variant": "A",
+          "replay_budget": 0,
+          "old_competence_reference": [
+            1,
+            1
+          ],
+          "old_competence_pre": [
+            0,
+            1
+          ],
+          "old_competence_post": [
+            0,
+            1
+          ],
+          "old_forgetting_pre": [
+            1,
+            0
+          ],
+          "old_forgetting_post": [
+            1,
+            0
+          ],
+          "old_recovery_delta": [
+            0,
+            0
+          ],
+          "net_stability_delta": [
+            -1,
+            0
+          ],
+          "new_competence_initial": 0,
+          "new_competence_acquired": 1,
+          "new_competence_post": 1,
+          "new_competence_reference": 1,
+          "new_competence_delta": 0,
+          "plasticity_acquisition": 1,
+          "new_competence_delta_during_replay": 0,
+          "accounting": {
+            "new_updates": 1,
+            "replay_updates": 0,
+            "total_updates": 1,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0,
+          "mean_net_stability_delta": -0.5,
+          "mean_replay_utility": null,
+          "mean_retention_ratio": 0.5,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-synthetic",
+                "split": "old-train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "g1-interfered"
+              ],
+              "forgetting_score": 1,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-synthetic",
+                "split": "old-train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "g2-stable"
+              ],
+              "forgetting_score": 0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": []
+        },
+        "B": {
+          "variant": "B",
+          "replay_budget": 1,
+          "old_competence_reference": [
+            1,
+            1
+          ],
+          "old_competence_pre": [
+            0,
+            1
+          ],
+          "old_competence_post": [
+            0,
+            1
+          ],
+          "old_forgetting_pre": [
+            1,
+            0
+          ],
+          "old_forgetting_post": [
+            1,
+            0
+          ],
+          "old_recovery_delta": [
+            0,
+            0
+          ],
+          "net_stability_delta": [
+            -1,
+            0
+          ],
+          "new_competence_initial": 0,
+          "new_competence_acquired": 1,
+          "new_competence_post": 1,
+          "new_competence_reference": 1,
+          "new_competence_delta": 0,
+          "plasticity_acquisition": 1,
+          "new_competence_delta_during_replay": 0,
+          "accounting": {
+            "new_updates": 1,
+            "replay_updates": 1,
+            "total_updates": 2,
+            "replay_seed": 0
+          },
+          "mean_recovery_delta": 0,
+          "mean_net_stability_delta": -0.5,
+          "mean_replay_utility": 0,
+          "mean_retention_ratio": 0.5,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-synthetic",
+                "split": "old-train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "g1-interfered"
+              ],
+              "forgetting_score": 1,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-synthetic",
+                "split": "old-train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "g2-stable"
+              ],
+              "forgetting_score": 0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-synthetic",
+                "split": "old-train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "g2-stable"
+              ],
+              "forgetting_score": 0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ]
+        },
+        "C": {
+          "variant": "C",
+          "replay_budget": 1,
+          "old_competence_reference": [
+            1,
+            1
+          ],
+          "old_competence_pre": [
+            0,
+            1
+          ],
+          "old_competence_post": [
+            0,
+            1
+          ],
+          "old_forgetting_pre": [
+            1,
+            0
+          ],
+          "old_forgetting_post": [
+            1,
+            0
+          ],
+          "old_recovery_delta": [
+            0,
+            0
+          ],
+          "net_stability_delta": [
+            -1,
+            0
+          ],
+          "new_competence_initial": 0,
+          "new_competence_acquired": 1,
+          "new_competence_post": 1,
+          "new_competence_reference": 1,
+          "new_competence_delta": 0,
+          "plasticity_acquisition": 1,
+          "new_competence_delta_during_replay": 0,
+          "accounting": {
+            "new_updates": 1,
+            "replay_updates": 1,
+            "total_updates": 2,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0,
+          "mean_net_stability_delta": -0.5,
+          "mean_replay_utility": 0,
+          "mean_retention_ratio": 0.5,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-synthetic",
+                "split": "old-train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "g1-interfered"
+              ],
+              "forgetting_score": 1,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-synthetic",
+                "split": "old-train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "g2-stable"
+              ],
+              "forgetting_score": 0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-synthetic",
+                "split": "old-train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "g1-interfered"
+              ],
+              "forgetting_score": 1,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            }
+          ]
+        }
+      },
+      "comparison": {
+        "c_vs_b_recovery_advantage": 0,
+        "c_vs_a_recovery_advantage": 0,
+        "c_vs_b_utility_advantage": 0,
+        "c_vs_b_plasticity_delta": 0,
+        "c_vs_b_tradeoff_advantage": 0,
+        "b_vs_a_update_overhead": 1,
+        "c_vs_a_update_overhead": 1,
+        "b_vs_a_compute_overhead": 1,
+        "c_vs_a_compute_overhead": 1,
+        "is_fairly_matched_budget": true,
+        "is_directed_superior": false,
+        "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
+        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
+      }
+    },
+    "natural_fixture": {
+      "fixture_type": "natural",
+      "replay_seed": 1,
+      "evaluations": {
+        "A": {
+          "variant": "A",
+          "replay_budget": 0,
+          "old_competence_reference": [
+            1,
+            1
+          ],
+          "old_competence_pre": [
+            1,
+            0
+          ],
+          "old_competence_post": [
+            1,
+            0
+          ],
+          "old_forgetting_pre": [
+            0,
+            1
+          ],
+          "old_forgetting_post": [
+            0,
+            1
+          ],
+          "old_recovery_delta": [
+            0,
+            0
+          ],
+          "net_stability_delta": [
+            0,
+            -1
+          ],
+          "new_competence_initial": 0,
+          "new_competence_acquired": 1,
+          "new_competence_post": 1,
+          "new_competence_reference": 1,
+          "new_competence_delta": 0,
+          "plasticity_acquisition": 1,
+          "new_competence_delta_during_replay": 0,
+          "accounting": {
+            "new_updates": 1,
+            "replay_updates": 0,
+            "total_updates": 1,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0,
+          "mean_net_stability_delta": -0.5,
+          "mean_replay_utility": null,
+          "mean_retention_ratio": 0.5,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-natural",
+                "split": "old-train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-sapo"
+              ],
+              "forgetting_score": 0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-natural",
+                "split": "old-train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-bola"
+              ],
+              "forgetting_score": 1,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": []
+        },
+        "B": {
+          "variant": "B",
+          "replay_budget": 1,
+          "old_competence_reference": [
+            1,
+            1
+          ],
+          "old_competence_pre": [
+            1,
+            0
+          ],
+          "old_competence_post": [
+            1,
+            0
+          ],
+          "old_forgetting_pre": [
+            0,
+            1
+          ],
+          "old_forgetting_post": [
+            0,
+            1
+          ],
+          "old_recovery_delta": [
+            0,
+            0
+          ],
+          "net_stability_delta": [
+            0,
+            -1
+          ],
+          "new_competence_initial": 0,
+          "new_competence_acquired": 1,
+          "new_competence_post": 1,
+          "new_competence_reference": 1,
+          "new_competence_delta": 0,
+          "plasticity_acquisition": 1,
+          "new_competence_delta_during_replay": 0,
+          "accounting": {
+            "new_updates": 1,
+            "replay_updates": 1,
+            "total_updates": 2,
+            "replay_seed": 1
+          },
+          "mean_recovery_delta": 0,
+          "mean_net_stability_delta": -0.5,
+          "mean_replay_utility": 0,
+          "mean_retention_ratio": 0.5,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-natural",
+                "split": "old-train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-sapo"
+              ],
+              "forgetting_score": 0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-natural",
+                "split": "old-train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-bola"
+              ],
+              "forgetting_score": 1,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-natural",
+                "split": "old-train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-sapo"
+              ],
+              "forgetting_score": 0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ]
+        },
+        "C": {
+          "variant": "C",
+          "replay_budget": 1,
+          "old_competence_reference": [
+            1,
+            1
+          ],
+          "old_competence_pre": [
+            1,
+            0
+          ],
+          "old_competence_post": [
+            1,
+            0
+          ],
+          "old_forgetting_pre": [
+            0,
+            1
+          ],
+          "old_forgetting_post": [
+            0,
+            1
+          ],
+          "old_recovery_delta": [
+            0,
+            0
+          ],
+          "net_stability_delta": [
+            0,
+            -1
+          ],
+          "new_competence_initial": 0,
+          "new_competence_acquired": 1,
+          "new_competence_post": 1,
+          "new_competence_reference": 1,
+          "new_competence_delta": 0,
+          "plasticity_acquisition": 1,
+          "new_competence_delta_during_replay": 0,
+          "accounting": {
+            "new_updates": 1,
+            "replay_updates": 1,
+            "total_updates": 2,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0,
+          "mean_net_stability_delta": -0.5,
+          "mean_replay_utility": 0,
+          "mean_retention_ratio": 0.5,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-natural",
+                "split": "old-train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-sapo"
+              ],
+              "forgetting_score": 0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-natural",
+                "split": "old-train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-bola"
+              ],
+              "forgetting_score": 1,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "fixture:l4-natural",
+                "split": "old-train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-bola"
+              ],
+              "forgetting_score": 1,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            }
+          ]
+        }
+      },
+      "comparison": {
+        "c_vs_b_recovery_advantage": 0,
+        "c_vs_a_recovery_advantage": 0,
+        "c_vs_b_utility_advantage": 0,
+        "c_vs_b_plasticity_delta": 0,
+        "c_vs_b_tradeoff_advantage": 0,
+        "b_vs_a_update_overhead": 1,
+        "c_vs_a_update_overhead": 1,
+        "b_vs_a_compute_overhead": 1,
+        "c_vs_a_compute_overhead": 1,
+        "is_fairly_matched_budget": true,
+        "is_directed_superior": false,
+        "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
+        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
+      }
+    }
+  },
+  "conclusions": {
+    "protocol_validated": true,
+    "fairness_confirmed": true,
+    "replay_budget_matched": true,
+    "empirical_superiority_demonstrated": false,
+    "claim": "The controlled replay protocol, measurement hooks, fairness constraints, and accounting are mathematically and empirically validated. However, under the evaluated micro-fixtures, directed replay (C) does not show empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled experiments.",
+    "superiority_observed_in_any_fixture": false,
+    "superiority_consistent_across_fixtures": false
+  }
+}
