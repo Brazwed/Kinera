@@ -3,10 +3,11 @@
 This module computes empirical metrics defined in Issue #34 (Tranche L4):
 - ReplayUtility = recovery_delta / replay_updates
 - Retained competence and recovery deltas across probe groups
-- Retention ratio = post_competence / reference_competence
-- Stability vs. plasticity trade-offs (old retention vs new assimilation)
+- Retention ratio = bounded proportion of reference competence preserved in [0.0, 1.0]
+- Stability vs. plasticity trade-offs (net old retention vs new task assimilation)
 - Strict pairwise comparisons between variants A (no replay), B (random replay),
   and C (directed replay).
+- Detailed candidate audit tracking (pool, selection rationale, and forgetting scores).
 
 All calculations are pure, deterministic, and CPU-only.
 """
@@ -17,6 +18,7 @@ from dataclasses import dataclass
 import math
 from typing import Any, Sequence
 
+from kinera.experiments.learning_memory import ExampleRef
 from kinera.experiments.learning_state import MetricDirection, oriented_competence_delta
 from kinera.experiments.replay import ReplayAccounting
 
@@ -61,12 +63,23 @@ def calculate_retention_ratio(
     current_competence: float,
     direction: MetricDirection = "higher_is_better",
 ) -> float:
-    """Calculate the fraction of reference competence retained.
+    """Calculate the bounded fraction of reference competence retained in [0.0, 1.0].
 
-    For higher_is_better metrics (e.g. accuracy):
-        current / reference (capped at 1.0 if reference > 0 and current <= reference).
-    For lower_is_better metrics (e.g. loss):
-        reference / current (so that lower current loss gives ratio > 1.0).
+    Phenomenon measured:
+        Quantifies the proportion of initial baseline competence that remains
+        intact after intermediate exposure or replay interventions.
+
+    Bounds and Edge Cases:
+        - Result is guaranteed to be real, finite, and within [0.0, 1.0].
+        - For higher_is_better (e.g. accuracy):
+            - If reference <= 0.0: returns 1.0 if current >= reference else 0.0.
+            - If reference > 0.0: returns min(max(0.0, current / reference), 1.0).
+        - For lower_is_better (e.g. loss):
+            - Lower loss represents better retention of quality.
+            - If current <= 0.0: quality is maximally preserved -> 1.0.
+            - If current <= reference: quality is fully preserved or improved -> 1.0.
+            - If reference <= 0.0 and current > 0.0: quality was lost -> 0.0.
+            - Otherwise: returns min(max(0.0, reference / current), 1.0).
     """
     ref = _validate_finite_float(reference_competence, "reference_competence")
     curr = _validate_finite_float(current_competence, "current_competence")
@@ -74,30 +87,75 @@ def calculate_retention_ratio(
         raise ValueError("direction must be 'higher_is_better' or 'lower_is_better'")
 
     if direction == "higher_is_better":
-        if ref == 0.0:
-            return 1.0 if curr >= 0.0 else 0.0
-        return curr / ref
+        if ref <= 0.0:
+            return 1.0 if curr >= ref else 0.0
+        return min(max(0.0, curr / ref), 1.0)
     else:
-        if curr == 0.0:
-            return 1.0 if ref == 0.0 else float("inf")
-        return ref / curr
+        if curr <= 0.0:
+            return 1.0
+        if ref <= 0.0:
+            return 0.0
+        if curr <= ref:
+            return 1.0
+        return min(max(0.0, ref / curr), 1.0)
 
 
 def calculate_stability_plasticity_tradeoff(
-    old_recovery_delta: float,
-    new_competence_delta: float,
+    stability_delta: float,
+    plasticity_delta: float,
 ) -> float:
-    """Harmonic-style composite index of stability (old recovery) and plasticity (new learning).
+    """Calculate the composite Stability-Plasticity Trade-off index.
 
-    If either delta is non-positive, returns the arithmetic sum (which reflects
-    the penalty). If both are positive, computes their harmonic mean to ensure
-    neither stability nor plasticity is sacrificed.
+    Phenomenon measured:
+        The stability-plasticity dilemma concerns the balance between preserving
+        previously acquired knowledge against catastrophic forgetting (stability)
+        while successfully assimilating new knowledge (plasticity).
+
+    Parameters:
+        stability_delta: Oriented net change in previously acquired tasks relative
+            to the reference baseline (post_old - reference_old). A value of 0.0
+            indicates complete retention without net loss; negative indicates degradation;
+            positive indicates net improvement.
+        plasticity_delta: Oriented change in the newly introduced task relative to
+            baseline (post_new - reference_new). Positive indicates successful acquisition.
+
+    Formula:
+        - If both deltas are strictly positive, computes the harmonic mean:
+              2 * (stability_delta * plasticity_delta) / (stability_delta + plasticity_delta)
+          ensuring neither stability nor plasticity can be traded off to zero.
+        - If either delta is non-positive, returns their arithmetic average:
+              (stability_delta + plasticity_delta) / 2.0
+          penalizing regressions proportionally.
     """
-    old_d = _validate_finite_float(old_recovery_delta, "old_recovery_delta")
-    new_d = _validate_finite_float(new_competence_delta, "new_competence_delta")
-    if old_d > 0.0 and new_d > 0.0:
-        return 2.0 * (old_d * new_d) / (old_d + new_d)
-    return (old_d + new_d) / 2.0
+    stab_d = _validate_finite_float(stability_delta, "stability_delta")
+    plas_d = _validate_finite_float(plasticity_delta, "plasticity_delta")
+    if stab_d > 0.0 and plas_d > 0.0:
+        return 2.0 * (stab_d * plas_d) / (stab_d + plas_d)
+    return (stab_d + plas_d) / 2.0
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateAuditRecord:
+    """Audit record for a candidate in the replay pool."""
+
+    example_ref: ExampleRef
+    group_ids: tuple[str, ...]
+    forgetting_score: float
+    selected: bool
+    selection_reason: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "example_ref": {
+                "dataset_artifact_id": self.example_ref.dataset_artifact_id,
+                "split": self.example_ref.split,
+                "example_index": self.example_ref.example_index,
+            },
+            "group_ids": list(self.group_ids),
+            "forgetting_score": self.forgetting_score,
+            "selected": self.selected,
+            "selection_reason": self.selection_reason,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,14 +169,19 @@ class ScientificVariantEvaluation:
     old_forgetting_pre: tuple[float, ...]
     old_forgetting_post: tuple[float, ...]
     old_recovery_delta: tuple[float, ...]
+    net_stability_delta: tuple[float, ...]
     new_competence_reference: float
     new_competence_post: float
     new_competence_delta: float
     accounting: ReplayAccounting
+    replay_budget: int
     mean_recovery_delta: float
+    mean_net_stability_delta: float
     mean_replay_utility: float | None
     mean_retention_ratio: float
     stability_plasticity_tradeoff: float
+    candidate_pool: tuple[CandidateAuditRecord, ...]
+    selected_candidates: tuple[CandidateAuditRecord, ...]
 
     def __post_init__(self) -> None:
         if self.variant not in ("A", "B", "C"):
@@ -135,12 +198,14 @@ class ScientificVariantEvaluation:
     def to_dict(self) -> dict[str, Any]:
         return {
             "variant": self.variant,
+            "replay_budget": self.replay_budget,
             "old_competence_reference": list(self.old_competence_reference),
             "old_competence_pre": list(self.old_competence_pre),
             "old_competence_post": list(self.old_competence_post),
             "old_forgetting_pre": list(self.old_forgetting_pre),
             "old_forgetting_post": list(self.old_forgetting_post),
             "old_recovery_delta": list(self.old_recovery_delta),
+            "net_stability_delta": list(self.net_stability_delta),
             "new_competence_reference": self.new_competence_reference,
             "new_competence_post": self.new_competence_post,
             "new_competence_delta": self.new_competence_delta,
@@ -151,9 +216,12 @@ class ScientificVariantEvaluation:
                 "replay_seed": self.accounting.replay_seed,
             },
             "mean_recovery_delta": self.mean_recovery_delta,
+            "mean_net_stability_delta": self.mean_net_stability_delta,
             "mean_replay_utility": self.mean_replay_utility,
             "mean_retention_ratio": self.mean_retention_ratio,
             "stability_plasticity_tradeoff": self.stability_plasticity_tradeoff,
+            "candidate_pool": [c.to_dict() for c in self.candidate_pool],
+            "selected_candidates": [c.to_dict() for c in self.selected_candidates],
         }
 
 
@@ -230,7 +298,10 @@ def compare_scientific_variants(
     b_up_overhead = float(eval_b.accounting.total_updates - eval_a.accounting.total_updates) / a_tot
     c_up_overhead = float(eval_c.accounting.total_updates - eval_a.accounting.total_updates) / a_tot
 
-    overhead_def = "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Not wall-clock or energy."
+    overhead_def = (
+        "Relative gradient update count increase: (total_updates - A_updates) / A_updates. "
+        "Represents training step budget, not wall-clock execution time or device energy."
+    )
 
     # Honest assessment: directed is superior only if recovery advantage > 0 with non-inferior plasticity
     is_superior = (c_vs_b_rec > 0.0) and (c_vs_b_plas >= 0.0)
@@ -261,6 +332,7 @@ calculate_recovery_ratio = calculate_retention_ratio
 
 
 __all__ = [
+    "CandidateAuditRecord",
     "ScientificComparison",
     "ScientificVariantEvaluation",
     "calculate_recovery_ratio",

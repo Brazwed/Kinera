@@ -9,6 +9,7 @@ import unittest
 from kinera.experiments.learning_memory import ExampleRef
 from kinera.experiments.replay import ReplayAccounting
 from kinera.experiments.scientific_metrics import (
+    CandidateAuditRecord,
     ScientificComparison,
     ScientificVariantEvaluation,
     calculate_recovery_ratio,
@@ -35,26 +36,40 @@ class ScientificMetricsTests(unittest.TestCase):
             with self.subTest(delta=delta), self.assertRaises((TypeError, ValueError)):
                 calculate_replay_utility(delta, 1)  # type: ignore[arg-type]
 
-    def test_calculate_retention_ratio(self) -> None:
-        # higher is better
+    def test_calculate_retention_ratio_bounds_and_extremes(self) -> None:
+        # higher_is_better: bounded in [0.0, 1.0]
         self.assertAlmostEqual(calculate_retention_ratio(1.0, 0.8, "higher_is_better"), 0.8)
+        self.assertEqual(calculate_retention_ratio(1.0, 1.5, "higher_is_better"), 1.0)
+        self.assertEqual(calculate_retention_ratio(1.0, 0.0, "higher_is_better"), 0.0)
+        self.assertEqual(calculate_retention_ratio(0.0, 0.0, "higher_is_better"), 1.0)
         self.assertEqual(calculate_retention_ratio(0.0, 0.5, "higher_is_better"), 1.0)
         self.assertEqual(calculate_retention_ratio(0.0, -0.5, "higher_is_better"), 0.0)
 
-        # lower is better
+        # lower_is_better: bounded in [0.0, 1.0] and strictly finite (no inf)
         self.assertAlmostEqual(calculate_retention_ratio(1.0, 2.0, "lower_is_better"), 0.5)
-        self.assertAlmostEqual(calculate_retention_ratio(2.0, 1.0, "lower_is_better"), 2.0)
+        self.assertEqual(calculate_retention_ratio(1.0, 0.5, "lower_is_better"), 1.0)
+        self.assertEqual(calculate_retention_ratio(1.0, 0.0, "lower_is_better"), 1.0)
+        self.assertEqual(calculate_retention_ratio(0.0, 0.0, "lower_is_better"), 1.0)
+        self.assertEqual(calculate_retention_ratio(0.0, 1.0, "lower_is_better"), 0.0)
+        self.assertEqual(calculate_retention_ratio(2.0, 10.0, "lower_is_better"), 0.2)
+
+        # Confirm result is always finite
+        for curr in (0.0, 1e-12, 1e12):
+            val = calculate_retention_ratio(1.0, curr, "lower_is_better")
+            self.assertTrue(math.isfinite(val))
+            self.assertTrue(0.0 <= val <= 1.0)
 
         with self.assertRaises(ValueError):
             calculate_retention_ratio(1.0, 1.0, "invalid_direction")  # type: ignore[arg-type]
 
-    def test_calculate_stability_plasticity_tradeoff(self) -> None:
+    def test_calculate_stability_plasticity_tradeoff_definition(self) -> None:
         # Both positive -> harmonic mean
         val = calculate_stability_plasticity_tradeoff(0.4, 0.4)
         self.assertAlmostEqual(val, 0.4)
 
-        # One non-positive -> arithmetic mean penalty
+        # One negative (net regression in stability) -> penalized by arithmetic average
         self.assertEqual(calculate_stability_plasticity_tradeoff(-0.2, 0.4), 0.1)
+        self.assertEqual(calculate_stability_plasticity_tradeoff(-0.5, 0.5), 0.0)
         self.assertEqual(calculate_stability_plasticity_tradeoff(0.0, 0.0), 0.0)
 
     def test_variant_evaluation_dataclass_validations(self) -> None:
@@ -65,34 +80,37 @@ class ScientificMetricsTests(unittest.TestCase):
         # Invalid variant
         with self.assertRaises(ValueError):
             ScientificVariantEvaluation(
-                "X", (1.0,), (1.0,), (1.0,), (0.0,), (0.0,), (0.0,),
-                1.0, 1.0, 0.0, acc_zero, 0.0, None, 1.0, 0.0
+                "X", (1.0,), (1.0,), (1.0,), (0.0,), (0.0,), (0.0,), (0.0,),
+                1.0, 1.0, 0.0, acc_zero, 0, 0.0, 0.0, None, 1.0, 0.0, (), ()
             )
 
         # Replay updates == 0 but utility provided
         with self.assertRaises(ValueError):
             ScientificVariantEvaluation(
-                "A", (1.0,), (1.0,), (1.0,), (0.0,), (0.0,), (0.0,),
-                1.0, 1.0, 0.0, acc_zero, 0.0, 0.5, 1.0, 0.0
+                "A", (1.0,), (1.0,), (1.0,), (0.0,), (0.0,), (0.0,), (0.0,),
+                1.0, 1.0, 0.0, acc_zero, 0, 0.0, 0.0, 0.5, 1.0, 0.0, (), ()
             )
 
         # Replay updates > 0 but utility is None
         with self.assertRaises(ValueError):
             ScientificVariantEvaluation(
-                "B", (1.0,), (1.0,), (1.0,), (0.0,), (0.0,), (0.0,),
-                1.0, 1.0, 0.0, acc_replay, 0.0, None, 1.0, 0.0
+                "B", (1.0,), (1.0,), (1.0,), (0.0,), (0.0,), (0.0,), (0.0,),
+                1.0, 1.0, 0.0, acc_replay, 1, 0.0, 0.0, None, 1.0, 0.0, (), ()
             )
 
         valid_a = ScientificVariantEvaluation(
-            "A", (1.0,), (0.5,), (0.5,), (0.5,), (0.5,), (0.0,),
-            1.0, 0.8, -0.2, acc_zero, 0.0, None, 0.5, -0.1
+            "A", (1.0,), (0.5,), (0.5,), (0.5,), (0.5,), (0.0,), (-0.5,),
+            1.0, 0.8, -0.2, acc_zero, 0, 0.0, -0.5, None, 0.5, -0.35, (), ()
         )
         self.assertEqual(valid_a.variant, "A")
         d = valid_a.to_dict()
         self.assertEqual(d["variant"], "A")
         self.assertIsNone(d["mean_replay_utility"])
         self.assertEqual(d["mean_retention_ratio"], 0.5)
-        self.assertEqual(d["stability_plasticity_tradeoff"], -0.1)
+        self.assertEqual(d["stability_plasticity_tradeoff"], -0.35)
+        self.assertEqual(d["replay_budget"], 0)
+        self.assertEqual(d["candidate_pool"], [])
+        self.assertEqual(d["selected_candidates"], [])
 
 
 class ScientificProtocolExecutionTests(unittest.TestCase):
@@ -111,6 +129,11 @@ class ScientificProtocolExecutionTests(unittest.TestCase):
         self.assertEqual(b["accounting"]["total_updates"], 2)
         self.assertEqual(c["accounting"]["total_updates"], 2)
 
+        # Audit candidate records
+        self.assertEqual(len(b["candidate_pool"]), 2)
+        self.assertEqual(len(b["selected_candidates"]), 1)
+        self.assertEqual(len(c["selected_candidates"]), 1)
+
         comp = first["comparison"]
         self.assertTrue(comp["is_fairly_matched_budget"])
         self.assertFalse(comp["is_directed_superior"])
@@ -123,7 +146,7 @@ class ScientificProtocolExecutionTests(unittest.TestCase):
         evals = result["evaluations"]
         a, b, c = evals["A"], evals["B"], evals["C"]
 
-        # 1. Proves prior acquired competence is strictly positive on all probes
+        # 1. Proves prior acquired competence is strictly positive (1.0) on all probes
         for variant_eval in (a, b, c):
             self.assertEqual(variant_eval["old_competence_reference"], [1.0, 1.0])
 
@@ -131,15 +154,25 @@ class ScientificProtocolExecutionTests(unittest.TestCase):
         for variant_eval in (a, b, c):
             self.assertEqual(variant_eval["old_forgetting_pre"], [0.0, 1.0])
 
-        # 3. Proves B (random) and C (directed) differentiate their selected candidate
-        b_selected = b["accounting"]["selected_refs"] if "selected_refs" in b["accounting"] else None
-        # Access from runner's accounting
-        self.assertEqual(b["accounting"]["replay_seed"], 1)
-        self.assertIsNone(c["accounting"]["replay_seed"])
+        # 3. Auditable candidate pool: 2 candidates with scores 0.0 and 1.0
+        self.assertEqual(len(b["candidate_pool"]), 2)
+        pool_scores = [cand["forgetting_score"] for cand in b["candidate_pool"]]
+        self.assertEqual(pool_scores, [0.0, 1.0])
 
-        # 4. Verifies retention ratio and stability vs plasticity metrics are present and finite
+        # 4. Proves B and C differentiate their selection:
+        # B (uniform random with seed=1) selects candidate 0 (score 0.0)
+        # C (directed by max forgetting) selects candidate 1 (score 1.0)
+        b_sel = b["selected_candidates"][0]
+        c_sel = c["selected_candidates"][0]
+        self.assertEqual(b_sel["forgetting_score"], 0.0)
+        self.assertEqual(b_sel["selection_reason"], "uniform_random_sample")
+        self.assertEqual(c_sel["forgetting_score"], 1.0)
+        self.assertEqual(c_sel["selection_reason"], "max_forgetting_score")
+        self.assertNotEqual(b_sel["example_ref"], c_sel["example_ref"])
+
+        # 5. Verifies retention ratio and stability-plasticity tradeoff are finite and bounded
         for variant_eval in (a, b, c):
-            self.assertTrue(math.isfinite(variant_eval["mean_retention_ratio"]))
+            self.assertTrue(0.0 <= variant_eval["mean_retention_ratio"] <= 1.0)
             self.assertTrue(math.isfinite(variant_eval["stability_plasticity_tradeoff"]))
 
         comp = result["comparison"]

@@ -8,6 +8,7 @@ computes empirical continuous learning metrics, and writes:
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 import subprocess
@@ -20,16 +21,23 @@ L4_APPROVED_BASELINE_COMMIT = "b4c12df395c930ec93cb4aaf2eab55dd49329988"
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Run Phase 34 L4 scientific validation protocol")
+    parser.add_argument("--runner-commit", default=None, help="Explicit runner commit SHA")
+    args = parser.parse_args()
+
     project_root = Path(__file__).resolve().parents[1]
     output_path = project_root / "experiments" / "phase34_l4_scientific_validation.json"
 
     # Current execution/code revision
-    try:
-        runner_commit = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=project_root, text=True
-        ).strip()
-    except Exception:
-        runner_commit = "unknown"
+    if args.runner_commit:
+        runner_commit = args.runner_commit
+    else:
+        try:
+            runner_commit = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=project_root, text=True
+            ).strip()
+        except Exception:
+            runner_commit = "unknown"
 
     synthetic_results = run_scientific_protocol("synthetic", replay_seed=0)
     natural_results = run_scientific_protocol("natural", replay_seed=1)

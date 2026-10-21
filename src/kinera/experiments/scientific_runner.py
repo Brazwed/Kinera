@@ -35,6 +35,7 @@ from kinera.experiments.retention import (
     evaluate_retention_probe,
 )
 from kinera.experiments.scientific_metrics import (
+    CandidateAuditRecord,
     ScientificComparison,
     ScientificVariantEvaluation,
     calculate_replay_utility,
@@ -151,14 +152,16 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
         state_by_group = {state.group_id: state for state in states}
         candidates = build_replay_candidates(memory, state_by_group)
 
+        replay_budget = 0 if variant == "A" else 1
+
         if variant == "A":
             selected: tuple[ReplayCandidate, ...] = ()
             used_seed = None
         elif variant == "B":
-            selected = select_random_replay(candidates, 1, replay_seed=replay_seed)
+            selected = select_random_replay(candidates, replay_budget, replay_seed=replay_seed)
             used_seed = replay_seed
         elif variant == "C":
-            selected = select_directed_replay(candidates, 1)
+            selected = select_directed_replay(candidates, replay_budget)
             used_seed = None
         else:
             raise ValueError(f"unknown variant {variant!r}")
@@ -201,6 +204,10 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
             oriented_competence_delta(pre.competence, post.competence, pre.direction)
             for pre, post in zip(old_pre, old_post)
         )
+        net_stability = tuple(
+            oriented_competence_delta(ref.competence, post.competence, ref.direction)
+            for ref, post in zip(old_reference, old_post)
+        )
         new_delta = oriented_competence_delta(
             new_reference.competence, new_post.competence, new_reference.direction
         )
@@ -214,6 +221,8 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
         )
 
         mean_recovery = sum(old_recovery) / len(old_recovery) if old_recovery else 0.0
+        mean_net_stability = sum(net_stability) / len(net_stability) if net_stability else 0.0
+
         if accounting.replay_updates > 0:
             mean_utility = calculate_replay_utility(mean_recovery, accounting.replay_updates)
         else:
@@ -224,7 +233,25 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
             for ref, post in zip(old_reference, old_post)
         )
         mean_retention = sum(retention_ratios) / len(retention_ratios) if retention_ratios else 0.0
-        tradeoff = calculate_stability_plasticity_tradeoff(mean_recovery, new_delta)
+        tradeoff = calculate_stability_plasticity_tradeoff(mean_net_stability, new_delta)
+
+        # Audit candidate records
+        audit_pool: list[CandidateAuditRecord] = []
+        for cand in candidates:
+            is_sel = cand.example_ref in selected_refs
+            reason = None
+            if is_sel:
+                reason = "uniform_random_sample" if variant == "B" else "max_forgetting_score"
+            audit_pool.append(
+                CandidateAuditRecord(
+                    example_ref=cand.example_ref,
+                    group_ids=cand.group_ids,
+                    forgetting_score=cand.priority_score,
+                    selected=is_sel,
+                    selection_reason=reason,
+                )
+            )
+        audit_selected = tuple(c for c in audit_pool if c.selected)
 
         return ScientificVariantEvaluation(
             variant=variant,
@@ -234,14 +261,19 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
             old_forgetting_pre=old_forgetting_pre,
             old_forgetting_post=old_forgetting_post,
             old_recovery_delta=old_recovery,
+            net_stability_delta=net_stability,
             new_competence_reference=new_reference.competence,
             new_competence_post=new_post.competence,
             new_competence_delta=new_delta,
             accounting=accounting,
+            replay_budget=replay_budget,
             mean_recovery_delta=mean_recovery,
+            mean_net_stability_delta=mean_net_stability,
             mean_replay_utility=mean_utility,
             mean_retention_ratio=mean_retention,
             stability_plasticity_tradeoff=tradeoff,
+            candidate_pool=tuple(audit_pool),
+            selected_candidates=audit_selected,
         )
     finally:
         model.close()
@@ -329,14 +361,16 @@ def _run_natural_protocol(variant: str, replay_seed: int = 1) -> ScientificVaria
         state_by_group = {state_sapo.group_id: state_sapo, state_bola.group_id: state_bola}
         candidates = build_replay_candidates(memory, state_by_group)
 
+        replay_budget = 0 if variant == "A" else 1
+
         if variant == "A":
             selected = ()
             used_seed = None
         elif variant == "B":
-            selected = select_random_replay(candidates, 1, replay_seed=replay_seed)
+            selected = select_random_replay(candidates, replay_budget, replay_seed=replay_seed)
             used_seed = replay_seed
         elif variant == "C":
-            selected = select_directed_replay(candidates, 1)
+            selected = select_directed_replay(candidates, replay_budget)
             used_seed = None
         else:
             raise ValueError(f"unknown variant {variant!r}")
@@ -382,6 +416,10 @@ def _run_natural_protocol(variant: str, replay_seed: int = 1) -> ScientificVaria
             oriented_competence_delta(old_pre_sapo.competence, old_post_sapo.competence, old_pre_sapo.direction),
             oriented_competence_delta(old_pre_bola.competence, old_post_bola.competence, old_pre_bola.direction),
         )
+        net_stability = (
+            oriented_competence_delta(old_ref_sapo.competence, old_post_sapo.competence, old_ref_sapo.direction),
+            oriented_competence_delta(old_ref_bola.competence, old_post_bola.competence, old_ref_bola.direction),
+        )
         new_delta = oriented_competence_delta(
             new_reference.competence, new_post.competence, new_reference.direction
         )
@@ -395,6 +433,8 @@ def _run_natural_protocol(variant: str, replay_seed: int = 1) -> ScientificVaria
         )
 
         mean_recovery = sum(old_recovery) / len(old_recovery)
+        mean_net_stability = sum(net_stability) / len(net_stability)
+
         if accounting.replay_updates > 0:
             mean_utility = calculate_replay_utility(mean_recovery, accounting.replay_updates)
         else:
@@ -405,7 +445,25 @@ def _run_natural_protocol(variant: str, replay_seed: int = 1) -> ScientificVaria
             for ref, post in zip(old_reference, old_post)
         )
         mean_retention = sum(retention_ratios) / len(retention_ratios)
-        tradeoff = calculate_stability_plasticity_tradeoff(mean_recovery, new_delta)
+        tradeoff = calculate_stability_plasticity_tradeoff(mean_net_stability, new_delta)
+
+        # Audit candidate records
+        audit_pool: list[CandidateAuditRecord] = []
+        for cand in candidates:
+            is_sel = cand.example_ref in selected_refs
+            reason = None
+            if is_sel:
+                reason = "uniform_random_sample" if variant == "B" else "max_forgetting_score"
+            audit_pool.append(
+                CandidateAuditRecord(
+                    example_ref=cand.example_ref,
+                    group_ids=cand.group_ids,
+                    forgetting_score=cand.priority_score,
+                    selected=is_sel,
+                    selection_reason=reason,
+                )
+            )
+        audit_selected = tuple(c for c in audit_pool if c.selected)
 
         return ScientificVariantEvaluation(
             variant=variant,
@@ -415,14 +473,19 @@ def _run_natural_protocol(variant: str, replay_seed: int = 1) -> ScientificVaria
             old_forgetting_pre=old_forgetting_pre,
             old_forgetting_post=old_forgetting_post,
             old_recovery_delta=old_recovery,
+            net_stability_delta=net_stability,
             new_competence_reference=new_reference.competence,
             new_competence_post=new_post.competence,
             new_competence_delta=new_delta,
             accounting=accounting,
+            replay_budget=replay_budget,
             mean_recovery_delta=mean_recovery,
+            mean_net_stability_delta=mean_net_stability,
             mean_replay_utility=mean_utility,
             mean_retention_ratio=mean_retention,
             stability_plasticity_tradeoff=tradeoff,
+            candidate_pool=tuple(audit_pool),
+            selected_candidates=audit_selected,
         )
     finally:
         model.close()
