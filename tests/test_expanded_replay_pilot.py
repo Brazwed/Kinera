@@ -72,6 +72,27 @@ class ExpandedPilotExecutionTests(unittest.TestCase):
         self.assertEqual(result.eval_b.accounting.new_updates, result.eval_c.accounting.new_updates)
         self.assertEqual(result.eval_b.accounting.total_updates, result.eval_c.accounting.total_updates)
         self.assertEqual(result.eval_a.accounting.replay_updates, 0)
+        self.assertEqual(result.eval_b.accounting.replay_updates, 2)
+        self.assertEqual(result.eval_c.accounting.replay_updates, 2)
+        self.assertEqual(result.eval_b.accounting.new_updates, 2)
+        self.assertEqual(result.eval_c.accounting.new_updates, 2)
+
+    def test_quadripartite_word_and_ref_separation(self) -> None:
+        for level in ("low", "medium", "high"):
+            spec = get_condition_spec(level)  # type: ignore[arg-type]
+            w_old = set(spec.old_words)
+            w_int = set(spec.old_internal_words)
+            w_hold = set(spec.old_holdout_words)
+            w_new = set(spec.new_words)
+            w_new_hold = set(spec.new_holdout_words)
+
+            # Ensure all 5 word partitions are pairwise disjoint
+            self.assertTrue(w_old.isdisjoint(w_int), f"Overlap old/int in {level}")
+            self.assertTrue(w_old.isdisjoint(w_hold), f"Overlap old/hold in {level}")
+            self.assertTrue(w_int.isdisjoint(w_hold), f"Overlap int/hold in {level}")
+            self.assertTrue(w_old.isdisjoint(w_new), f"Overlap old/new in {level}")
+            self.assertTrue(w_new.isdisjoint(w_new_hold), f"Overlap new/new_hold in {level}")
+            self.assertEqual(spec.replay_epochs, 1, f"Replay epochs must be exactly 1 in {level}")
 
     def test_strict_leakage_prevention_audit(self) -> None:
         result = run_condition_seed("high", seed=42, char_vocab=self.char_vocab, syl_vocab=self.syl_vocab)
@@ -94,6 +115,14 @@ class ExpandedPilotExecutionTests(unittest.TestCase):
             h_ret = result.holdout_retention_ratio[variant]
             self.assertTrue(0.0 <= h_ret <= 1.0)
 
+    def test_holdout_retention_sensitive_to_catastrophic_interference(self) -> None:
+        # Under high interference, Variant A baseline must suffer forgetting on holdout probes
+        result = run_condition_seed("high", seed=42, char_vocab=self.char_vocab, syl_vocab=self.syl_vocab)
+        hold_a = result.holdout_retention_ratio["A"]
+        hold_c = result.holdout_retention_ratio["C"]
+        self.assertLess(hold_a, 1.0, "Holdout retention for baseline A must detect interference")
+        self.assertGreater(hold_c, hold_a, "Directed replay C must recover holdout retention")
+
     def test_deterministic_reproducibility(self) -> None:
         res1 = run_condition_seed("low", seed=42, char_vocab=self.char_vocab, syl_vocab=self.syl_vocab)
         res2 = run_condition_seed("low", seed=42, char_vocab=self.char_vocab, syl_vocab=self.syl_vocab)
@@ -106,17 +135,22 @@ class ExpandedPilotExecutionTests(unittest.TestCase):
         result = run_condition_seed("high", seed=42, char_vocab=self.char_vocab, syl_vocab=self.syl_vocab)
         self.assertGreater(result.cpu_time_seconds, 0.0)
         self.assertGreater(result.peak_ram_bytes, 0)
+        self.assertGreater(result.peak_rss_bytes, 0)
+        self.assertGreaterEqual(result.peak_rss_bytes, result.peak_ram_bytes)
         self.assertTrue(math.isfinite(result.cpu_time_seconds))
 
         profile = compute_cost_profile(
             total_cpu_seconds=result.cpu_time_seconds,
             peak_ram_bytes=result.peak_ram_bytes,
+            peak_rss_bytes=result.peak_rss_bytes,
             pilot_seeds_count=1,
             pilot_words_count=6,
         )
         self.assertIn(profile.scaling_recommendation, ("local_cpu", "google_colab_pro"))
         self.assertTrue(len(profile.recommendation_rationale) > 10)
         self.assertTrue(math.isfinite(profile.projected_scaled_hours_cpu))
+        self.assertGreater(profile.peak_rss_bytes, 0)
+        self.assertGreater(profile.peak_rss_mb, 0.0)
 
     def test_full_expanded_pilot_execution_and_schema(self) -> None:
         # Run small smoke pilot with 2 seeds and 2 conditions to test complete report generation

@@ -40,33 +40,55 @@ Para superar a limitação das micro-fixtures anteriores (onde o esquecimento er
 
 ---
 
-## 4. Partição de Dados e Prevenção Rigorosa de Vazamento (No Data Leakage)
+## 4. Partição Quadripartite de Dados e Prevenção Rigorosa de Vazamento (No Data Leakage)
 
-Para garantir validade científica e conformidade com os critérios da Issue #42, as experiências são particionadas em três conjuntos disjuntos:
+Para garantir validade científica, eliminar artefatos de avaliação holdout e cumprir as exigências metodológicas das Issues #34 e #42, as experiências linguísticas são particionadas em conjuntos estritamente disjuntos tanto em nível lexical quanto em identificadores estruturais (`ExampleRef` com dataset artifact ID e split únicos):
 
-1. **Conjunto de Treinamento ($D_{train}$):**
-   - $D_{old, train}$: Exemplos utilizados para o aprendizado inicial da tarefa antiga e armazenados como referências (`ExampleRef`) na memória de trabalho (`LearningMemory`).
-   - $D_{new, train}$: Exemplos utilizados para a aprendizagem da tarefa nova e para o plano intercalado de replay.
-2. **Sondas de Controle Interno ($P_{internal}$):**
-   - Sondas de monitoramento do estado de aprendizagem (`LearningState`).
-   - Avaliadas pelo observador interno para computar perda, acurácia e o `forgetting_score` dos candidatos.
-   - Utilizadas pela Variante C exclusivamente para ordenar e priorizar o replay.
-3. **Sondas Holdout de Avaliação Final ($P_{holdout}$):**
-   - Exemplos de teste estritamente isolados.
-   - **NUNCA** observados durante o treino, **NUNCA** acessados pela memória e **NUNCA** utilizados pela Variante C para estimar esquecimento ou ordenar candidatos.
-   - Avaliados de forma uniforme e cega nas Variantes A, B e C para reportar a competência real e a retenção final não-contaminada.
+1. **Treinamento Antigo ($D_{old, train}$, split `train`):**
+   - Palavras: `mala`, `pato`, `sapo`, `fogo`
+   - Identificador: `dataset:pilot-old-train`
+   - Exemplos autoregressivos primários utilizados para a aquisição da competência antiga e admitidos na memória de trabalho (`LearningMemory`).
+2. **Sondas de Controle Interno ($P_{old, internal}$, split `internal_probe`):**
+   - Palavras: `malas`, `patos`, `sapos`, `fogos`
+   - Identificador: `dataset:pilot-old-internal`
+   - Exemplos ortográficos distintos compartilhando o mesmo contexto de transição (`['<START>', c] -> v`).
+   - Utilizadas pelo observador interno do modelo para computar perda, acurácia e o `forgetting_score` dos candidatos no `LearningState`.
+   - Utilizadas pela Variante C exclusivamente para priorizar o replay.
+3. **Sondas Holdout de Avaliação Final ($P_{old, holdout}$, split `holdout_test`):**
+   - Palavras: `maleta`, `pateta`, `sapato`, `foguete`
+   - Identificador: `dataset:pilot-old-holdout`
+   - Exemplos out-of-sample estritamente isolados.
+   - **NUNCA** observados durante o treino, **NUNCA** admitidos na memória e **NUNCA** utilizados pela Variante C para estimar esquecimento ou ordenar candidatos.
+   - Como compartilham a transição fonético-ortográfica inicial com os itens antigos, o modelo adquire competência de referência real ($C_{ref} > 0.0$) após o treino antigo. Sob interferência, essa competência degrada e, com o replay adequado, recupera-se. Isso elimina definitivamente o artefato de saturação artificial ($0.0/0.0 \to 1.0$).
+4. **Treinamento Novo ($D_{new, train}$, split `train`):**
+   - Palavras por condição:
+     - Baixa: `zero`, `luxo`
+     - Média: `medo`, `dado`
+     - Alta: `medo`, `povo`
+   - Identificador: `dataset:pilot-new-train-{level}`
+   - Exemplos utilizados para a aprendizagem da tarefa nova e para o plano intercalado de consolidação.
+5. **Sondas Holdout da Nova Tarefa ($P_{new, holdout}$, split `holdout_test`):**
+   - Palavras por condição:
+     - Baixa: `zebra`, `luva`
+     - Média: `meta`, `data`
+     - Alta: `meta`, `pote`
+   - Identificador: `dataset:pilot-new-holdout-{level}`
+   - Utilizadas para avaliar a generalização genuína da competência recém-adquirida sem contaminação.
 
 ---
 
-## 5. Orçamento e Paridade de Atualizações
+## 5. Orçamento e Paridade Estrita de Atualizações Físicas de Gradiente
 
 Para assegurar uma comparação justa e isenta de viés de capacidade computacional:
+- **Épocas de Replay ($E_{replay} = 1$):** O treinamento de consolidação sobre o plano intercalado executa **exatamente 1 época**, garantindo que cada exemplo do plano gere exatamente uma atualização física de gradiente.
 - **Orçamento de Replay ($K_{replay}$):** Rigorosamente igual para as Variantes B e C ($K_B = K_C = 2$). Na Variante A, $K_A = 0$.
 - **Atualizações de Tarefa Nova ($N_{new}$):** Rigorosamente igual entre as três variantes ($N_{new} = 2$).
 - **Total de Atualizações de Gradiente ($N_{total}$):**
-  - Variante A: $N_{total} = N_{new} = 2$.
-  - Variante B: $N_{total} = N_{new} + K_B = 4$.
-  - Variante C: $N_{total} = N_{new} + K_C = 4$.
+  - Variante A: $N_{total} = N_{new} = 2$ atualizações físicas de gradiente.
+  - Variante B: $N_{total} = N_{new} + K_B = 4$ atualizações físicas de gradiente.
+  - Variante C: $N_{total} = N_{new} + K_C = 4$ atualizações físicas de gradiente.
+- **Rastreabilidade e Auditoria Física em Tempo Real:** Um `step_observer` acoplado ao `train_multitask_examples` inspeciona cada passo físico de treinamento e categoriza a fonte (`new` vs `replay`). O executor valida por meio de asserções estritas que os contadores físicos reais coincidem exatamente com o `ReplayAccounting`:
+  $$\text{actual\_new} \equiv N_{new}, \quad \text{actual\_replay} \equiv K_{replay}, \quad \text{actual\_total} \equiv N_{total}$$
 - **Check de Conformidade:** Se $N_{total}(B) \ne N_{total}(C)$ ou $K_B \ne K_C$, o protocolo invalida a comparação com o status `INVALID_UNFAIR_BUDGET`.
 
 ---
@@ -81,10 +103,11 @@ Para assegurar uma comparação justa e isenta de viés de capacidade computacio
   - Média ($\mu$).
   - Desvio padrão ($\sigma$).
   - Mínimo ($\min$) e Máximo ($\max$).
+- **Natureza Exploratória:** As 3 repetições do piloto têm propósito estritamente metodológico e de calibração; conclusões definitivas sobre superioridade empírica requerem replicação ampliada ($N \ge 10$ seeds).
 
 ---
 
-## 7. Métricas Primárias e Fórmulas
+## 7. Métricas Primárias, Fórmulas e Projeção de Recursos
 
 Todas as métricas são limitadas, finitas e puramente CPU:
 1. **Taxa de Retenção ($R \in [0.0, 1.0]$):**
@@ -97,9 +120,13 @@ Todas as métricas são limitadas, finitas e puramente CPU:
    $$\Delta_{rec} = C_{old, post} - C_{old, pre}$$
 5. **Trade-off Estabilidade-Plasticidade ($T \in [0.0, 1.0]$):**
    $$T = \begin{cases} \frac{2 \cdot R \cdot P}{R + P}, & \text{se } R > 0 \text{ e } P > 0 \\ 0.0, & \text{caso contrário} \end{cases}$$
-6. **Métricas de Custo:**
+6. **Métricas de Recursos e Memória:**
    - Tempo de CPU em segundos (`cpu_time_seconds`) medido via `time.perf_counter()`.
-   - Pico de RAM alocada em bytes (`peak_ram_bytes`) e megabytes (`peak_ram_mb`) medido via `tracemalloc`.
+   - Pico de Heap Python em bytes (`peak_ram_bytes` / `peak_ram_mb`) medido via `tracemalloc`.
+   - Pico de Resident Set Size (RSS real do processo no SO) em bytes (`peak_rss_bytes` / `peak_rss_mb`) medido via `resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024` no Linux.
+7. **Fórmula de Projeção de Escala:**
+   $$\text{Scale Factor} = \left(\frac{N_{\text{seeds, target}}}{N_{\text{seeds, pilot}}}\right) \times \left(\frac{V_{\text{words, target}}}{V_{\text{words, pilot}}}\right) \times \left(\frac{E_{\text{epochs, target}}}{E_{\text{epochs, pilot}}}\right)$$
+   $$\text{Projected Hours} = \frac{\text{Pilot CPU Seconds} \times \text{Scale Factor}}{3600}$$
 
 ---
 
