@@ -40,7 +40,7 @@ Para superar a limitação das micro-fixtures anteriores (onde o esquecimento er
 
 ---
 
-## 4. Partição Quadripartite de Dados e Prevenção Rigorosa de Vazamento (No Data Leakage)
+## 4. Partição Quadripartite de Dados, Matriz de Transições e Prevenção Rigorosa de Vazamento
 
 Para garantir validade científica, eliminar artefatos de avaliação holdout e cumprir as exigências metodológicas das Issues #34 e #42, as experiências linguísticas são particionadas em conjuntos estritamente disjuntos tanto em nível lexical quanto em identificadores estruturais (`ExampleRef` com dataset artifact ID e split únicos):
 
@@ -57,9 +57,8 @@ Para garantir validade científica, eliminar artefatos de avaliação holdout e 
 3. **Sondas Holdout de Avaliação Final ($P_{old, holdout}$, split `holdout_test`):**
    - Palavras: `maleta`, `pateta`, `sapato`, `foguete`
    - Identificador: `dataset:pilot-old-holdout`
-   - Exemplos out-of-sample estritamente isolados.
+   - Exemplos out-of-sample estritamente isolados da memória e do pipeline de treinamento.
    - **NUNCA** observados durante o treino, **NUNCA** admitidos na memória e **NUNCA** utilizados pela Variante C para estimar esquecimento ou ordenar candidatos.
-   - Como compartilham a transição fonético-ortográfica inicial com os itens antigos, o modelo adquire competência de referência real ($C_{ref} > 0.0$) após o treino antigo. Sob interferência, essa competência degrada e, com o replay adequado, recupera-se. Isso elimina definitivamente o artefato de saturação artificial ($0.0/0.0 \to 1.0$).
 4. **Treinamento Novo ($D_{new, train}$, split `train`):**
    - Palavras por condição:
      - Baixa: `zero`, `luxo`
@@ -73,7 +72,58 @@ Para garantir validade científica, eliminar artefatos de avaliação holdout e 
      - Média: `meta`, `data`
      - Alta: `meta`, `pote`
    - Identificador: `dataset:pilot-new-holdout-{level}`
-   - Utilizadas para avaliar a generalização genuína da competência recém-adquirida sem contaminação.
+   - Utilizadas para avaliar a fixação da nova associação sem contaminação.
+
+### 4.1 Matriz Completa de Transições Autoregressivas
+
+A tabela a seguir documenta explicitamente cada transição gerada para `ex[1]` (`['<START>', onset] -> vowel`), identificando sobreposições intencionais e distinções de contexto:
+
+| Partição | Palavras | Transição (`ex[1]`) | Contexto Autoregressivo | Alvo | Semântica e Natureza da Sobreposição |
+|---|---|---|---|---|---|
+| **$D_{old, train}$** | `mala`<br>`pato`<br>`sapo`<br>`fogo` | `ma`<br>`pa`<br>`sa`<br>`fo` | `['<START>', 'm']`<br>`['<START>', 'p']`<br>`['<START>', 's']`<br>`['<START>', 'f']` | `'a'`<br>`'a'`<br>`'a'`<br>`'o'` | **Treino Base Antigo:** Estabelece a competência de referência ($C_{ref} = 1.0$). Exemplos admitidos na `LearningMemory`. |
+| **$P_{old, internal}$** | `malas`<br>`patos`<br>`sapos`<br>`fogos` | `ma`<br>`pa`<br>`sa`<br>`fo` | `['<START>', 'm']`<br>`['<START>', 'p']`<br>`['<START>', 's']`<br>`['<START>', 'f']` | `'a'`<br>`'a'`<br>`'a'`<br>`'o'` | **Sobreposição Intencional de Transição:** Compartilha a transição com $D_{old, train}$ para monitorar o estado interno de esquecimento (`forgetting_score`) sem avaliar os mesmos registros de treino. |
+| **$P_{old, holdout}$** | `maleta`<br>`pateta`<br>`sapato`<br>`foguete` | `ma`<br>`pa`<br>`sa`<br>`fo` | `['<START>', 'm']`<br>`['<START>', 'p']`<br>`['<START>', 's']`<br>`['<START>', 'f']` | `'a'`<br>`'a'`<br>`'a'`<br>`'o'` | **Sobreposição Intencional em Registros Isolados:** Compartilha a mesma transição para garantir $C_{ref} = 1.0$ finito. Isola a medição da **Propriedade A** (ver 4.2). |
+| **$D_{new, train}$ (`low`)** | `zero`<br>`luxo` | `ze`<br>`lu` | `['<START>', 'z']`<br>`['<START>', 'l']` | `'e'`<br>`'u'` | **Ortogonal:** Contextos e alvos totalmente disjuntos das tarefas antigas. Mínima interferência. |
+| **$P_{new, holdout}$ (`low`)** | `zebra`<br>`luva` | `ze`<br>`lu` | `['<START>', 'z']`<br>`['<START>', 'l']` | `'e'`<br>`'u'` | **Sobreposição Intencional:** Sonda holdout da tarefa nova em vocábulos isolados. |
+| **$D_{new, train}$ (`medium`)** | `medo`<br>`dado` | `me`<br>`da` | `['<START>', 'm']`<br>`['<START>', 'd']` | `'e'`<br>`'a'` | **Colisão Parcial:** `medo` colide no contexto `['<START>', 'm']` com `mala` (alvo `'e'` vs `'a'`). `dado` é ortogonal. |
+| **$P_{new, holdout}$ (`medium`)** | `meta`<br>`data` | `me`<br>`da` | `['<START>', 'm']`<br>`['<START>', 'd']` | `'e'`<br>`'a'` | **Sobreposição Intencional:** Sonda holdout da tarefa nova em vocábulos isolados. |
+| **$D_{new, train}$ (`high`)** | `medo`<br>`povo` | `me`<br>`po` | `['<START>', 'm']`<br>`['<START>', 'p']` | `'e'`<br>`'o'` | **Colisão Direta Máxima:** Colide diretamente em `['<START>', 'm']` (vs `'a'`) e `['<START>', 'p']` (vs `'a'`). Provoca esquecimento catastrófico seletivo nos 2 itens colidentes. |
+| **$P_{new, holdout}$ (`high`)** | `meta`<br>`pote` | `me`<br>`po` | `['<START>', 'm']`<br>`['<START>', 'p']` | `'e'`<br>`'o'` | **Sobreposição Intencional:** Sonda holdout da tarefa nova em vocábulos isolados. |
+
+### 4.2 Distinção Metodológica Formal: Retenção vs. Generalização
+
+É crucial distinguir com rigor científico o que este piloto avalia:
+
+- **Propriedade A — Retenção de Associações Compartilhadas em Registros Isolados (Shared Transition Retention):**
+  - **O que mede:** Avalia se uma associação fonético-ortográfica aprendida em um vocábulo de treino ($D_{old, train}$) é retida pelo modelo em registros lexicais mantidos estritamente fora do treino e fora da memória ($P_{old, holdout}$).
+  - **Status no protocolo:** É **exatamente isso** que a métrica `holdout_retention_ratio` mede. Demonstra que o replay direcionado recupera a representação subjacente sem necessitar memorizar todos os tokens da língua.
+- **Propriedade B — Generalização para Transições Inéditas (Unseen Transition Generalization):**
+  - **O que mede:** Capacidade de prever transições de contexto para as quais o modelo nunca recebeu gradiente em nenhum exemplo.
+  - **Status no protocolo:** **NÃO é avaliada**. Em um modelo tabula rasa treinado do zero sem pré-treino linguístico massivo, a competência em transições inéditas é nula ($C_{ref} = 0.0$), o que produziria indefinição ($0.0/0.0$) ou saturação artificial.
+- **Propriedade C — Generalização Lexical Completa para Palavras Não Vistas (Full Lexical Generalization):**
+  - **O que mede:** Reconhecimento, representação e geração integral de palavras desconhecidas além do prefixo de ataque.
+  - **Status no protocolo:** **NÃO é avaliada**, pois o piloto foca na transição crítica de ataque (`ex[1]`), e não na sequência de todos os grafemas da palavra.
+
+### 4.3 Rastreabilidade Estruturada via `TaskFamilySpec` e `NewTaskSpec`
+
+Para eliminar a fragilidade de emparelhamento por listas paralelas posicionais, o protocolo formaliza contêineres tipados explícitos:
+- `TaskFamilySpec(family_id, shared_prefix, train_word, internal_probe_word, holdout_probe_word)`
+- `NewTaskSpec(task_id, shared_prefix, train_word, holdout_word)`
+- Nomes dos grupos de sondas amarrados de forma estrita às palavras reais sob avaliação:
+  - Sonda interna: `probe-int-{internal_probe_word}` (ex.: `probe-int-malas`)
+  - Sonda holdout: `probe-hold-{holdout_probe_word}` (ex.: `probe-hold-maleta`)
+  - Sonda nova: `probe-new-{level}-{train_word}` (ex.: `probe-new-high-medo`)
+  - Sonda holdout nova: `probe-new-hold-{level}-{holdout_word}` (ex.: `probe-new-hold-high-meta`)
+
+### 4.4 Auditoria do Seletor C e Desempates Determinísticos
+
+O algoritmo de seleção da Variante C (`select_directed_replay`):
+1. **Cálculo de `forgetting_score`:** Derivado estritamente das sondas internas de controle ($P_{old, internal}$):
+   $$\text{forgetting\_score} = \max(0.0, C_{ref} - C_{pre})$$
+2. **Priorização:** Ordena candidatos em ordem estritamente decrescente de `forgetting_score`.
+3. **Desempate Determinístico:** Em caso de empate em score (ex.: múltiplos itens com esquecimento máximo $1.0$ ou nulo $0.0$), o desempate é feito pela ordem original de admissão no pool (FIFO, determinístico, sem amostragem aleatória).
+4. **Isolamento Causal Estrito:** O seletor C recebe apenas `candidates` e `budget`. Ele possui zero dependência e zero acesso aos resultados da avaliação holdout final ($P_{old, holdout}$).
+5. **Paridade de Orçamento:** O número de itens selecionados $K_{replay}$ e o número de atualizações físicas de gradiente ($E_{replay} = 1$) são rigorosamente idênticos entre B e C.
 
 ---
 
@@ -124,17 +174,19 @@ Todas as métricas são limitadas, finitas e puramente CPU:
    - Tempo de CPU em segundos (`cpu_time_seconds`) medido via `time.perf_counter()`.
    - Pico de Heap Python em bytes (`peak_ram_bytes` / `peak_ram_mb`) medido via `tracemalloc`.
    - Pico de Resident Set Size (RSS real do processo no SO) em bytes (`peak_rss_bytes` / `peak_rss_mb`) medido via `resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024` no Linux.
-7. **Fórmula de Projeção de Escala:**
+7. **Fórmula de Projeção Paramétrica de Escala:**
    $$\text{Scale Factor} = \left(\frac{N_{\text{seeds, target}}}{N_{\text{seeds, pilot}}}\right) \times \left(\frac{V_{\text{words, target}}}{V_{\text{words, pilot}}}\right) \times \left(\frac{E_{\text{epochs, target}}}{E_{\text{epochs, pilot}}}\right)$$
-   $$\text{Projected Hours} = \frac{\text{Pilot CPU Seconds} \times \text{Scale Factor}}{3600}$$
+   $$\text{Projected Hours (Single Core)} = \frac{\text{Pilot CPU Seconds} \times \text{Scale Factor}}{3600}$$
+   $$\text{Estimated Parallel Time} = \frac{\text{Projected Hours}}{N_{\text{parallel cores}}} \times 60 \text{ minutos}$$
 
 ---
 
-## 8. Gates de Decisão: Piloto Local vs. Google Colab Pro
+## 8. Gates de Decisão e Recomendação de Execução Local
 
 O piloto experimental local serve como instrumento objetivo de decisão para o escalonamento da pesquisa:
-- **Gate 1 (Validação Técnica):** Se o protocolo executar com sucesso, sem vazamento, com paridade estrita de orçamento e produzir métricas determinísticas e reproduzíveis, o protocolo é considerado **TECNICAMENTE VÁLIDO**.
-- **Gate 2 (Custo e Projeção):**
-  - Se o piloto rodar na máquina local em tempo aceitável ($< 30$ segundos) e com consumo insignificante de RAM ($< 100$ MB), calcularemos a projeção para um experimento em grande escala (ex.: 10 seeds, vocabulário completo de milhares de palavras).
-  - Caso a projeção em grande escala caiba nos 28 vCPUs e 16 GB de RAM da máquina local em menos de 10-15 minutos, recomenda-se **Execução Local** para menor atrito e reprodutibilidade imediata.
-  - Caso a projeção demande aceleração massiva por GPU (CUDA) ou dezenas de horas em CPU, recomenda-se formalmente o chaveamento para o **Google Colab Pro** (utilizando o MCP `colab-mcp`).
+- **Gate 1 (Validação Técnica):** O protocolo executa com sucesso, sem vazamento de dados, com paridade estrita de orçamento físico de gradientes, isolamento causal de C e métricas determinísticas e reproduzíveis. O protocolo é considerado **TECNICAMENTE VÁLIDO**.
+- **Gate 2 (Custo, Projeção e Viabilidade Local):**
+  - O piloto executa na máquina local em ~18-20 segundos por seed sob alta interferência com consumo irrisório de memória (heap Python $< 0.1$ MB, RSS real $< 120$ MB).
+  - A projeção paramétrica extrapolada para um experimento ampliado (10 seeds, 500 palavras, 50 épocas) totaliza ~3.8 horas de tempo de CPU em core único.
+  - Como a execução por seed é embaraçosamente paralela (*embarrassingly parallel*), a distribuição em 8-10 cores na CPU local (28 vCPUs disponíveis) conclui a execução em **~20 a 30 minutos**.
+  - **Recomendação Objetiva:** **Execução Local em Multi-Core CPU (`local_cpu`)**. Não há necessidade nem justificativa técnica medida para migração para Google Colab Pro ou GPUs pagas nesta etapa, pois o overhead de kernel de GPU para modelos autoregressivos compactos não foi benchmarkado e os recursos locais atendem plenamente ao estudo.
