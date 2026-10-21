@@ -2,7 +2,7 @@
   "schema_version": 1,
   "phase": "42-expanded-pilot",
   "baseline_commit": "5dba2ccd6fadd3c2406223e3ec28657cc1fb9138",
-  "runner_commit": "b5c3256cd949c56f16f409ed1d0928ee900bc2b2",
+  "runner_commit": "3d329381f4b37a33791c637443b94ae902b929be",
   "protocol_validated": true,
   "leakage_prevented": true,
   "conditions_evaluated": [
@@ -104,9 +104,9 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 16.786697927665955,
-      "peak_ram_bytes": 418535,
-      "peak_rss_bytes": 34746368
+      "mean_cpu_time_seconds": 17.40371355700093,
+      "peak_ram_bytes": 418635,
+      "peak_rss_bytes": 34476032
     },
     "medium": {
       "level": "medium",
@@ -196,9 +196,9 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 19.000560859666923,
+      "mean_cpu_time_seconds": 18.73673079533425,
       "peak_ram_bytes": 178296,
-      "peak_rss_bytes": 34746368
+      "peak_rss_bytes": 34476032
     },
     "high": {
       "level": "high",
@@ -288,9 +288,9 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 20.52947428166711,
+      "mean_cpu_time_seconds": 18.903075253000377,
       "peak_ram_bytes": 177808,
-      "peak_rss_bytes": 34746368
+      "peak_rss_bytes": 34476032
     }
   },
   "seed_results": [
@@ -730,9 +730,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 16.973747542000638,
-      "peak_ram_bytes": 418535,
-      "peak_rss_bytes": 34746368
+      "cpu_time_seconds": 17.494997263002006,
+      "peak_ram_bytes": 418635,
+      "peak_rss_bytes": 34476032
     },
     {
       "level": "low",
@@ -1170,9 +1170,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 16.516749297999922,
+      "cpu_time_seconds": 17.360011310000118,
       "peak_ram_bytes": 226936,
-      "peak_rss_bytes": 34746368
+      "peak_rss_bytes": 34476032
     },
     {
       "level": "low",
@@ -1610,9 +1610,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 16.869596942997305,
+      "cpu_time_seconds": 17.35613209800067,
       "peak_ram_bytes": 191400,
-      "peak_rss_bytes": 34746368
+      "peak_rss_bytes": 34476032
     },
     {
       "level": "medium",
@@ -2050,9 +2050,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 19.025131296002655,
+      "cpu_time_seconds": 19.448310029001732,
       "peak_ram_bytes": 178296,
-      "peak_rss_bytes": 34746368
+      "peak_rss_bytes": 34476032
     },
     {
       "level": "medium",
@@ -2490,9 +2490,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 18.979560919000505,
+      "cpu_time_seconds": 18.905965969002864,
       "peak_ram_bytes": 177984,
-      "peak_rss_bytes": 34746368
+      "peak_rss_bytes": 34476032
     },
     {
       "level": "medium",
@@ -2930,9 +2930,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 18.99699036399761,
+      "cpu_time_seconds": 17.85591638799815,
       "peak_ram_bytes": 177728,
-      "peak_rss_bytes": 34746368
+      "peak_rss_bytes": 34476032
     },
     {
       "level": "high",
@@ -3370,9 +3370,9 @@
         "B": 0.25,
         "C": 1.0
       },
-      "cpu_time_seconds": 20.64598564500193,
+      "cpu_time_seconds": 18.887514293001004,
       "peak_ram_bytes": 177808,
-      "peak_rss_bytes": 34746368
+      "peak_rss_bytes": 34476032
     },
     {
       "level": "high",
@@ -3810,9 +3810,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 20.460101062999456,
+      "cpu_time_seconds": 18.916555569001503,
       "peak_ram_bytes": 177752,
-      "peak_rss_bytes": 34746368
+      "peak_rss_bytes": 34476032
     },
     {
       "level": "high",
@@ -4250,27 +4250,28 @@
         "B": 0.25,
         "C": 1.0
       },
-      "cpu_time_seconds": 20.482336136999947,
+      "cpu_time_seconds": 18.90515589699862,
       "peak_ram_bytes": 177632,
-      "peak_rss_bytes": 34746368
+      "peak_rss_bytes": 34476032
     }
   ],
   "cost_profile": {
-    "total_cpu_time_seconds": 168.96225858300022,
-    "peak_ram_bytes": 418535,
-    "peak_ram_mb": 0.39914608001708984,
-    "peak_rss_bytes": 34746368,
-    "peak_rss_mb": 33.13671875,
-    "projected_scaled_hours_cpu": 18.107237931134282,
+    "total_cpu_time_seconds": 165.14116973699856,
+    "peak_ram_bytes": 418635,
+    "peak_ram_mb": 0.39924144744873047,
+    "peak_rss_bytes": 34476032,
+    "peak_rss_mb": 32.87890625,
+    "projected_scaled_hours_cpu": 17.69774195569686,
     "scaling_recommendation": "local_cpu",
-    "recommendation_rationale": "Parametric projection for full-scale experiment (10 seeds, 500 words, 50 epochs): 18.11 single-thread CPU core-hours (scaling factor 385.8x from 169.0s pilot). Peak process RSS measured 33.1 MB (Python heap 0.40 MB). Execution is fully viable on the local machine using multi-core parallelization (estimated ~135.8 min across 8 cores). Cloud or GPU resources are not required or recommended at this stage because GPU speedup has not been benchmarked for small-batch autoregressive transitions and local resources are sufficient."
+    "recommendation_rationale": "Parametric projection for full-scale experiment (10 seeds, 500 words, 50 epochs): 17.70 single-thread CPU core-hours (scaling factor 385.8x from 165.1s pilot). Peak process RSS measured 32.9 MB (Python heap 0.40 MB). Execution is fully viable on the local machine using multi-core parallelization (estimated ~132.7 min across 8 cores). Cloud or GPU resources are not required or recommended at this stage because GPU speedup has not been benchmarked for small-batch autoregressive transitions and local resources are sufficient."
   },
   "conclusions": {
     "protocol_validated": true,
     "fairness_confirmed_all_seeds": true,
     "leakage_prevented": true,
     "high_interference_mean_recovery_advantage": 0.3333333333333333,
+    "high_interference_mean_retention_advantage": 0.5,
     "high_interference_superiority_fraction": 0.0,
-    "summary_claim": "Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (3 seeds) are strictly confirmed. Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive mean recovery advantage over uniform random replay (B) (+0.3333) and superior holdout retention. Under low and medium interference, recovery advantage is zero because baseline forgetting is absent (all candidate forgetting scores are 0.0), causing C to select candidates via deterministic FIFO tie-breaking. Under high interference, candidate scores are differentiated (three candidates with score 1.0 vs one candidate with score 0.0); C actively discriminates and excludes the unforgotten candidate, whereas random replay (B) wastes 50% of its budget on the unforgotten item in 2 of 3 seeds (seeds 42 and 44). Between forgotten candidates with identical score 1.0, C selects via FIFO. Regarding plasticity, initial acquisition delta (c_vs_b_plasticity_delta) is 0.0 across all conditions (both variants acquire the new task equally prior to replay), but during replay C experiences retroactive competence loss on the new task (-0.50) due to back-interference from replaying old onset weights, explaining why strict empirical superiority across seeds was 0.0%. The holdout evaluation measures Property A (retention of shared phonetic-orthographic transitions across isolated lexical records) rather than full lexical generalization to unseen words (Property C) or unseen transitions (Property B). Because this pilot evaluated 3 exploratory seeds on synthetic micro-fixtures, these results provide methodological validation of the protocol rather than definitive proof of general superiority across all linguistic contexts. The protocol is verified, reproducible, and ready for scaled execution on local CPU."
+    "summary_claim": "Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (3 seeds) are strictly confirmed. Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive mean recovery advantage over uniform random replay (B) (+0.3333) and a mean retention ratio advantage (+0.5000, with holdout retention 1.00 vs 0.50). Note on metric semantics: recovery advantage (+0.3333) measures marginal competence gain during replay relative to post-interference state (mean_recovery_delta C 0.50 vs B 0.1667), whereas retention ratio advantage (+0.5000) measures total competence preserved relative to pre-interference baseline reference (mean_retention_ratio C 1.00 vs B 0.50). Under low and medium interference, recovery advantage is zero because baseline forgetting is absent (all candidate forgetting scores are 0.0), causing C to select candidates via deterministic FIFO tie-breaking. Under high interference, candidate scores are differentiated (three candidates with score 1.0 vs one candidate with score 0.0); C actively discriminates and excludes the unforgotten candidate, whereas random replay (B) wastes 50% of its budget on the unforgotten item in 2 of 3 seeds (seeds 42 and 44). Between forgotten candidates with identical score 1.0, C selects via FIFO. Regarding plasticity, initial acquisition delta (c_vs_b_plasticity_delta) is 0.0 across all conditions (both variants acquire the new task equally prior to replay), but during replay C experiences retroactive competence loss on the new task (-0.50) due to back-interference from replaying old onset weights, explaining why strict empirical superiority across seeds was 0.0%. The holdout evaluation measures Property A (retention of shared phonetic-orthographic transitions across isolated lexical records) rather than full lexical generalization to unseen words (Property C) or unseen transitions (Property B). Because this pilot evaluated 3 exploratory seeds on synthetic micro-fixtures, these results provide methodological validation of the protocol rather than definitive proof of general superiority across all linguistic contexts. The protocol is verified, reproducible, and ready for scaled execution on local CPU."
   }
 }
