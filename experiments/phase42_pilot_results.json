@@ -2,7 +2,7 @@
   "schema_version": 1,
   "phase": "42-expanded-pilot",
   "baseline_commit": "5dba2cc3843510e14db8b8cb1e309cb9f323c280",
-  "runner_commit": "71ea4ce47e5381d8a94a13213460e208bc9c7780",
+  "runner_commit": "deaa3b68c551688e82cbb71b6c5358a55a296c1b",
   "protocol_validated": true,
   "leakage_prevented": true,
   "conditions_evaluated": [
@@ -84,8 +84,9 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 13.938164095333681,
-      "peak_ram_bytes": 395745
+      "mean_cpu_time_seconds": 16.257326369666163,
+      "peak_ram_bytes": 418624,
+      "peak_rss_bytes": 34631680
     },
     "medium": {
       "level": "medium",
@@ -155,8 +156,9 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 15.53061104699979,
-      "peak_ram_bytes": 146912
+      "mean_cpu_time_seconds": 18.461906645666506,
+      "peak_ram_bytes": 177648,
+      "peak_rss_bytes": 34631680
     },
     "high": {
       "level": "high",
@@ -173,10 +175,10 @@
         "max": 0.5
       },
       "c_vs_b_tradeoff_advantage": {
-        "mean": 0.0,
-        "std": 0.0,
+        "mean": 0.2222222222222222,
+        "std": 0.15713484026367722,
         "min": 0.0,
-        "max": 0.0
+        "max": 0.3333333333333333
       },
       "c_vs_b_plasticity_delta": {
         "mean": 0.0,
@@ -206,15 +208,15 @@
       },
       "holdout_retention_ratio": {
         "A": {
-          "mean": 1.0,
+          "mean": 0.25,
           "std": 0.0,
-          "min": 1.0,
-          "max": 1.0
+          "min": 0.25,
+          "max": 0.25
         },
         "B": {
-          "mean": 1.0,
-          "std": 0.0,
-          "min": 1.0,
+          "mean": 0.5,
+          "std": 0.3535533905932738,
+          "min": 0.25,
           "max": 1.0
         },
         "C": {
@@ -225,9 +227,10 @@
         }
       },
       "fairness_confirmed_all_seeds": true,
-      "superiority_fraction": 0.6666666666666666,
-      "mean_cpu_time_seconds": 16.939251011666784,
-      "peak_ram_bytes": 146448
+      "superiority_fraction": 0.0,
+      "mean_cpu_time_seconds": 20.70779778533324,
+      "peak_ram_bytes": 177160,
+      "peak_rss_bytes": 34631680
     }
   },
   "seed_results": [
@@ -301,8 +304,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -314,8 +317,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -327,8 +330,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -340,8 +343,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -420,8 +423,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -433,8 +436,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -446,8 +449,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -459,8 +462,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -474,8 +477,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -487,8 +490,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -566,8 +569,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -579,8 +582,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -592,8 +595,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -605,8 +608,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -620,8 +623,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -633,8 +636,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -667,8 +670,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 13.95481314799872,
-      "peak_ram_bytes": 395745
+      "cpu_time_seconds": 16.374372686001152,
+      "peak_ram_bytes": 418624,
+      "peak_rss_bytes": 34631680
     },
     {
       "level": "low",
@@ -740,8 +744,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -753,8 +757,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -766,8 +770,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -779,8 +783,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -859,8 +863,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -872,8 +876,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -885,8 +889,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -898,8 +902,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -913,8 +917,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -926,8 +930,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -1005,8 +1009,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -1018,8 +1022,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -1031,8 +1035,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -1044,8 +1048,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -1059,8 +1063,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -1072,8 +1076,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -1106,8 +1110,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 13.97483112700138,
-      "peak_ram_bytes": 192064
+      "cpu_time_seconds": 16.196941409998544,
+      "peak_ram_bytes": 226288,
+      "peak_rss_bytes": 34631680
     },
     {
       "level": "low",
@@ -1179,8 +1184,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -1192,8 +1197,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -1205,8 +1210,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -1218,8 +1223,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -1298,8 +1303,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -1311,8 +1316,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -1324,8 +1329,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -1337,8 +1342,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -1352,8 +1357,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -1365,8 +1370,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -1444,8 +1449,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -1457,8 +1462,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -1470,8 +1475,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -1483,8 +1488,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -1498,8 +1503,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -1511,8 +1516,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -1545,8 +1550,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 13.88484801100094,
-      "peak_ram_bytes": 154696
+      "cpu_time_seconds": 16.200665012998797,
+      "peak_ram_bytes": 190976,
+      "peak_rss_bytes": 34631680
     },
     {
       "level": "medium",
@@ -1597,10 +1603,10 @@
             0.0,
             0.0
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 0.0,
           "new_competence_delta_during_replay": 0.0,
@@ -1618,8 +1624,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -1631,8 +1637,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -1644,8 +1650,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -1657,8 +1663,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -1716,10 +1722,10 @@
             0.0,
             0.0
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 0.0,
           "new_competence_delta_during_replay": 0.0,
@@ -1737,8 +1743,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -1750,8 +1756,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -1763,8 +1769,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -1776,8 +1782,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -1791,8 +1797,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -1804,8 +1810,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -1862,10 +1868,10 @@
             0.0,
             0.0
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 0.0,
           "new_competence_delta_during_replay": 0.0,
@@ -1883,8 +1889,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -1896,8 +1902,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -1909,8 +1915,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -1922,8 +1928,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -1937,8 +1943,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -1950,8 +1956,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -1984,8 +1990,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 15.378311053998914,
-      "peak_ram_bytes": 146912
+      "cpu_time_seconds": 18.193098658000963,
+      "peak_ram_bytes": 177648,
+      "peak_rss_bytes": 34631680
     },
     {
       "level": "medium",
@@ -2036,10 +2043,10 @@
             0.0,
             0.0
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 0.0,
           "new_competence_delta_during_replay": 0.0,
@@ -2057,8 +2064,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -2070,8 +2077,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -2083,8 +2090,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -2096,8 +2103,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -2155,10 +2162,10 @@
             0.0,
             0.0
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 0.0,
           "new_competence_delta_during_replay": 0.0,
@@ -2176,8 +2183,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -2189,8 +2196,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -2202,8 +2209,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -2215,8 +2222,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -2230,8 +2237,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -2243,8 +2250,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -2301,10 +2308,10 @@
             0.0,
             0.0
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 0.0,
           "new_competence_delta_during_replay": 0.0,
@@ -2322,8 +2329,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -2335,8 +2342,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -2348,8 +2355,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -2361,8 +2368,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -2376,8 +2383,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -2389,8 +2396,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -2423,8 +2430,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 15.49890854700061,
-      "peak_ram_bytes": 146600
+      "cpu_time_seconds": 18.732394775997818,
+      "peak_ram_bytes": 177336,
+      "peak_rss_bytes": 34631680
     },
     {
       "level": "medium",
@@ -2475,10 +2483,10 @@
             0.0,
             0.0
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 0.0,
           "new_competence_delta_during_replay": 0.0,
@@ -2496,8 +2504,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -2509,8 +2517,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -2522,8 +2530,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -2535,8 +2543,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -2594,10 +2602,10 @@
             0.0,
             0.0
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 0.0,
           "new_competence_delta_during_replay": 0.0,
@@ -2615,8 +2623,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -2628,8 +2636,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -2641,8 +2649,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -2654,8 +2662,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -2669,8 +2677,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -2682,8 +2690,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -2740,10 +2748,10 @@
             0.0,
             0.0
           ],
-          "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 0.0,
           "new_competence_delta_during_replay": 0.0,
@@ -2761,8 +2769,8 @@
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -2774,8 +2782,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -2787,8 +2795,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -2800,8 +2808,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -2815,8 +2823,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -2828,8 +2836,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -2862,8 +2870,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 15.714613539999846,
-      "peak_ram_bytes": 146344
+      "cpu_time_seconds": 18.46022650300074,
+      "peak_ram_bytes": 177080,
+      "peak_rss_bytes": 34631680
     },
     {
       "level": "high",
@@ -2915,11 +2924,11 @@
             1.0
           ],
           "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
-          "plasticity_acquisition": 0.0,
+          "plasticity_acquisition": 0.5,
           "new_competence_delta_during_replay": 0.0,
           "accounting": {
             "new_updates": 2,
@@ -2931,12 +2940,12 @@
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": null,
           "mean_retention_ratio": 0.25,
-          "stability_plasticity_tradeoff": 0.0,
+          "stability_plasticity_tradeoff": 0.3333333333333333,
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -2948,8 +2957,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -2961,8 +2970,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -2974,8 +2983,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -3034,11 +3043,11 @@
             1.0
           ],
           "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
-          "plasticity_acquisition": 0.0,
+          "plasticity_acquisition": 0.5,
           "new_competence_delta_during_replay": 0.0,
           "accounting": {
             "new_updates": 2,
@@ -3050,12 +3059,12 @@
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": 0.0,
           "mean_retention_ratio": 0.25,
-          "stability_plasticity_tradeoff": 0.0,
+          "stability_plasticity_tradeoff": 0.3333333333333333,
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -3067,8 +3076,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -3080,8 +3089,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -3093,8 +3102,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -3108,8 +3117,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -3121,8 +3130,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -3180,12 +3189,12 @@
             0.0
           ],
           "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
+          "new_competence_acquired": 0.5,
           "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
-          "new_competence_delta": 0.0,
-          "plasticity_acquisition": 0.0,
-          "new_competence_delta_during_replay": 0.0,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": -0.5,
+          "plasticity_acquisition": 0.5,
+          "new_competence_delta_during_replay": -0.5,
           "accounting": {
             "new_updates": 2,
             "replay_updates": 2,
@@ -3196,12 +3205,12 @@
           "mean_net_stability_delta": 0.0,
           "mean_replay_utility": 0.25,
           "mean_retention_ratio": 1.0,
-          "stability_plasticity_tradeoff": 0.0,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -3213,8 +3222,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -3226,8 +3235,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -3239,8 +3248,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -3254,8 +3263,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -3267,8 +3276,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -3286,23 +3295,24 @@
         "c_vs_a_recovery_advantage": 0.5,
         "c_vs_b_utility_advantage": 0.25,
         "c_vs_b_plasticity_delta": 0.0,
-        "c_vs_b_tradeoff_advantage": 0.0,
+        "c_vs_b_tradeoff_advantage": 0.3333333333333333,
         "b_vs_a_update_overhead": 1.0,
         "c_vs_a_update_overhead": 1.0,
         "b_vs_a_compute_overhead": 1.0,
         "c_vs_a_compute_overhead": 1.0,
         "is_fairly_matched_budget": true,
-        "is_directed_superior": true,
+        "is_directed_superior": false,
         "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
-        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated conditions, directed replay (C) demonstrates empirical superiority over uniform random replay (B) with positive recovery advantage while maintaining non-inferior plasticity and replay retention."
+        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
       },
       "holdout_retention_ratio": {
-        "A": 1.0,
-        "B": 1.0,
+        "A": 0.25,
+        "B": 0.25,
         "C": 1.0
       },
-      "cpu_time_seconds": 17.074404094000784,
-      "peak_ram_bytes": 146448
+      "cpu_time_seconds": 20.71817936699881,
+      "peak_ram_bytes": 177160,
+      "peak_rss_bytes": 34631680
     },
     {
       "level": "high",
@@ -3354,11 +3364,11 @@
             1.0
           ],
           "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
-          "plasticity_acquisition": 0.0,
+          "plasticity_acquisition": 0.5,
           "new_competence_delta_during_replay": 0.0,
           "accounting": {
             "new_updates": 2,
@@ -3370,12 +3380,12 @@
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": null,
           "mean_retention_ratio": 0.25,
-          "stability_plasticity_tradeoff": 0.0,
+          "stability_plasticity_tradeoff": 0.3333333333333333,
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -3387,8 +3397,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -3400,8 +3410,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -3413,8 +3423,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -3473,12 +3483,12 @@
             0.0
           ],
           "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
+          "new_competence_acquired": 0.5,
           "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
-          "new_competence_delta": 0.0,
-          "plasticity_acquisition": 0.0,
-          "new_competence_delta_during_replay": 0.0,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": -0.5,
+          "plasticity_acquisition": 0.5,
+          "new_competence_delta_during_replay": -0.5,
           "accounting": {
             "new_updates": 2,
             "replay_updates": 2,
@@ -3489,12 +3499,12 @@
           "mean_net_stability_delta": 0.0,
           "mean_replay_utility": 0.25,
           "mean_retention_ratio": 1.0,
-          "stability_plasticity_tradeoff": 0.0,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -3506,8 +3516,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -3519,8 +3529,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -3532,8 +3542,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -3547,8 +3557,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -3560,8 +3570,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -3619,12 +3629,12 @@
             0.0
           ],
           "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
+          "new_competence_acquired": 0.5,
           "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
-          "new_competence_delta": 0.0,
-          "plasticity_acquisition": 0.0,
-          "new_competence_delta_during_replay": 0.0,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": -0.5,
+          "plasticity_acquisition": 0.5,
+          "new_competence_delta_during_replay": -0.5,
           "accounting": {
             "new_updates": 2,
             "replay_updates": 2,
@@ -3635,12 +3645,12 @@
           "mean_net_stability_delta": 0.0,
           "mean_replay_utility": 0.25,
           "mean_retention_ratio": 1.0,
-          "stability_plasticity_tradeoff": 0.0,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -3652,8 +3662,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -3665,8 +3675,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -3678,8 +3688,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -3693,8 +3703,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -3706,8 +3716,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -3736,12 +3746,13 @@
         "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
       },
       "holdout_retention_ratio": {
-        "A": 1.0,
+        "A": 0.25,
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 16.79590297699906,
-      "peak_ram_bytes": 146320
+      "cpu_time_seconds": 20.78514276200076,
+      "peak_ram_bytes": 177104,
+      "peak_rss_bytes": 34631680
     },
     {
       "level": "high",
@@ -3793,11 +3804,11 @@
             1.0
           ],
           "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
-          "plasticity_acquisition": 0.0,
+          "plasticity_acquisition": 0.5,
           "new_competence_delta_during_replay": 0.0,
           "accounting": {
             "new_updates": 2,
@@ -3809,12 +3820,12 @@
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": null,
           "mean_retention_ratio": 0.25,
-          "stability_plasticity_tradeoff": 0.0,
+          "stability_plasticity_tradeoff": 0.3333333333333333,
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -3826,8 +3837,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -3839,8 +3850,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -3852,8 +3863,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -3912,11 +3923,11 @@
             1.0
           ],
           "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
-          "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
           "new_competence_delta": 0.0,
-          "plasticity_acquisition": 0.0,
+          "plasticity_acquisition": 0.5,
           "new_competence_delta_during_replay": 0.0,
           "accounting": {
             "new_updates": 2,
@@ -3928,12 +3939,12 @@
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": 0.0,
           "mean_retention_ratio": 0.25,
-          "stability_plasticity_tradeoff": 0.0,
+          "stability_plasticity_tradeoff": 0.3333333333333333,
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -3945,8 +3956,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -3958,8 +3969,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -3971,8 +3982,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -3986,8 +3997,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -3999,8 +4010,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -4058,12 +4069,12 @@
             0.0
           ],
           "new_competence_initial": 0.0,
-          "new_competence_acquired": 0.0,
+          "new_competence_acquired": 0.5,
           "new_competence_post": 0.0,
-          "new_competence_reference": 0.0,
-          "new_competence_delta": 0.0,
-          "plasticity_acquisition": 0.0,
-          "new_competence_delta_during_replay": 0.0,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": -0.5,
+          "plasticity_acquisition": 0.5,
+          "new_competence_delta_during_replay": -0.5,
           "accounting": {
             "new_updates": 2,
             "replay_updates": 2,
@@ -4074,12 +4085,12 @@
           "mean_net_stability_delta": 0.0,
           "mean_replay_utility": 0.25,
           "mean_retention_ratio": 1.0,
-          "stability_plasticity_tradeoff": 0.0,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -4091,8 +4102,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -4104,8 +4115,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 2
               },
               "group_ids": [
@@ -4117,8 +4128,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 3
               },
               "group_ids": [
@@ -4132,8 +4143,8 @@
           "selected_candidates": [
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 0
               },
               "group_ids": [
@@ -4145,8 +4156,8 @@
             },
             {
               "example_ref": {
-                "dataset_artifact_id": "fixture:pilot-old",
-                "split": "old-train",
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
                 "example_index": 1
               },
               "group_ids": [
@@ -4164,39 +4175,42 @@
         "c_vs_a_recovery_advantage": 0.5,
         "c_vs_b_utility_advantage": 0.25,
         "c_vs_b_plasticity_delta": 0.0,
-        "c_vs_b_tradeoff_advantage": 0.0,
+        "c_vs_b_tradeoff_advantage": 0.3333333333333333,
         "b_vs_a_update_overhead": 1.0,
         "c_vs_a_update_overhead": 1.0,
         "b_vs_a_compute_overhead": 1.0,
         "c_vs_a_compute_overhead": 1.0,
         "is_fairly_matched_budget": true,
-        "is_directed_superior": true,
+        "is_directed_superior": false,
         "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
-        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated conditions, directed replay (C) demonstrates empirical superiority over uniform random replay (B) with positive recovery advantage while maintaining non-inferior plasticity and replay retention."
+        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
       },
       "holdout_retention_ratio": {
-        "A": 1.0,
-        "B": 1.0,
+        "A": 0.25,
+        "B": 0.25,
         "C": 1.0
       },
-      "cpu_time_seconds": 16.947445964000508,
-      "peak_ram_bytes": 146272
+      "cpu_time_seconds": 20.620071227000153,
+      "peak_ram_bytes": 176984,
+      "peak_rss_bytes": 34631680
     }
   ],
   "cost_profile": {
-    "total_cpu_time_seconds": 139.22879009699864,
-    "peak_ram_bytes": 395745,
-    "peak_ram_mb": 0.3774118423461914,
-    "projected_scaled_hours_cpu": 26.85740549710622,
+    "total_cpu_time_seconds": 166.29199067800073,
+    "peak_ram_bytes": 418624,
+    "peak_ram_mb": 0.39923095703125,
+    "peak_rss_bytes": 34631680,
+    "peak_rss_mb": 33.02734375,
+    "projected_scaled_hours_cpu": 17.821072389189034,
     "scaling_recommendation": "google_colab_pro",
-    "recommendation_rationale": "The full-scale experiment is projected to take approximately 26.9 hours on a single CPU thread. A GPU-accelerated environment on Google Colab Pro (with T4/V100/A100) is recommended to achieve 10x-50x speedups and enable parallel seed execution without saturating workstation CPU cycles."
+    "recommendation_rationale": "The full-scale experiment (10 seeds, 500 words, 50 epochs) is projected to require 17.82 single-thread CPU core-hours (scaling factor 385.8x from 166.3s pilot). Peak process RSS measured 33.0 MB (heap 0.40 MB). Google Colab Pro (GPU acceleration) is recommended for larger natural corpora and rapid iterations, though parallel local multi-core execution (106.9 min across 10 cores) remains viable for moderate scale."
   },
   "conclusions": {
     "protocol_validated": true,
     "fairness_confirmed_all_seeds": true,
     "leakage_prevented": true,
     "high_interference_mean_recovery_advantage": 0.3333333333333333,
-    "high_interference_superiority_fraction": 0.6666666666666666,
-    "summary_claim": "Expanded controlled replay pilot successfully validated. Under high interference (prefix collision), directed replay (C) demonstrates positive mean recovery advantage over random replay (B) (+0.3333) and achieves superiority in 66.7% of evaluated seeds while strictly preserving budget parity. Under low and medium interference, recovery advantage is zero due to minimal baseline forgetting. The protocol is technically validated, reproducible, and ready for full-scale execution."
+    "high_interference_superiority_fraction": 0.0,
+    "summary_claim": "Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (3 seeds) are strictly confirmed. Under high interference (prefix collision), directed replay (C) demonstrates positive mean recovery advantage over uniform random replay (B) (+0.3333) and superior holdout retention. Under low and medium interference, recovery advantage is zero due to minimal baseline forgetting. Because this pilot evaluated 3 exploratory seeds on synthetic micro-fixtures, these results provide promising methodological validation rather than a definitive proof of general superiority across all contexts. The protocol is verified, reproducible, and ready for scaled execution."
   }
 }
