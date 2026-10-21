@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "phase": "42-expanded-pilot",
-  "baseline_commit": "5dba2cc3843510e14db8b8cb1e309cb9f323c280",
-  "runner_commit": "ddf9da542b4db871ac6f0946816c40c4bbd80099",
+  "baseline_commit": "5dba2ccd6fadd3c2406223e3ec28657cc1fb9138",
+  "runner_commit": "b5c3256cd949c56f16f409ed1d0928ee900bc2b2",
   "protocol_validated": true,
   "leakage_prevented": true,
   "conditions_evaluated": [
@@ -82,11 +82,31 @@
           "max": 1.0
         }
       },
+      "new_competence_delta_during_replay": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 16.878302843999943,
-      "peak_ram_bytes": 418779,
-      "peak_rss_bytes": 34852864
+      "mean_cpu_time_seconds": 16.786697927665955,
+      "peak_ram_bytes": 418535,
+      "peak_rss_bytes": 34746368
     },
     "medium": {
       "level": "medium",
@@ -154,11 +174,31 @@
           "max": 1.0
         }
       },
+      "new_competence_delta_during_replay": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 18.705292308667897,
+      "mean_cpu_time_seconds": 19.000560859666923,
       "peak_ram_bytes": 178296,
-      "peak_rss_bytes": 34852864
+      "peak_rss_bytes": 34746368
     },
     "high": {
       "level": "high",
@@ -226,11 +266,31 @@
           "max": 1.0
         }
       },
+      "new_competence_delta_during_replay": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": -0.16666666666666666,
+          "std": 0.23570226039551584,
+          "min": -0.5,
+          "max": 0.0
+        },
+        "C": {
+          "mean": -0.5,
+          "std": 0.0,
+          "min": -0.5,
+          "max": -0.5
+        }
+      },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 20.501066959665575,
+      "mean_cpu_time_seconds": 20.52947428166711,
       "peak_ram_bytes": 177808,
-      "peak_rss_bytes": 34852864
+      "peak_rss_bytes": 34746368
     }
   },
   "seed_results": [
@@ -670,9 +730,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 17.048625084000378,
-      "peak_ram_bytes": 418779,
-      "peak_rss_bytes": 34852864
+      "cpu_time_seconds": 16.973747542000638,
+      "peak_ram_bytes": 418535,
+      "peak_rss_bytes": 34746368
     },
     {
       "level": "low",
@@ -1110,9 +1170,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 16.80038788499951,
+      "cpu_time_seconds": 16.516749297999922,
       "peak_ram_bytes": 226936,
-      "peak_rss_bytes": 34852864
+      "peak_rss_bytes": 34746368
     },
     {
       "level": "low",
@@ -1550,9 +1610,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 16.78589556299994,
+      "cpu_time_seconds": 16.869596942997305,
       "peak_ram_bytes": 191400,
-      "peak_rss_bytes": 34852864
+      "peak_rss_bytes": 34746368
     },
     {
       "level": "medium",
@@ -1990,9 +2050,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 18.823272727000585,
+      "cpu_time_seconds": 19.025131296002655,
       "peak_ram_bytes": 178296,
-      "peak_rss_bytes": 34852864
+      "peak_rss_bytes": 34746368
     },
     {
       "level": "medium",
@@ -2430,9 +2490,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 18.639742070001375,
+      "cpu_time_seconds": 18.979560919000505,
       "peak_ram_bytes": 177984,
-      "peak_rss_bytes": 34852864
+      "peak_rss_bytes": 34746368
     },
     {
       "level": "medium",
@@ -2870,9 +2930,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 18.652862129001733,
+      "cpu_time_seconds": 18.99699036399761,
       "peak_ram_bytes": 177728,
-      "peak_rss_bytes": 34852864
+      "peak_rss_bytes": 34746368
     },
     {
       "level": "high",
@@ -3310,9 +3370,9 @@
         "B": 0.25,
         "C": 1.0
       },
-      "cpu_time_seconds": 20.314647005998268,
+      "cpu_time_seconds": 20.64598564500193,
       "peak_ram_bytes": 177808,
-      "peak_rss_bytes": 34852864
+      "peak_rss_bytes": 34746368
     },
     {
       "level": "high",
@@ -3750,9 +3810,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 20.30282025499764,
+      "cpu_time_seconds": 20.460101062999456,
       "peak_ram_bytes": 177752,
-      "peak_rss_bytes": 34852864
+      "peak_rss_bytes": 34746368
     },
     {
       "level": "high",
@@ -4190,20 +4250,20 @@
         "B": 0.25,
         "C": 1.0
       },
-      "cpu_time_seconds": 20.885733618000813,
+      "cpu_time_seconds": 20.482336136999947,
       "peak_ram_bytes": 177632,
-      "peak_rss_bytes": 34852864
+      "peak_rss_bytes": 34746368
     }
   ],
   "cost_profile": {
-    "total_cpu_time_seconds": 168.26480092199927,
-    "peak_ram_bytes": 418779,
-    "peak_ram_mb": 0.39937877655029297,
-    "peak_rss_bytes": 34852864,
-    "peak_rss_mb": 33.23828125,
-    "projected_scaled_hours_cpu": 18.032493240097658,
+    "total_cpu_time_seconds": 168.96225858300022,
+    "peak_ram_bytes": 418535,
+    "peak_ram_mb": 0.39914608001708984,
+    "peak_rss_bytes": 34746368,
+    "peak_rss_mb": 33.13671875,
+    "projected_scaled_hours_cpu": 18.107237931134282,
     "scaling_recommendation": "local_cpu",
-    "recommendation_rationale": "Parametric projection for full-scale experiment (10 seeds, 500 words, 50 epochs): 18.03 single-thread CPU core-hours (scaling factor 385.8x from 168.3s pilot). Peak process RSS measured 33.2 MB (Python heap 0.40 MB). Execution is fully viable on the local machine using multi-core parallelization (estimated ~135.2 min across 8 cores). Cloud or GPU resources are not required or recommended at this stage because GPU speedup has not been benchmarked for small-batch autoregressive transitions and local resources are sufficient."
+    "recommendation_rationale": "Parametric projection for full-scale experiment (10 seeds, 500 words, 50 epochs): 18.11 single-thread CPU core-hours (scaling factor 385.8x from 169.0s pilot). Peak process RSS measured 33.1 MB (Python heap 0.40 MB). Execution is fully viable on the local machine using multi-core parallelization (estimated ~135.8 min across 8 cores). Cloud or GPU resources are not required or recommended at this stage because GPU speedup has not been benchmarked for small-batch autoregressive transitions and local resources are sufficient."
   },
   "conclusions": {
     "protocol_validated": true,
@@ -4211,6 +4271,6 @@
     "leakage_prevented": true,
     "high_interference_mean_recovery_advantage": 0.3333333333333333,
     "high_interference_superiority_fraction": 0.0,
-    "summary_claim": "Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (3 seeds) are strictly confirmed. Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive mean recovery advantage over uniform random replay (B) (+0.3333) and superior holdout retention. Under low and medium interference, recovery advantage is zero due to minimal baseline forgetting. Although C achieved positive recovery on old tasks, strict empirical superiority was not declared across seeds (superiority fraction 0.0%) due to retroactive competence variation on the new task during replay, directly illustrating the stability-plasticity trade-off under direct representational conflict. The holdout evaluation measures Property A (retention of shared phonetic-orthographic transitions across isolated lexical records) rather than full lexical generalization to unseen words (Property C) or unseen transitions (Property B). Because this pilot evaluated 3 exploratory seeds on synthetic micro-fixtures, these results provide methodological validation of the protocol rather than definitive proof of general superiority across all linguistic contexts. The protocol is verified, reproducible, and ready for scaled execution on local CPU."
+    "summary_claim": "Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (3 seeds) are strictly confirmed. Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive mean recovery advantage over uniform random replay (B) (+0.3333) and superior holdout retention. Under low and medium interference, recovery advantage is zero because baseline forgetting is absent (all candidate forgetting scores are 0.0), causing C to select candidates via deterministic FIFO tie-breaking. Under high interference, candidate scores are differentiated (three candidates with score 1.0 vs one candidate with score 0.0); C actively discriminates and excludes the unforgotten candidate, whereas random replay (B) wastes 50% of its budget on the unforgotten item in 2 of 3 seeds (seeds 42 and 44). Between forgotten candidates with identical score 1.0, C selects via FIFO. Regarding plasticity, initial acquisition delta (c_vs_b_plasticity_delta) is 0.0 across all conditions (both variants acquire the new task equally prior to replay), but during replay C experiences retroactive competence loss on the new task (-0.50) due to back-interference from replaying old onset weights, explaining why strict empirical superiority across seeds was 0.0%. The holdout evaluation measures Property A (retention of shared phonetic-orthographic transitions across isolated lexical records) rather than full lexical generalization to unseen words (Property C) or unseen transitions (Property B). Because this pilot evaluated 3 exploratory seeds on synthetic micro-fixtures, these results provide methodological validation of the protocol rather than definitive proof of general superiority across all linguistic contexts. The protocol is verified, reproducible, and ready for scaled execution on local CPU."
   }
 }
