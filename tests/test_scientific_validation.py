@@ -351,7 +351,7 @@ class ReportConclusionsTests(unittest.TestCase):
         self.assertIn("does not show empirical superiority", conc["claim"])
         self.assertIn("deferred pending scaled experiments", conc["claim"])
 
-    def test_derive_conclusions_fair_and_superiority_demonstrated(self) -> None:
+    def test_derive_conclusions_superiority_only_in_natural_fixture_is_not_generalized(self) -> None:
         syn = self._make_mock_fixture_results(is_fairly_matched_budget=True, is_directed_superior=False)
         nat = self._make_mock_fixture_results(is_fairly_matched_budget=True, is_directed_superior=True)
 
@@ -361,9 +361,36 @@ class ReportConclusionsTests(unittest.TestCase):
         self.assertTrue(conc["protocol_validated"])
         self.assertTrue(conc["fairness_confirmed"])
         self.assertTrue(conc["replay_budget_matched"])
+        self.assertTrue(conc["superiority_observed_in_any_fixture"])
+        self.assertFalse(conc["superiority_consistent_across_fixtures"])
+        self.assertFalse(conc["empirical_superiority_demonstrated"])
+        self.assertIn("only one of the two evaluated fixtures", conc["claim"])
+        self.assertIn("general superiority is not established", conc["claim"])
+
+    def test_derive_conclusions_superiority_only_in_synthetic_fixture_is_not_generalized(self) -> None:
+        syn = self._make_mock_fixture_results(is_fairly_matched_budget=True, is_directed_superior=True)
+        nat = self._make_mock_fixture_results(is_fairly_matched_budget=True, is_directed_superior=False)
+
+        status, conc = derive_protocol_conclusions(syn, nat)
+
+        self.assertEqual(status, "VALIDATED")
+        self.assertTrue(conc["superiority_observed_in_any_fixture"])
+        self.assertFalse(conc["superiority_consistent_across_fixtures"])
+        self.assertFalse(conc["empirical_superiority_demonstrated"])
+        self.assertIn("only one of the two evaluated fixtures", conc["claim"])
+
+    def test_derive_conclusions_superiority_in_both_fixtures_is_consistent(self) -> None:
+        syn = self._make_mock_fixture_results(is_fairly_matched_budget=True, is_directed_superior=True)
+        nat = self._make_mock_fixture_results(is_fairly_matched_budget=True, is_directed_superior=True)
+
+        status, conc = derive_protocol_conclusions(syn, nat)
+
+        self.assertEqual(status, "VALIDATED")
+        self.assertTrue(conc["superiority_observed_in_any_fixture"])
+        self.assertTrue(conc["superiority_consistent_across_fixtures"])
         self.assertTrue(conc["empirical_superiority_demonstrated"])
-        self.assertIn("demonstrated empirical superiority", conc["claim"])
-        self.assertNotIn("does not show", conc["claim"])
+        self.assertIn("consistently across both evaluated fixture conditions", conc["claim"])
+        self.assertNotIn("only one of the two evaluated fixtures", conc["claim"])
 
     def test_derive_conclusions_unfair_budget_flags_failure_and_rejects_superiority(self) -> None:
         # One fixture has mismatched budget
