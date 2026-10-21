@@ -191,6 +191,37 @@ class ScientificMetricsTests(unittest.TestCase):
         self.assertIn("demonstrates empirical superiority", comp_superior.summary_claim)
         self.assertNotIn("does not demonstrate", comp_superior.summary_claim)
 
+    def test_compare_scientific_variants_requires_fair_budget_for_superiority(self) -> None:
+        ref1 = ExampleRef("f", "s", 0)
+        ref2 = ExampleRef("f", "s", 1)
+        acc_a = ReplayAccounting(1, 0, 1)
+        # B had 1 replay update; C had 2 replay updates (unfair compute advantage)
+        acc_b = ReplayAccounting(1, 1, 2, selected_refs=(ref1,))
+        acc_c_unfair = ReplayAccounting(1, 2, 3, selected_refs=(ref1, ref2))
+
+        eval_a = ScientificVariantEvaluation(
+            "A", (1.0,), (0.5,), (0.5,), (0.5,), (0.5,), (0.0,), (-0.5,),
+            0.0, 1.0, 1.0, 1.0, 0.0, acc_a, 0, 0.0, -0.5, None, 0.5, 0.5, (), ()
+        )
+        eval_b = ScientificVariantEvaluation(
+            "B", (1.0,), (0.5,), (0.5,), (0.5,), (0.5,), (0.0,), (-0.5,),
+            0.0, 1.0, 1.0, 1.0, 0.0, acc_b, 1, 0.0, -0.5, 0.0, 0.5, 0.5, (), ()
+        )
+        # C shows higher recovery (0.5 vs 0.0) and equal plasticity/delta, but used more replay updates
+        eval_c_unfair = ScientificVariantEvaluation(
+            "C", (1.0,), (0.5,), (1.0,), (0.5,), (0.0,), (0.5,), (0.0,),
+            0.0, 1.0, 1.0, 1.0, 0.0, acc_c_unfair, 2, 0.5, 0.0, 0.25, 1.0, 1.0, (), ()
+        )
+
+        comp = compare_scientific_variants(eval_a, eval_b, eval_c_unfair)
+
+        self.assertFalse(comp.is_fairly_matched_budget)
+        self.assertFalse(
+            comp.is_directed_superior,
+            "C must not be declared superior when update budgets are not fairly matched",
+        )
+        self.assertIn("does not demonstrate empirical superiority", comp.summary_claim)
+
 
 class ScientificProtocolExecutionTests(unittest.TestCase):
     def test_synthetic_protocol_is_reproducible_and_fair(self) -> None:

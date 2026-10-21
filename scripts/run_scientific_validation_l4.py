@@ -42,6 +42,19 @@ def main() -> None:
     synthetic_results = run_scientific_protocol("synthetic", replay_seed=0)
     natural_results = run_scientific_protocol("natural", replay_seed=1)
 
+    fairness_confirmed = bool(
+        synthetic_results["comparison"]["is_fairly_matched_budget"]
+        and natural_results["comparison"]["is_fairly_matched_budget"]
+    )
+    replay_budget_matched = bool(
+        synthetic_results["evaluations"]["B"]["replay_budget"] == synthetic_results["evaluations"]["C"]["replay_budget"]
+        and natural_results["evaluations"]["B"]["replay_budget"] == natural_results["evaluations"]["C"]["replay_budget"]
+    )
+    empirical_superiority = bool(
+        synthetic_results["comparison"]["is_directed_superior"]
+        or natural_results["comparison"]["is_directed_superior"]
+    )
+
     report = {
         "schema_version": 1,
         "phase": "34-L4",
@@ -76,20 +89,14 @@ def main() -> None:
         },
         "conclusions": {
             "protocol_validated": True,
-            "fairness_confirmed": True,
-            "replay_budget_matched": True,
-            "empirical_superiority_demonstrated": (
-                synthetic_results["comparison"]["is_directed_superior"]
-                or natural_results["comparison"]["is_directed_superior"]
-            ),
+            "fairness_confirmed": fairness_confirmed,
+            "replay_budget_matched": replay_budget_matched,
+            "empirical_superiority_demonstrated": empirical_superiority,
             "claim": (
                 "The controlled replay protocol, measurement hooks, fairness constraints, and "
                 "accounting are mathematically and empirically validated. Directed replay (C) "
                 "demonstrated empirical superiority under the evaluated fixture conditions."
-                if (
-                    synthetic_results["comparison"]["is_directed_superior"]
-                    or natural_results["comparison"]["is_directed_superior"]
-                )
+                if empirical_superiority
                 else (
                     "The controlled replay protocol, measurement hooks, fairness constraints, and "
                     "accounting are mathematically and empirically validated. However, under the evaluated "

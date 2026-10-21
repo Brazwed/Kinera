@@ -314,9 +314,14 @@ def compare_scientific_variants(
         "Represents training step budget, not wall-clock execution time or device energy."
     )
 
-    # Honest assessment: directed is superior only if recovery advantage > 0 with non-inferior plasticity and replay retention
+    # Honest assessment: directed is superior only if:
+    # 1. Update budgets are fairly matched between B and C (prevents declaring superiority due to compute disparity)
+    # 2. Directed replay provides strictly positive recovery advantage over random replay
+    # 3. Plasticity acquisition is non-inferior to random replay
+    # 4. Competence variation on the new task during replay is non-inferior to random replay
     is_superior = (
-        (c_vs_b_rec > 0.0)
+        fair_budget
+        and (c_vs_b_rec > 0.0)
         and (c_vs_b_plas >= 0.0)
         and (eval_c.new_competence_delta_during_replay >= eval_b.new_competence_delta_during_replay)
     )
