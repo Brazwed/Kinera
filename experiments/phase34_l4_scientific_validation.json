@@ -3,7 +3,7 @@
   "phase": "34-L4",
   "description": "Scientific validation of controlled learning replay (Variants A, B, C)",
   "baseline_commit": "b4c12df395c930ec93cb4aaf2eab55dd49329988",
-  "runner_commit": "839cd6a1ae761581a2f389366c2f34ddf959a370",
+  "runner_commit": "9d15362fc4102347f8a028725fcf6b09ac5be299",
   "status": "VALIDATED",
   "protocol": {
     "variants": {
@@ -16,6 +16,8 @@
       "retention_ratio",
       "recovery_delta",
       "replay_utility",
+      "plasticity_acquisition",
+      "new_retention_during_replay",
       "stability_plasticity_tradeoff",
       "update_overhead"
     ],
@@ -57,9 +59,13 @@
             -1.0,
             0.0
           ],
-          "new_competence_reference": 1.0,
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 1.0,
           "new_competence_post": 1.0,
+          "new_competence_reference": 1.0,
           "new_competence_delta": 0.0,
+          "plasticity_acquisition": 1.0,
+          "new_retention_during_replay": 0.0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 0,
@@ -70,7 +76,7 @@
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": null,
           "mean_retention_ratio": 0.5,
-          "stability_plasticity_tradeoff": -0.25,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
             {
               "example_ref": {
@@ -132,9 +138,13 @@
             -1.0,
             0.0
           ],
-          "new_competence_reference": 1.0,
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 1.0,
           "new_competence_post": 1.0,
+          "new_competence_reference": 1.0,
           "new_competence_delta": 0.0,
+          "plasticity_acquisition": 1.0,
+          "new_retention_during_replay": 0.0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 1,
@@ -145,7 +155,7 @@
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": 0.0,
           "mean_retention_ratio": 0.5,
-          "stability_plasticity_tradeoff": -0.25,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
             {
               "example_ref": {
@@ -221,9 +231,13 @@
             -1.0,
             0.0
           ],
-          "new_competence_reference": 1.0,
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 1.0,
           "new_competence_post": 1.0,
+          "new_competence_reference": 1.0,
           "new_competence_delta": 0.0,
+          "plasticity_acquisition": 1.0,
+          "new_retention_during_replay": 0.0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 1,
@@ -234,7 +248,7 @@
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": 0.0,
           "mean_retention_ratio": 0.5,
-          "stability_plasticity_tradeoff": -0.25,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
             {
               "example_ref": {
@@ -331,9 +345,13 @@
             0.0,
             -1.0
           ],
-          "new_competence_reference": 1.0,
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 1.0,
           "new_competence_post": 1.0,
+          "new_competence_reference": 1.0,
           "new_competence_delta": 0.0,
+          "plasticity_acquisition": 1.0,
+          "new_retention_during_replay": 0.0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 0,
@@ -344,7 +362,7 @@
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": null,
           "mean_retention_ratio": 0.5,
-          "stability_plasticity_tradeoff": -0.25,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
             {
               "example_ref": {
@@ -406,9 +424,13 @@
             0.0,
             -1.0
           ],
-          "new_competence_reference": 1.0,
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 1.0,
           "new_competence_post": 1.0,
+          "new_competence_reference": 1.0,
           "new_competence_delta": 0.0,
+          "plasticity_acquisition": 1.0,
+          "new_retention_during_replay": 0.0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 1,
@@ -419,7 +441,7 @@
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": 0.0,
           "mean_retention_ratio": 0.5,
-          "stability_plasticity_tradeoff": -0.25,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
             {
               "example_ref": {
@@ -495,9 +517,13 @@
             0.0,
             -1.0
           ],
-          "new_competence_reference": 1.0,
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 1.0,
           "new_competence_post": 1.0,
+          "new_competence_reference": 1.0,
           "new_competence_delta": 0.0,
+          "plasticity_acquisition": 1.0,
+          "new_retention_during_replay": 0.0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 1,
@@ -508,7 +534,7 @@
           "mean_net_stability_delta": -0.5,
           "mean_replay_utility": 0.0,
           "mean_retention_ratio": 0.5,
-          "stability_plasticity_tradeoff": -0.25,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
           "candidate_pool": [
             {
               "example_ref": {
