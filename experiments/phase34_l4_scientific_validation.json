@@ -3,7 +3,7 @@
   "phase": "34-L4",
   "description": "Scientific validation of controlled learning replay (Variants A, B, C)",
   "baseline_commit": "b4c12df395c930ec93cb4aaf2eab55dd49329988",
-  "runner_commit": "9d15362fc4102347f8a028725fcf6b09ac5be299",
+  "runner_commit": "6e4390c74f144603f8d6ceb668959c19779624d6",
   "status": "VALIDATED",
   "protocol": {
     "variants": {
@@ -17,7 +17,7 @@
       "recovery_delta",
       "replay_utility",
       "plasticity_acquisition",
-      "new_retention_during_replay",
+      "new_competence_delta_during_replay",
       "stability_plasticity_tradeoff",
       "update_overhead"
     ],
@@ -65,7 +65,7 @@
           "new_competence_reference": 1.0,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 1.0,
-          "new_retention_during_replay": 0.0,
+          "new_competence_delta_during_replay": 0.0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 0,
@@ -144,7 +144,7 @@
           "new_competence_reference": 1.0,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 1.0,
-          "new_retention_during_replay": 0.0,
+          "new_competence_delta_during_replay": 0.0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 1,
@@ -237,7 +237,7 @@
           "new_competence_reference": 1.0,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 1.0,
-          "new_retention_during_replay": 0.0,
+          "new_competence_delta_during_replay": 0.0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 1,
@@ -351,7 +351,7 @@
           "new_competence_reference": 1.0,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 1.0,
-          "new_retention_during_replay": 0.0,
+          "new_competence_delta_during_replay": 0.0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 0,
@@ -430,7 +430,7 @@
           "new_competence_reference": 1.0,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 1.0,
-          "new_retention_during_replay": 0.0,
+          "new_competence_delta_during_replay": 0.0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 1,
@@ -523,7 +523,7 @@
           "new_competence_reference": 1.0,
           "new_competence_delta": 0.0,
           "plasticity_acquisition": 1.0,
-          "new_retention_during_replay": 0.0,
+          "new_competence_delta_during_replay": 0.0,
           "accounting": {
             "new_updates": 1,
             "replay_updates": 1,
