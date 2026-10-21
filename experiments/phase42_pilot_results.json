@@ -2,7 +2,7 @@
   "schema_version": 1,
   "phase": "42-expanded-pilot",
   "baseline_commit": "5dba2cc3843510e14db8b8cb1e309cb9f323c280",
-  "runner_commit": "deaa3b68c551688e82cbb71b6c5358a55a296c1b",
+  "runner_commit": "ddf9da542b4db871ac6f0946816c40c4bbd80099",
   "protocol_validated": true,
   "leakage_prevented": true,
   "conditions_evaluated": [
@@ -84,9 +84,9 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 16.257326369666163,
-      "peak_ram_bytes": 418624,
-      "peak_rss_bytes": 34631680
+      "mean_cpu_time_seconds": 16.878302843999943,
+      "peak_ram_bytes": 418779,
+      "peak_rss_bytes": 34852864
     },
     "medium": {
       "level": "medium",
@@ -156,9 +156,9 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 18.461906645666506,
-      "peak_ram_bytes": 177648,
-      "peak_rss_bytes": 34631680
+      "mean_cpu_time_seconds": 18.705292308667897,
+      "peak_ram_bytes": 178296,
+      "peak_rss_bytes": 34852864
     },
     "high": {
       "level": "high",
@@ -228,9 +228,9 @@
       },
       "fairness_confirmed_all_seeds": true,
       "superiority_fraction": 0.0,
-      "mean_cpu_time_seconds": 20.70779778533324,
-      "peak_ram_bytes": 177160,
-      "peak_rss_bytes": 34631680
+      "mean_cpu_time_seconds": 20.501066959665575,
+      "peak_ram_bytes": 177808,
+      "peak_rss_bytes": 34852864
     }
   },
   "seed_results": [
@@ -309,7 +309,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -322,7 +322,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -335,7 +335,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -348,7 +348,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -428,7 +428,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -441,7 +441,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -454,7 +454,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -467,7 +467,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -482,7 +482,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -495,7 +495,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -574,7 +574,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -587,7 +587,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -600,7 +600,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -613,7 +613,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -628,7 +628,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -641,7 +641,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -670,9 +670,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 16.374372686001152,
-      "peak_ram_bytes": 418624,
-      "peak_rss_bytes": 34631680
+      "cpu_time_seconds": 17.048625084000378,
+      "peak_ram_bytes": 418779,
+      "peak_rss_bytes": 34852864
     },
     {
       "level": "low",
@@ -749,7 +749,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -762,7 +762,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -775,7 +775,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -788,7 +788,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -868,7 +868,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -881,7 +881,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -894,7 +894,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -907,7 +907,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -922,7 +922,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -935,7 +935,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1014,7 +1014,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1027,7 +1027,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1040,7 +1040,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1053,7 +1053,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1068,7 +1068,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1081,7 +1081,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1110,9 +1110,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 16.196941409998544,
-      "peak_ram_bytes": 226288,
-      "peak_rss_bytes": 34631680
+      "cpu_time_seconds": 16.80038788499951,
+      "peak_ram_bytes": 226936,
+      "peak_rss_bytes": 34852864
     },
     {
       "level": "low",
@@ -1189,7 +1189,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1202,7 +1202,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1215,7 +1215,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1228,7 +1228,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1308,7 +1308,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1321,7 +1321,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1334,7 +1334,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1347,7 +1347,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1362,7 +1362,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1375,7 +1375,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1454,7 +1454,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1467,7 +1467,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1480,7 +1480,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1493,7 +1493,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1508,7 +1508,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1521,7 +1521,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1550,9 +1550,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 16.200665012998797,
-      "peak_ram_bytes": 190976,
-      "peak_rss_bytes": 34631680
+      "cpu_time_seconds": 16.78589556299994,
+      "peak_ram_bytes": 191400,
+      "peak_rss_bytes": 34852864
     },
     {
       "level": "medium",
@@ -1629,7 +1629,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1642,7 +1642,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1655,7 +1655,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1668,7 +1668,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1748,7 +1748,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1761,7 +1761,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1774,7 +1774,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1787,7 +1787,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1802,7 +1802,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1815,7 +1815,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1894,7 +1894,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1907,7 +1907,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1920,7 +1920,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1933,7 +1933,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -1948,7 +1948,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1961,7 +1961,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -1990,9 +1990,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 18.193098658000963,
-      "peak_ram_bytes": 177648,
-      "peak_rss_bytes": 34631680
+      "cpu_time_seconds": 18.823272727000585,
+      "peak_ram_bytes": 178296,
+      "peak_rss_bytes": 34852864
     },
     {
       "level": "medium",
@@ -2069,7 +2069,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2082,7 +2082,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2095,7 +2095,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2108,7 +2108,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2188,7 +2188,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2201,7 +2201,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2214,7 +2214,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2227,7 +2227,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2242,7 +2242,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2255,7 +2255,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2334,7 +2334,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2347,7 +2347,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2360,7 +2360,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2373,7 +2373,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2388,7 +2388,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2401,7 +2401,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2430,9 +2430,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 18.732394775997818,
-      "peak_ram_bytes": 177336,
-      "peak_rss_bytes": 34631680
+      "cpu_time_seconds": 18.639742070001375,
+      "peak_ram_bytes": 177984,
+      "peak_rss_bytes": 34852864
     },
     {
       "level": "medium",
@@ -2509,7 +2509,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2522,7 +2522,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2535,7 +2535,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2548,7 +2548,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2628,7 +2628,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2641,7 +2641,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2654,7 +2654,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2667,7 +2667,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2682,7 +2682,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2695,7 +2695,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2774,7 +2774,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2787,7 +2787,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2800,7 +2800,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2813,7 +2813,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -2828,7 +2828,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2841,7 +2841,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -2870,9 +2870,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 18.46022650300074,
-      "peak_ram_bytes": 177080,
-      "peak_rss_bytes": 34631680
+      "cpu_time_seconds": 18.652862129001733,
+      "peak_ram_bytes": 177728,
+      "peak_rss_bytes": 34852864
     },
     {
       "level": "high",
@@ -2949,7 +2949,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -2962,7 +2962,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -2975,7 +2975,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -2988,7 +2988,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -3068,7 +3068,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3081,7 +3081,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -3094,7 +3094,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -3107,7 +3107,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -3122,7 +3122,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3135,7 +3135,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -3214,7 +3214,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3227,7 +3227,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3240,7 +3240,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -3253,7 +3253,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -3268,7 +3268,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3281,7 +3281,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3310,9 +3310,9 @@
         "B": 0.25,
         "C": 1.0
       },
-      "cpu_time_seconds": 20.71817936699881,
-      "peak_ram_bytes": 177160,
-      "peak_rss_bytes": 34631680
+      "cpu_time_seconds": 20.314647005998268,
+      "peak_ram_bytes": 177808,
+      "peak_rss_bytes": 34852864
     },
     {
       "level": "high",
@@ -3389,7 +3389,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -3402,7 +3402,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -3415,7 +3415,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -3428,7 +3428,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -3508,7 +3508,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3521,7 +3521,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3534,7 +3534,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -3547,7 +3547,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -3562,7 +3562,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3575,7 +3575,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3654,7 +3654,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3667,7 +3667,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3680,7 +3680,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -3693,7 +3693,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -3708,7 +3708,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3721,7 +3721,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3750,9 +3750,9 @@
         "B": 1.0,
         "C": 1.0
       },
-      "cpu_time_seconds": 20.78514276200076,
-      "peak_ram_bytes": 177104,
-      "peak_rss_bytes": 34631680
+      "cpu_time_seconds": 20.30282025499764,
+      "peak_ram_bytes": 177752,
+      "peak_rss_bytes": 34852864
     },
     {
       "level": "high",
@@ -3829,7 +3829,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -3842,7 +3842,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -3855,7 +3855,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -3868,7 +3868,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -3948,7 +3948,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -3961,7 +3961,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -3974,7 +3974,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -3987,7 +3987,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -4002,7 +4002,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -4015,7 +4015,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": true,
@@ -4094,7 +4094,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -4107,7 +4107,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -4120,7 +4120,7 @@
                 "example_index": 2
               },
               "group_ids": [
-                "probe-int-sapo"
+                "probe-int-sapos"
               ],
               "forgetting_score": 1.0,
               "selected": false,
@@ -4133,7 +4133,7 @@
                 "example_index": 3
               },
               "group_ids": [
-                "probe-int-fogo"
+                "probe-int-fogos"
               ],
               "forgetting_score": 0.0,
               "selected": false,
@@ -4148,7 +4148,7 @@
                 "example_index": 0
               },
               "group_ids": [
-                "probe-int-mala"
+                "probe-int-malas"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -4161,7 +4161,7 @@
                 "example_index": 1
               },
               "group_ids": [
-                "probe-int-pato"
+                "probe-int-patos"
               ],
               "forgetting_score": 1.0,
               "selected": true,
@@ -4190,20 +4190,20 @@
         "B": 0.25,
         "C": 1.0
       },
-      "cpu_time_seconds": 20.620071227000153,
-      "peak_ram_bytes": 176984,
-      "peak_rss_bytes": 34631680
+      "cpu_time_seconds": 20.885733618000813,
+      "peak_ram_bytes": 177632,
+      "peak_rss_bytes": 34852864
     }
   ],
   "cost_profile": {
-    "total_cpu_time_seconds": 166.29199067800073,
-    "peak_ram_bytes": 418624,
-    "peak_ram_mb": 0.39923095703125,
-    "peak_rss_bytes": 34631680,
-    "peak_rss_mb": 33.02734375,
-    "projected_scaled_hours_cpu": 17.821072389189034,
-    "scaling_recommendation": "google_colab_pro",
-    "recommendation_rationale": "The full-scale experiment (10 seeds, 500 words, 50 epochs) is projected to require 17.82 single-thread CPU core-hours (scaling factor 385.8x from 166.3s pilot). Peak process RSS measured 33.0 MB (heap 0.40 MB). Google Colab Pro (GPU acceleration) is recommended for larger natural corpora and rapid iterations, though parallel local multi-core execution (106.9 min across 10 cores) remains viable for moderate scale."
+    "total_cpu_time_seconds": 168.26480092199927,
+    "peak_ram_bytes": 418779,
+    "peak_ram_mb": 0.39937877655029297,
+    "peak_rss_bytes": 34852864,
+    "peak_rss_mb": 33.23828125,
+    "projected_scaled_hours_cpu": 18.032493240097658,
+    "scaling_recommendation": "local_cpu",
+    "recommendation_rationale": "Parametric projection for full-scale experiment (10 seeds, 500 words, 50 epochs): 18.03 single-thread CPU core-hours (scaling factor 385.8x from 168.3s pilot). Peak process RSS measured 33.2 MB (Python heap 0.40 MB). Execution is fully viable on the local machine using multi-core parallelization (estimated ~135.2 min across 8 cores). Cloud or GPU resources are not required or recommended at this stage because GPU speedup has not been benchmarked for small-batch autoregressive transitions and local resources are sufficient."
   },
   "conclusions": {
     "protocol_validated": true,
@@ -4211,6 +4211,6 @@
     "leakage_prevented": true,
     "high_interference_mean_recovery_advantage": 0.3333333333333333,
     "high_interference_superiority_fraction": 0.0,
-    "summary_claim": "Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (3 seeds) are strictly confirmed. Under high interference (prefix collision), directed replay (C) demonstrates positive mean recovery advantage over uniform random replay (B) (+0.3333) and superior holdout retention. Under low and medium interference, recovery advantage is zero due to minimal baseline forgetting. Because this pilot evaluated 3 exploratory seeds on synthetic micro-fixtures, these results provide promising methodological validation rather than a definitive proof of general superiority across all contexts. The protocol is verified, reproducible, and ready for scaled execution."
+    "summary_claim": "Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (3 seeds) are strictly confirmed. Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive mean recovery advantage over uniform random replay (B) (+0.3333) and superior holdout retention. Under low and medium interference, recovery advantage is zero due to minimal baseline forgetting. Although C achieved positive recovery on old tasks, strict empirical superiority was not declared across seeds (superiority fraction 0.0%) due to retroactive competence variation on the new task during replay, directly illustrating the stability-plasticity trade-off under direct representational conflict. The holdout evaluation measures Property A (retention of shared phonetic-orthographic transitions across isolated lexical records) rather than full lexical generalization to unseen words (Property C) or unseen transitions (Property B). Because this pilot evaluated 3 exploratory seeds on synthetic micro-fixtures, these results provide methodological validation of the protocol rather than definitive proof of general superiority across all linguistic contexts. The protocol is verified, reproducible, and ready for scaled execution on local CPU."
   }
 }
