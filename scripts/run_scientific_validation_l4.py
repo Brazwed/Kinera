@@ -61,7 +61,7 @@ def main() -> None:
                 "recovery_delta",
                 "replay_utility",
                 "plasticity_acquisition",
-                "new_retention_during_replay",
+                "new_competence_delta_during_replay",
                 "stability_plasticity_tradeoff",
                 "update_overhead",
             ],

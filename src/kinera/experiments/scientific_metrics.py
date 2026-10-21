@@ -172,7 +172,7 @@ class ScientificVariantEvaluation:
     new_competence_acquired: float
     new_competence_post: float
     plasticity_acquisition: float
-    new_retention_during_replay: float
+    new_competence_delta_during_replay: float
     accounting: ReplayAccounting
     replay_budget: int
     mean_recovery_delta: float
@@ -200,7 +200,7 @@ class ScientificVariantEvaluation:
         if self.new_competence_reference is None:
             object.__setattr__(self, "new_competence_reference", self.new_competence_acquired)
         if self.new_competence_delta is None:
-            object.__setattr__(self, "new_competence_delta", self.new_retention_during_replay)
+            object.__setattr__(self, "new_competence_delta", self.new_competence_delta_during_replay)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -219,7 +219,7 @@ class ScientificVariantEvaluation:
             "new_competence_reference": self.new_competence_reference,
             "new_competence_delta": self.new_competence_delta,
             "plasticity_acquisition": self.plasticity_acquisition,
-            "new_retention_during_replay": self.new_retention_during_replay,
+            "new_competence_delta_during_replay": self.new_competence_delta_during_replay,
             "accounting": {
                 "new_updates": self.accounting.new_updates,
                 "replay_updates": self.accounting.replay_updates,
@@ -318,7 +318,7 @@ def compare_scientific_variants(
     is_superior = (
         (c_vs_b_rec > 0.0)
         and (c_vs_b_plas >= 0.0)
-        and (eval_c.new_retention_during_replay >= eval_b.new_retention_during_replay)
+        and (eval_c.new_competence_delta_during_replay >= eval_b.new_competence_delta_during_replay)
     )
 
     claim = (

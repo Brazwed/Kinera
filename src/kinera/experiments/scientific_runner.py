@@ -214,7 +214,7 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
         plasticity_acquisition = oriented_competence_delta(
             new_initial.competence, new_acquired.competence, new_acquired.direction
         )
-        new_retention_during_replay = oriented_competence_delta(
+        new_competence_delta_during_replay = oriented_competence_delta(
             new_acquired.competence, new_post.competence, new_acquired.direction
         )
 
@@ -272,9 +272,9 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
             new_competence_acquired=new_acquired.competence,
             new_competence_post=new_post.competence,
             plasticity_acquisition=plasticity_acquisition,
-            new_retention_during_replay=new_retention_during_replay,
+            new_competence_delta_during_replay=new_competence_delta_during_replay,
             new_competence_reference=new_acquired.competence,
-            new_competence_delta=new_retention_during_replay,
+            new_competence_delta=new_competence_delta_during_replay,
             accounting=accounting,
             replay_budget=replay_budget,
             mean_recovery_delta=mean_recovery,
@@ -436,7 +436,7 @@ def _run_natural_protocol(variant: str, replay_seed: int = 1) -> ScientificVaria
         plasticity_acquisition = oriented_competence_delta(
             new_initial.competence, new_acquired.competence, new_acquired.direction
         )
-        new_retention_during_replay = oriented_competence_delta(
+        new_competence_delta_during_replay = oriented_competence_delta(
             new_acquired.competence, new_post.competence, new_acquired.direction
         )
 
@@ -494,9 +494,9 @@ def _run_natural_protocol(variant: str, replay_seed: int = 1) -> ScientificVaria
             new_competence_acquired=new_acquired.competence,
             new_competence_post=new_post.competence,
             plasticity_acquisition=plasticity_acquisition,
-            new_retention_during_replay=new_retention_during_replay,
+            new_competence_delta_during_replay=new_competence_delta_during_replay,
             new_competence_reference=new_acquired.competence,
-            new_competence_delta=new_retention_during_replay,
+            new_competence_delta=new_competence_delta_during_replay,
             accounting=accounting,
             replay_budget=replay_budget,
             mean_recovery_delta=mean_recovery,

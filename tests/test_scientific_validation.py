@@ -120,12 +120,42 @@ class ScientificMetricsTests(unittest.TestCase):
         self.assertEqual(d["new_competence_acquired"], 1.0)
         self.assertEqual(d["new_competence_post"], 1.0)
         self.assertEqual(d["plasticity_acquisition"], 1.0)
-        self.assertEqual(d["new_retention_during_replay"], 0.0)
+        self.assertEqual(d["new_competence_delta_during_replay"], 0.0)
         self.assertEqual(d["new_competence_reference"], 1.0)
         self.assertEqual(d["new_competence_delta"], 0.0)
         self.assertEqual(d["replay_budget"], 0)
         self.assertEqual(d["candidate_pool"], [])
         self.assertEqual(d["selected_candidates"], [])
+
+    def test_compare_scientific_variants_uses_plasticity_acquisition_not_replay_delta(self) -> None:
+        ref = ExampleRef("f", "s", 0)
+        acc_a = ReplayAccounting(1, 0, 1)
+        acc_b = ReplayAccounting(1, 1, 2, selected_refs=(ref,))
+        acc_c = ReplayAccounting(1, 1, 2, selected_refs=(ref,))
+
+        eval_a = ScientificVariantEvaluation(
+            "A", (1.0,), (0.5,), (0.5,), (0.5,), (0.5,), (0.0,), (-0.5,),
+            0.0, 0.7, 0.7, 0.7, 0.0, acc_a, 0, 0.0, -0.5, None, 0.5, 0.5, (), ()
+        )
+        # Variant B has plasticity_acquisition=0.6, but new_competence_delta_during_replay=0.0
+        eval_b = ScientificVariantEvaluation(
+            "B", (1.0,), (0.5,), (0.5,), (0.5,), (0.5,), (0.0,), (-0.5,),
+            0.0, 0.6, 0.6, 0.6, 0.0, acc_b, 1, 0.0, -0.5, 0.0, 0.5, 0.5, (), ()
+        )
+        # Variant C has plasticity_acquisition=0.9, but new_competence_delta_during_replay=-0.4
+        eval_c = ScientificVariantEvaluation(
+            "C", (1.0,), (0.5,), (0.5,), (0.5,), (0.5,), (0.0,), (-0.5,),
+            0.0, 0.9, 0.5, 0.9, -0.4, acc_c, 1, 0.0, -0.5, 0.0, 0.5, 0.5, (), ()
+        )
+
+        comp = compare_scientific_variants(eval_a, eval_b, eval_c)
+
+        # c_vs_b_plasticity_delta MUST use plasticity_acquisition: 0.9 - 0.6 = 0.3
+        self.assertAlmostEqual(comp.c_vs_b_plasticity_delta, 0.3)
+        # Verify it did NOT use new_competence_delta_during_replay (-0.4 - 0.0 = -0.4)
+        replay_delta_diff = eval_c.new_competence_delta_during_replay - eval_b.new_competence_delta_during_replay
+        self.assertAlmostEqual(replay_delta_diff, -0.4)
+        self.assertNotEqual(comp.c_vs_b_plasticity_delta, replay_delta_diff)
 
 
 class ScientificProtocolExecutionTests(unittest.TestCase):
@@ -155,7 +185,7 @@ class ScientificProtocolExecutionTests(unittest.TestCase):
             self.assertEqual(variant_eval["new_competence_acquired"], 1.0)
             self.assertEqual(variant_eval["new_competence_post"], 1.0)
             self.assertEqual(variant_eval["plasticity_acquisition"], 1.0)
-            self.assertEqual(variant_eval["new_retention_during_replay"], 0.0)
+            self.assertEqual(variant_eval["new_competence_delta_during_replay"], 0.0)
             self.assertEqual(variant_eval["mean_retention_ratio"], 0.5)
             self.assertAlmostEqual(variant_eval["stability_plasticity_tradeoff"], 2.0 / 3.0)
 
@@ -201,7 +231,7 @@ class ScientificProtocolExecutionTests(unittest.TestCase):
             self.assertEqual(variant_eval["new_competence_acquired"], 1.0)
             self.assertEqual(variant_eval["new_competence_post"], 1.0)
             self.assertEqual(variant_eval["plasticity_acquisition"], 1.0)
-            self.assertEqual(variant_eval["new_retention_during_replay"], 0.0)
+            self.assertEqual(variant_eval["new_competence_delta_during_replay"], 0.0)
             self.assertEqual(variant_eval["mean_retention_ratio"], 0.5)
             self.assertAlmostEqual(variant_eval["stability_plasticity_tradeoff"], 2.0 / 3.0)
             self.assertTrue(0.0 <= variant_eval["mean_retention_ratio"] <= 1.0)
