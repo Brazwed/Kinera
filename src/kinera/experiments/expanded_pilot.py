@@ -1053,6 +1053,12 @@ def run_expanded_pilot(
         c.fairness_confirmed_all_seeds for c in condition_aggregates.values()
     )
     high_rec_adv = condition_aggregates["high"].c_vs_b_recovery_advantage.mean if "high" in condition_aggregates else 0.0
+    high_ret_adv = (
+        condition_aggregates["high"].retention_ratio_c.mean
+        - condition_aggregates["high"].retention_ratio_b.mean
+        if "high" in condition_aggregates
+        else 0.0
+    )
     high_sup_frac = condition_aggregates["high"].superiority_fraction if "high" in condition_aggregates else 0.0
 
     if all_fair and high_rec_adv > 0.0:
@@ -1061,7 +1067,11 @@ def run_expanded_pilot(
             "Data isolation (quadripartite partitioning without leakage) and physical gradient step "
             f"budget parity ({condition_aggregates['high'].num_seeds} seeds) are strictly confirmed. "
             f"Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive "
-            f"mean recovery advantage over uniform random replay (B) (+{high_rec_adv:.4f}) and superior holdout retention. "
+            f"mean recovery advantage over uniform random replay (B) (+{high_rec_adv:.4f}) and a mean retention ratio "
+            f"advantage (+{high_ret_adv:.4f}, with holdout retention 1.00 vs 0.50). "
+            "Note on metric semantics: recovery advantage (+0.3333) measures marginal competence gain during replay relative "
+            "to post-interference state (mean_recovery_delta C 0.50 vs B 0.1667), whereas retention ratio advantage (+0.5000) "
+            "measures total competence preserved relative to pre-interference baseline reference (mean_retention_ratio C 1.00 vs B 0.50). "
             "Under low and medium interference, recovery advantage is zero because baseline forgetting is absent (all candidate "
             "forgetting scores are 0.0), causing C to select candidates via deterministic FIFO tie-breaking. "
             "Under high interference, candidate scores are differentiated (three candidates with score 1.0 vs one candidate with score 0.0); "
@@ -1108,6 +1118,7 @@ def run_expanded_pilot(
             "fairness_confirmed_all_seeds": all_fair,
             "leakage_prevented": True,
             "high_interference_mean_recovery_advantage": high_rec_adv,
+            "high_interference_mean_retention_advantage": high_ret_adv,
             "high_interference_superiority_fraction": high_sup_frac,
             "summary_claim": conclusion_claim,
         },

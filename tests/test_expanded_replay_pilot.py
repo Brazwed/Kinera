@@ -294,6 +294,8 @@ class ExpandedPilotExecutionTests(unittest.TestCase):
         self.assertIn("C", report["condition_aggregates"]["high"]["new_competence_delta_during_replay"])
         self.assertIn("cost_profile", report)
         self.assertIn("conclusions", report)
+        self.assertIn("high_interference_mean_recovery_advantage", report["conclusions"])
+        self.assertIn("high_interference_mean_retention_advantage", report["conclusions"])
         self.assertTrue(report["conclusions"]["fairness_confirmed_all_seeds"])
 
         # Check JSON serializability

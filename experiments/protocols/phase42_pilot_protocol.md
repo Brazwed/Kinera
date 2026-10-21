@@ -175,6 +175,19 @@ Todas as métricas são limitadas, finitas e puramente CPU:
    - Essa penalidade explica por que a regra de superioridade estrita rejeita declarar C superior (fração de superioridade 0,0%).
 4. **Recuperação de Competência Antiga ($\Delta_{rec}$):**
    $$\Delta_{rec} = C_{old, post} - C_{old, pre}$$
+   - Mede o ganho marginal de competência obtido estritamente durante a fase de replay em relação ao estado imediato pós-interferência.
+   - **Distinção Crítica entre Vantagem de Recuperação (+0.3333) e Vantagem de Retenção (+0.5000):**
+     - Em alta interferência, a competência média pré-replay ($C_{old, pre}$) era $0.25$ (itens `malas`, `patos` e `sapos` em $0.0$; item `fogos` em $1.0$).
+     - Na Variante C, o replay recupera as 3 tarefas esquecidas ($1.0, 1.0, 1.0$), mas degrada `fogos` para $0.0$, atingindo $C_{old, post} = [1.0, 1.0, 1.0, 0.0]$. A recuperação média é $\Delta_{rec}(C) = (1.0 + 1.0 + 1.0 - 1.0) / 4 = \mathbf{+0.50}$ em todas as sementes.
+     - Na Variante B: na Seed 42, $\Delta_{rec} = 0.00$; na Seed 43, $\Delta_{rec} = +0.50$; na Seed 44, $\Delta_{rec} = 0.00$. A recuperação média é $\overline{\Delta_{rec}}(B) = \frac{0.0 + 0.5 + 0.0}{3} = \mathbf{0.1667}$.
+     - A **Vantagem Média de Recuperação de C sobre B** (`c_vs_b_recovery_advantage`) é:
+       $$\overline{\Delta_{rec}}(C) - \overline{\Delta_{rec}}(B) = 0.5000 - 0.1667 = \mathbf{+0.3333}$$
+     - Já a **Taxa de Retenção** ($R = C_{old, post} / C_{old, ref}$) compara a competência final com a referência original ($C_{ref} = [1.0, 1.0, 1.0, 0.0]$):
+       - Em C: $R(C) = \mathbf{1.00}$ em todas as sementes.
+       - Em B: Seed 42: $0.25$; Seed 43: $1.00$; Seed 44: $0.25 \implies \overline{R}(B) = \mathbf{0.50}$.
+       - A **Vantagem Média de Retenção de C sobre B** é:
+         $$\overline{R}(C) - \overline{R}(B) = 1.0000 - 0.5000 = \mathbf{+0.5000}$$
+     - Ambas as métricas são formalmente consistentes: a recuperação (+0.3333) mede o ganho marginal pós-interferência, enquanto a retenção (+0.5000) mede a preservação absoluta frente à competência inicial pré-interferência.
 5. **Trade-off Estabilidade-Plasticidade ($T \in [0.0, 1.0]$):**
    $$T = \begin{cases} \frac{2 \cdot R \cdot P}{R + P}, & \text{se } R > 0 \text{ e } P > 0 \\ 0.0, & \text{caso contrário} \end{cases}$$
 6. **Métricas de Recursos e Memória:**
