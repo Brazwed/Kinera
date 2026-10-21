@@ -541,7 +541,120 @@ def run_scientific_protocol(
     }
 
 
+def derive_protocol_conclusions(
+    synthetic_results: dict[str, Any],
+    natural_results: dict[str, Any],
+) -> tuple[str, dict[str, Any]]:
+    """Derive overall validation status and scientific conclusions from fixture results.
+
+    Returns:
+        tuple (overall_status, conclusions_dict):
+        - overall_status: "VALIDATED" if accounting fairness and replay budget constraints
+          are confirmed across all evaluated fixtures; otherwise "INVALID_UNFAIR_BUDGET".
+        - conclusions_dict containing:
+            - protocol_validated (bool): True if protocol successfully confirmed all fairness constraints.
+            - fairness_confirmed (bool): True if update counts were fairly matched between B and C in all fixtures.
+            - replay_budget_matched (bool): True if replay budgets are equivalent between B and C in all fixtures.
+            - empirical_superiority_demonstrated (bool): True if directed replay (C) established superiority
+              under verified fair budget conditions.
+            - claim (str): Transparent, scientifically rigorous summary claim reflecting the findings.
+    """
+    fairness_confirmed = bool(
+        synthetic_results["comparison"]["is_fairly_matched_budget"]
+        and natural_results["comparison"]["is_fairly_matched_budget"]
+    )
+    replay_budget_matched = bool(
+        synthetic_results["evaluations"]["B"]["replay_budget"] == synthetic_results["evaluations"]["C"]["replay_budget"]
+        and natural_results["evaluations"]["B"]["replay_budget"] == natural_results["evaluations"]["C"]["replay_budget"]
+    )
+
+    if not (fairness_confirmed and replay_budget_matched):
+        overall_status = "INVALID_UNFAIR_BUDGET"
+        protocol_validated = False
+        empirical_superiority = False
+        claim = (
+            "Update budgets or accounting between baseline and replay variants were not fairly matched. "
+            "Fairness constraints were violated; therefore, protocol validation failed and the comparison "
+            "cannot substantiate any claim of empirical superiority."
+        )
+    else:
+        overall_status = "VALIDATED"
+        protocol_validated = True
+        empirical_superiority = bool(
+            synthetic_results["comparison"]["is_directed_superior"]
+            or natural_results["comparison"]["is_directed_superior"]
+        )
+        if empirical_superiority:
+            claim = (
+                "The controlled replay protocol, measurement hooks, fairness constraints, and "
+                "accounting are mathematically and empirically validated. Directed replay (C) "
+                "demonstrated empirical superiority under the evaluated fixture conditions."
+            )
+        else:
+            claim = (
+                "The controlled replay protocol, measurement hooks, fairness constraints, and "
+                "accounting are mathematically and empirically validated. However, under the evaluated "
+                "micro-fixtures, directed replay (C) does not show empirical superiority over uniform "
+                "random replay (B). Promotion to core architecture is deferred pending scaled experiments."
+            )
+
+    conclusions = {
+        "protocol_validated": protocol_validated,
+        "fairness_confirmed": fairness_confirmed,
+        "replay_budget_matched": replay_budget_matched,
+        "empirical_superiority_demonstrated": empirical_superiority,
+        "claim": claim,
+    }
+    return overall_status, conclusions
+
+
+def build_validation_report(
+    synthetic_results: dict[str, Any],
+    natural_results: dict[str, Any],
+    baseline_commit: str,
+    runner_commit: str,
+) -> dict[str, Any]:
+    """Compile the complete, standard Phase 34 L4 scientific validation report."""
+    status, conclusions = derive_protocol_conclusions(synthetic_results, natural_results)
+    return {
+        "schema_version": 1,
+        "phase": "34-L4",
+        "description": "Scientific validation of controlled learning replay (Variants A, B, C)",
+        "baseline_commit": baseline_commit,
+        "runner_commit": runner_commit,
+        "status": status,
+        "protocol": {
+            "variants": {
+                "A": "New updates only (no replay baseline)",
+                "B": "New updates + uniform random replay (fair budget)",
+                "C": "New updates + directed replay prioritized by forgetting_score",
+            },
+            "metrics": [
+                "retained_competence",
+                "retention_ratio",
+                "recovery_delta",
+                "replay_utility",
+                "plasticity_acquisition",
+                "new_competence_delta_during_replay",
+                "stability_plasticity_tradeoff",
+                "update_overhead",
+            ],
+            "overhead_definition": (
+                "Relative gradient update count increase: (total_updates - A_updates) / A_updates. "
+                "Represents training step budget, not wall-clock execution time or device energy."
+            ),
+        },
+        "results": {
+            "synthetic_fixture": synthetic_results,
+            "natural_fixture": natural_results,
+        },
+        "conclusions": conclusions,
+    }
+
+
 __all__ = [
     "FixtureType",
+    "build_validation_report",
+    "derive_protocol_conclusions",
     "run_scientific_protocol",
 ]

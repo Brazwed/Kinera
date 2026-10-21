@@ -14,7 +14,10 @@ from pathlib import Path
 import subprocess
 import sys
 
-from kinera.experiments.scientific_runner import run_scientific_protocol
+from kinera.experiments.scientific_runner import (
+    build_validation_report,
+    run_scientific_protocol,
+)
 
 # Approved main baseline commit for Phase 34 Tranche L4
 L4_APPROVED_BASELINE_COMMIT = "b4c12df395c930ec93cb4aaf2eab55dd49329988"
@@ -42,70 +45,12 @@ def main() -> None:
     synthetic_results = run_scientific_protocol("synthetic", replay_seed=0)
     natural_results = run_scientific_protocol("natural", replay_seed=1)
 
-    fairness_confirmed = bool(
-        synthetic_results["comparison"]["is_fairly_matched_budget"]
-        and natural_results["comparison"]["is_fairly_matched_budget"]
+    report = build_validation_report(
+        synthetic_results=synthetic_results,
+        natural_results=natural_results,
+        baseline_commit=L4_APPROVED_BASELINE_COMMIT,
+        runner_commit=runner_commit,
     )
-    replay_budget_matched = bool(
-        synthetic_results["evaluations"]["B"]["replay_budget"] == synthetic_results["evaluations"]["C"]["replay_budget"]
-        and natural_results["evaluations"]["B"]["replay_budget"] == natural_results["evaluations"]["C"]["replay_budget"]
-    )
-    empirical_superiority = bool(
-        synthetic_results["comparison"]["is_directed_superior"]
-        or natural_results["comparison"]["is_directed_superior"]
-    )
-
-    report = {
-        "schema_version": 1,
-        "phase": "34-L4",
-        "description": "Scientific validation of controlled learning replay (Variants A, B, C)",
-        "baseline_commit": L4_APPROVED_BASELINE_COMMIT,
-        "runner_commit": runner_commit,
-        "status": "VALIDATED",
-        "protocol": {
-            "variants": {
-                "A": "New updates only (no replay baseline)",
-                "B": "New updates + uniform random replay (fair budget)",
-                "C": "New updates + directed replay prioritized by forgetting_score",
-            },
-            "metrics": [
-                "retained_competence",
-                "retention_ratio",
-                "recovery_delta",
-                "replay_utility",
-                "plasticity_acquisition",
-                "new_competence_delta_during_replay",
-                "stability_plasticity_tradeoff",
-                "update_overhead",
-            ],
-            "overhead_definition": (
-                "Relative gradient update count increase: (total_updates - A_updates) / A_updates. "
-                "Represents training step budget, not wall-clock execution time or device energy."
-            ),
-        },
-        "results": {
-            "synthetic_fixture": synthetic_results,
-            "natural_fixture": natural_results,
-        },
-        "conclusions": {
-            "protocol_validated": True,
-            "fairness_confirmed": fairness_confirmed,
-            "replay_budget_matched": replay_budget_matched,
-            "empirical_superiority_demonstrated": empirical_superiority,
-            "claim": (
-                "The controlled replay protocol, measurement hooks, fairness constraints, and "
-                "accounting are mathematically and empirically validated. Directed replay (C) "
-                "demonstrated empirical superiority under the evaluated fixture conditions."
-                if empirical_superiority
-                else (
-                    "The controlled replay protocol, measurement hooks, fairness constraints, and "
-                    "accounting are mathematically and empirically validated. However, under the evaluated "
-                    "micro-fixtures, directed replay (C) does not show empirical superiority over uniform "
-                    "random replay (B). Promotion to core architecture is deferred pending scaled experiments."
-                )
-            ),
-        },
-    }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:

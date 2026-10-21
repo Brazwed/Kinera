@@ -18,7 +18,11 @@ from kinera.experiments.scientific_metrics import (
     calculate_stability_plasticity_tradeoff,
     compare_scientific_variants,
 )
-from kinera.experiments.scientific_runner import run_scientific_protocol
+from kinera.experiments.scientific_runner import (
+    build_validation_report,
+    derive_protocol_conclusions,
+    run_scientific_protocol,
+)
 
 
 class ScientificMetricsTests(unittest.TestCase):
@@ -310,6 +314,104 @@ class ScientificProtocolExecutionTests(unittest.TestCase):
     def test_unknown_fixture_type_rejected(self) -> None:
         with self.assertRaises(ValueError):
             run_scientific_protocol("non_existent")  # type: ignore[arg-type]
+
+
+class ReportConclusionsTests(unittest.TestCase):
+    def _make_mock_fixture_results(
+        self,
+        is_fairly_matched_budget: bool = True,
+        replay_budget_b: int = 1,
+        replay_budget_c: int = 1,
+        is_directed_superior: bool = False,
+    ) -> dict[str, Any]:
+        return {
+            "fixture_type": "mock",
+            "evaluations": {
+                "A": {"replay_budget": 0},
+                "B": {"replay_budget": replay_budget_b},
+                "C": {"replay_budget": replay_budget_c},
+            },
+            "comparison": {
+                "is_fairly_matched_budget": is_fairly_matched_budget,
+                "is_directed_superior": is_directed_superior,
+            },
+        }
+
+    def test_derive_conclusions_fair_and_no_superiority(self) -> None:
+        syn = self._make_mock_fixture_results(is_fairly_matched_budget=True, is_directed_superior=False)
+        nat = self._make_mock_fixture_results(is_fairly_matched_budget=True, is_directed_superior=False)
+
+        status, conc = derive_protocol_conclusions(syn, nat)
+
+        self.assertEqual(status, "VALIDATED")
+        self.assertTrue(conc["protocol_validated"])
+        self.assertTrue(conc["fairness_confirmed"])
+        self.assertTrue(conc["replay_budget_matched"])
+        self.assertFalse(conc["empirical_superiority_demonstrated"])
+        self.assertIn("does not show empirical superiority", conc["claim"])
+        self.assertIn("deferred pending scaled experiments", conc["claim"])
+
+    def test_derive_conclusions_fair_and_superiority_demonstrated(self) -> None:
+        syn = self._make_mock_fixture_results(is_fairly_matched_budget=True, is_directed_superior=False)
+        nat = self._make_mock_fixture_results(is_fairly_matched_budget=True, is_directed_superior=True)
+
+        status, conc = derive_protocol_conclusions(syn, nat)
+
+        self.assertEqual(status, "VALIDATED")
+        self.assertTrue(conc["protocol_validated"])
+        self.assertTrue(conc["fairness_confirmed"])
+        self.assertTrue(conc["replay_budget_matched"])
+        self.assertTrue(conc["empirical_superiority_demonstrated"])
+        self.assertIn("demonstrated empirical superiority", conc["claim"])
+        self.assertNotIn("does not show", conc["claim"])
+
+    def test_derive_conclusions_unfair_budget_flags_failure_and_rejects_superiority(self) -> None:
+        # One fixture has mismatched budget
+        syn = self._make_mock_fixture_results(is_fairly_matched_budget=False, is_directed_superior=True)
+        nat = self._make_mock_fixture_results(is_fairly_matched_budget=True, is_directed_superior=False)
+
+        status, conc = derive_protocol_conclusions(syn, nat)
+
+        self.assertEqual(status, "INVALID_UNFAIR_BUDGET")
+        self.assertFalse(conc["protocol_validated"])
+        self.assertFalse(conc["fairness_confirmed"])
+        self.assertFalse(conc["empirical_superiority_demonstrated"])
+        self.assertIn("Fairness constraints were violated", conc["claim"])
+        self.assertIn("cannot substantiate any claim of empirical superiority", conc["claim"])
+
+    def test_derive_conclusions_mismatched_replay_budget(self) -> None:
+        # B has budget 1; C has budget 2
+        syn = self._make_mock_fixture_results(replay_budget_b=1, replay_budget_c=2)
+        nat = self._make_mock_fixture_results(replay_budget_b=1, replay_budget_c=1)
+
+        status, conc = derive_protocol_conclusions(syn, nat)
+
+        self.assertEqual(status, "INVALID_UNFAIR_BUDGET")
+        self.assertFalse(conc["protocol_validated"])
+        self.assertFalse(conc["replay_budget_matched"])
+        self.assertFalse(conc["empirical_superiority_demonstrated"])
+        self.assertIn("Fairness constraints were violated", conc["claim"])
+
+    def test_build_validation_report_structure(self) -> None:
+        syn = self._make_mock_fixture_results()
+        nat = self._make_mock_fixture_results()
+
+        report = build_validation_report(
+            synthetic_results=syn,
+            natural_results=nat,
+            baseline_commit="baseline_sha",
+            runner_commit="runner_sha",
+        )
+
+        self.assertEqual(report["schema_version"], 1)
+        self.assertEqual(report["phase"], "34-L4")
+        self.assertEqual(report["status"], "VALIDATED")
+        self.assertEqual(report["baseline_commit"], "baseline_sha")
+        self.assertEqual(report["runner_commit"], "runner_sha")
+        self.assertIn("new_competence_delta_during_replay", report["protocol"]["metrics"])
+        self.assertIn("synthetic_fixture", report["results"])
+        self.assertIn("natural_fixture", report["results"])
+        self.assertTrue(report["conclusions"]["protocol_validated"])
 
 
 class ScientificImportBoundaryTests(unittest.TestCase):
