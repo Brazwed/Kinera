@@ -3,7 +3,7 @@
   "phase": "34-L4",
   "description": "Scientific validation of controlled learning replay (Variants A, B, C)",
   "baseline_commit": "b4c12df395c930ec93cb4aaf2eab55dd49329988",
-  "runner_commit": "5a459a08cce7f22deea964934acddf16ae4ab4c7",
+  "runner_commit": "b12050b2885a19fe5f832bb4440f736e80b8fd27",
   "status": "VALIDATED",
   "protocol": {
     "variants": {
