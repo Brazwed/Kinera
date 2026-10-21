@@ -580,15 +580,36 @@ def derive_protocol_conclusions(
     else:
         overall_status = "VALIDATED"
         protocol_validated = True
-        empirical_superiority = bool(
+        synthetic_superiority = bool(
             synthetic_results["comparison"]["is_directed_superior"]
-            or natural_results["comparison"]["is_directed_superior"]
         )
-        if empirical_superiority:
+        natural_superiority = bool(
+            natural_results["comparison"]["is_directed_superior"]
+        )
+        superiority_observed_in_any_fixture = (
+            synthetic_superiority or natural_superiority
+        )
+        superiority_consistent_across_fixtures = (
+            synthetic_superiority and natural_superiority
+        )
+        # A general empirical-superiority claim requires C to beat B in both
+        # evaluated fixture families, not merely one of them.
+        empirical_superiority = superiority_consistent_across_fixtures
+
+        if superiority_consistent_across_fixtures:
             claim = (
                 "The controlled replay protocol, measurement hooks, fairness constraints, and "
                 "accounting are mathematically and empirically validated. Directed replay (C) "
-                "demonstrated empirical superiority under the evaluated fixture conditions."
+                "demonstrated empirical superiority consistently across both evaluated fixture "
+                "conditions (synthetic and natural)."
+            )
+        elif superiority_observed_in_any_fixture:
+            claim = (
+                "The controlled replay protocol, measurement hooks, fairness constraints, and "
+                "accounting are validated, but directed replay (C) showed empirical superiority "
+                "in only one of the two evaluated fixtures. The result was not consistent across "
+                "synthetic and natural conditions, so general superiority is not established. "
+                "Promotion to core architecture is deferred pending scaled experiments."
             )
         else:
             claim = (
@@ -602,6 +623,8 @@ def derive_protocol_conclusions(
         "protocol_validated": protocol_validated,
         "fairness_confirmed": fairness_confirmed,
         "replay_budget_matched": replay_budget_matched,
+        "superiority_observed_in_any_fixture": superiority_observed_in_any_fixture,
+        "superiority_consistent_across_fixtures": superiority_consistent_across_fixtures,
         "empirical_superiority_demonstrated": empirical_superiority,
         "claim": claim,
     }
