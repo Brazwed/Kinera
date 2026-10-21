@@ -67,9 +67,17 @@ class ScientificMetricsTests(unittest.TestCase):
         val = calculate_stability_plasticity_tradeoff(0.4, 0.4)
         self.assertAlmostEqual(val, 0.4)
 
-        # One negative (net regression in stability) -> penalized by arithmetic average
-        self.assertEqual(calculate_stability_plasticity_tradeoff(-0.2, 0.4), 0.1)
+        # 0.5 stability and 1.0 plasticity -> 2 * (0.5 * 1.0) / 1.5 = 2/3
+        self.assertAlmostEqual(calculate_stability_plasticity_tradeoff(0.5, 1.0), 2.0 / 3.0)
+
+        # Perfect balance
+        self.assertEqual(calculate_stability_plasticity_tradeoff(1.0, 1.0), 1.0)
+
+        # Zero or negative inputs produce 0.0 (trade-off cannot exist if either is 0 or negative)
+        self.assertEqual(calculate_stability_plasticity_tradeoff(-0.2, 0.4), 0.0)
         self.assertEqual(calculate_stability_plasticity_tradeoff(-0.5, 0.5), 0.0)
+        self.assertEqual(calculate_stability_plasticity_tradeoff(0.0, 0.5), 0.0)
+        self.assertEqual(calculate_stability_plasticity_tradeoff(0.5, 0.0), 0.0)
         self.assertEqual(calculate_stability_plasticity_tradeoff(0.0, 0.0), 0.0)
 
     def test_variant_evaluation_dataclass_validations(self) -> None:
@@ -81,33 +89,40 @@ class ScientificMetricsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ScientificVariantEvaluation(
                 "X", (1.0,), (1.0,), (1.0,), (0.0,), (0.0,), (0.0,), (0.0,),
-                1.0, 1.0, 0.0, acc_zero, 0, 0.0, 0.0, None, 1.0, 0.0, (), ()
+                0.0, 1.0, 1.0, 1.0, 0.0, acc_zero, 0, 0.0, 0.0, None, 1.0, 0.0, (), ()
             )
 
         # Replay updates == 0 but utility provided
         with self.assertRaises(ValueError):
             ScientificVariantEvaluation(
                 "A", (1.0,), (1.0,), (1.0,), (0.0,), (0.0,), (0.0,), (0.0,),
-                1.0, 1.0, 0.0, acc_zero, 0, 0.0, 0.0, 0.5, 1.0, 0.0, (), ()
+                0.0, 1.0, 1.0, 1.0, 0.0, acc_zero, 0, 0.0, 0.0, 0.5, 1.0, 0.0, (), ()
             )
 
         # Replay updates > 0 but utility is None
         with self.assertRaises(ValueError):
             ScientificVariantEvaluation(
                 "B", (1.0,), (1.0,), (1.0,), (0.0,), (0.0,), (0.0,), (0.0,),
-                1.0, 1.0, 0.0, acc_replay, 1, 0.0, 0.0, None, 1.0, 0.0, (), ()
+                0.0, 1.0, 1.0, 1.0, 0.0, acc_replay, 1, 0.0, 0.0, None, 1.0, 0.0, (), ()
             )
 
         valid_a = ScientificVariantEvaluation(
             "A", (1.0,), (0.5,), (0.5,), (0.5,), (0.5,), (0.0,), (-0.5,),
-            1.0, 0.8, -0.2, acc_zero, 0, 0.0, -0.5, None, 0.5, -0.35, (), ()
+            0.0, 1.0, 1.0, 1.0, 0.0, acc_zero, 0, 0.0, -0.5, None, 0.5, 2.0 / 3.0, (), ()
         )
         self.assertEqual(valid_a.variant, "A")
         d = valid_a.to_dict()
         self.assertEqual(d["variant"], "A")
         self.assertIsNone(d["mean_replay_utility"])
         self.assertEqual(d["mean_retention_ratio"], 0.5)
-        self.assertEqual(d["stability_plasticity_tradeoff"], -0.35)
+        self.assertAlmostEqual(d["stability_plasticity_tradeoff"], 2.0 / 3.0)
+        self.assertEqual(d["new_competence_initial"], 0.0)
+        self.assertEqual(d["new_competence_acquired"], 1.0)
+        self.assertEqual(d["new_competence_post"], 1.0)
+        self.assertEqual(d["plasticity_acquisition"], 1.0)
+        self.assertEqual(d["new_retention_during_replay"], 0.0)
+        self.assertEqual(d["new_competence_reference"], 1.0)
+        self.assertEqual(d["new_competence_delta"], 0.0)
         self.assertEqual(d["replay_budget"], 0)
         self.assertEqual(d["candidate_pool"], [])
         self.assertEqual(d["selected_candidates"], [])
@@ -133,6 +148,16 @@ class ScientificProtocolExecutionTests(unittest.TestCase):
         self.assertEqual(len(b["candidate_pool"]), 2)
         self.assertEqual(len(b["selected_candidates"]), 1)
         self.assertEqual(len(c["selected_candidates"]), 1)
+
+        # Verifies new task acquisition and stability-plasticity tradeoff
+        for variant_eval in (a, b, c):
+            self.assertEqual(variant_eval["new_competence_initial"], 0.0)
+            self.assertEqual(variant_eval["new_competence_acquired"], 1.0)
+            self.assertEqual(variant_eval["new_competence_post"], 1.0)
+            self.assertEqual(variant_eval["plasticity_acquisition"], 1.0)
+            self.assertEqual(variant_eval["new_retention_during_replay"], 0.0)
+            self.assertEqual(variant_eval["mean_retention_ratio"], 0.5)
+            self.assertAlmostEqual(variant_eval["stability_plasticity_tradeoff"], 2.0 / 3.0)
 
         comp = first["comparison"]
         self.assertTrue(comp["is_fairly_matched_budget"])
@@ -170,8 +195,15 @@ class ScientificProtocolExecutionTests(unittest.TestCase):
         self.assertEqual(c_sel["selection_reason"], "max_forgetting_score")
         self.assertNotEqual(b_sel["example_ref"], c_sel["example_ref"])
 
-        # 5. Verifies retention ratio and stability-plasticity tradeoff are finite and bounded
+        # 5. Verifies retention ratio, new task acquisition and stability-plasticity tradeoff
         for variant_eval in (a, b, c):
+            self.assertEqual(variant_eval["new_competence_initial"], 0.0)
+            self.assertEqual(variant_eval["new_competence_acquired"], 1.0)
+            self.assertEqual(variant_eval["new_competence_post"], 1.0)
+            self.assertEqual(variant_eval["plasticity_acquisition"], 1.0)
+            self.assertEqual(variant_eval["new_retention_during_replay"], 0.0)
+            self.assertEqual(variant_eval["mean_retention_ratio"], 0.5)
+            self.assertAlmostEqual(variant_eval["stability_plasticity_tradeoff"], 2.0 / 3.0)
             self.assertTrue(0.0 <= variant_eval["mean_retention_ratio"] <= 1.0)
             self.assertTrue(math.isfinite(variant_eval["stability_plasticity_tradeoff"]))
 

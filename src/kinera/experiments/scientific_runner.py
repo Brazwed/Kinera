@@ -126,6 +126,9 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
                 old_probe_groups, old_probe_refs, old_probe_examples
             )
         )
+        new_initial = evaluate_retention_probe(
+            model, new_probe_group, (new_probe_ref,), (new_example,), vocabulary
+        )
 
         train_multitask_examples(
             model, [new_example], vocabulary,
@@ -139,7 +142,7 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
                 old_probe_groups, old_probe_refs, old_probe_examples
             )
         )
-        new_reference = evaluate_retention_probe(
+        new_acquired = evaluate_retention_probe(
             model, new_probe_group, (new_probe_ref,), (new_example,), vocabulary
         )
         states = tuple(
@@ -208,8 +211,11 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
             oriented_competence_delta(ref.competence, post.competence, ref.direction)
             for ref, post in zip(old_reference, old_post)
         )
-        new_delta = oriented_competence_delta(
-            new_reference.competence, new_post.competence, new_reference.direction
+        plasticity_acquisition = oriented_competence_delta(
+            new_initial.competence, new_acquired.competence, new_acquired.direction
+        )
+        new_retention_during_replay = oriented_competence_delta(
+            new_acquired.competence, new_post.competence, new_acquired.direction
         )
 
         accounting = ReplayAccounting(
@@ -233,7 +239,7 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
             for ref, post in zip(old_reference, old_post)
         )
         mean_retention = sum(retention_ratios) / len(retention_ratios) if retention_ratios else 0.0
-        tradeoff = calculate_stability_plasticity_tradeoff(mean_net_stability, new_delta)
+        tradeoff = calculate_stability_plasticity_tradeoff(mean_retention, plasticity_acquisition)
 
         # Audit candidate records
         audit_pool: list[CandidateAuditRecord] = []
@@ -262,9 +268,13 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
             old_forgetting_post=old_forgetting_post,
             old_recovery_delta=old_recovery,
             net_stability_delta=net_stability,
-            new_competence_reference=new_reference.competence,
+            new_competence_initial=new_initial.competence,
+            new_competence_acquired=new_acquired.competence,
             new_competence_post=new_post.competence,
-            new_competence_delta=new_delta,
+            plasticity_acquisition=plasticity_acquisition,
+            new_retention_during_replay=new_retention_during_replay,
+            new_competence_reference=new_acquired.competence,
+            new_competence_delta=new_retention_during_replay,
             accounting=accounting,
             replay_budget=replay_budget,
             mean_recovery_delta=mean_recovery,
@@ -340,6 +350,9 @@ def _run_natural_protocol(variant: str, replay_seed: int = 1) -> ScientificVaria
         old_ref_bola = evaluate_retention_probe(
             model, group_bola, (ref_bola,), (ex_bola,), char_vocabulary
         )
+        new_initial = evaluate_retention_probe(
+            model, group_interf, (ref_interf,), (ex_interf,), char_vocabulary
+        )
 
         # 2. Interfering learning task
         train_multitask_examples(
@@ -351,7 +364,7 @@ def _run_natural_protocol(variant: str, replay_seed: int = 1) -> ScientificVaria
         old_pre_bola = evaluate_retention_probe(
             model, group_bola, (ref_bola,), (ex_bola,), char_vocabulary
         )
-        new_reference = evaluate_retention_probe(
+        new_acquired = evaluate_retention_probe(
             model, group_interf, (ref_interf,), (ex_interf,), char_vocabulary
         )
 
@@ -420,8 +433,11 @@ def _run_natural_protocol(variant: str, replay_seed: int = 1) -> ScientificVaria
             oriented_competence_delta(old_ref_sapo.competence, old_post_sapo.competence, old_ref_sapo.direction),
             oriented_competence_delta(old_ref_bola.competence, old_post_bola.competence, old_ref_bola.direction),
         )
-        new_delta = oriented_competence_delta(
-            new_reference.competence, new_post.competence, new_reference.direction
+        plasticity_acquisition = oriented_competence_delta(
+            new_initial.competence, new_acquired.competence, new_acquired.direction
+        )
+        new_retention_during_replay = oriented_competence_delta(
+            new_acquired.competence, new_post.competence, new_acquired.direction
         )
 
         accounting = ReplayAccounting(
@@ -445,7 +461,7 @@ def _run_natural_protocol(variant: str, replay_seed: int = 1) -> ScientificVaria
             for ref, post in zip(old_reference, old_post)
         )
         mean_retention = sum(retention_ratios) / len(retention_ratios)
-        tradeoff = calculate_stability_plasticity_tradeoff(mean_net_stability, new_delta)
+        tradeoff = calculate_stability_plasticity_tradeoff(mean_retention, plasticity_acquisition)
 
         # Audit candidate records
         audit_pool: list[CandidateAuditRecord] = []
@@ -474,9 +490,13 @@ def _run_natural_protocol(variant: str, replay_seed: int = 1) -> ScientificVaria
             old_forgetting_post=old_forgetting_post,
             old_recovery_delta=old_recovery,
             net_stability_delta=net_stability,
-            new_competence_reference=new_reference.competence,
+            new_competence_initial=new_initial.competence,
+            new_competence_acquired=new_acquired.competence,
             new_competence_post=new_post.competence,
-            new_competence_delta=new_delta,
+            plasticity_acquisition=plasticity_acquisition,
+            new_retention_during_replay=new_retention_during_replay,
+            new_competence_reference=new_acquired.competence,
+            new_competence_delta=new_retention_during_replay,
             accounting=accounting,
             replay_budget=replay_budget,
             mean_recovery_delta=mean_recovery,

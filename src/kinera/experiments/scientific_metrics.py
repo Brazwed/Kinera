@@ -101,37 +101,35 @@ def calculate_retention_ratio(
 
 
 def calculate_stability_plasticity_tradeoff(
-    stability_delta: float,
-    plasticity_delta: float,
+    stability_score: float,
+    plasticity_score: float,
 ) -> float:
-    """Calculate the composite Stability-Plasticity Trade-off index.
+    """Calculate the composite Stability-Plasticity Trade-off index in [0.0, 1.0].
 
     Phenomenon measured:
-        The stability-plasticity dilemma concerns the balance between preserving
-        previously acquired knowledge against catastrophic forgetting (stability)
-        while successfully assimilating new knowledge (plasticity).
+        Quantifies the balance between preserving previously acquired knowledge
+        (stability, measured by retention ratio in [0.0, 1.0]) and assimilating new
+        knowledge (plasticity, measured by competence acquisition in [0.0, 1.0]).
 
     Parameters:
-        stability_delta: Oriented net change in previously acquired tasks relative
-            to the reference baseline (post_old - reference_old). A value of 0.0
-            indicates complete retention without net loss; negative indicates degradation;
-            positive indicates net improvement.
-        plasticity_delta: Oriented change in the newly introduced task relative to
-            baseline (post_new - reference_new). Positive indicates successful acquisition.
+        stability_score: Measure of stability (e.g. mean retention ratio in [0.0, 1.0]).
+            Values <= 0.0 indicate total loss of prior competence.
+        plasticity_score: Measure of plasticity (e.g. acquisition delta in [0.0, 1.0]).
+            Values <= 0.0 indicate complete failure to assimilate the new task.
 
     Formula:
-        - If both deltas are strictly positive, computes the harmonic mean:
-              2 * (stability_delta * plasticity_delta) / (stability_delta + plasticity_delta)
-          ensuring neither stability nor plasticity can be traded off to zero.
-        - If either delta is non-positive, returns their arithmetic average:
-              (stability_delta + plasticity_delta) / 2.0
-          penalizing regressions proportionally.
+        Harmonic mean (balanced F1-style trade-off) ensuring neither stability nor
+        plasticity can be traded off to zero:
+            2 * (stability_score * plasticity_score) / (stability_score + plasticity_score)
+        - If stability_score <= 0.0 or plasticity_score <= 0.0, returns 0.0.
+        - Result is guaranteed to be finite and bounded in [0.0, 1.0].
     """
-    stab_d = _validate_finite_float(stability_delta, "stability_delta")
-    plas_d = _validate_finite_float(plasticity_delta, "plasticity_delta")
-    if stab_d > 0.0 and plas_d > 0.0:
-        return 2.0 * (stab_d * plas_d) / (stab_d + plas_d)
-    return (stab_d + plas_d) / 2.0
+    s = _validate_finite_float(stability_score, "stability_score")
+    p = _validate_finite_float(plasticity_score, "plasticity_score")
+    if s <= 0.0 or p <= 0.0:
+        return 0.0
+    val = 2.0 * (s * p) / (s + p)
+    return min(max(0.0, val), 1.0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,9 +168,11 @@ class ScientificVariantEvaluation:
     old_forgetting_post: tuple[float, ...]
     old_recovery_delta: tuple[float, ...]
     net_stability_delta: tuple[float, ...]
-    new_competence_reference: float
+    new_competence_initial: float
+    new_competence_acquired: float
     new_competence_post: float
-    new_competence_delta: float
+    plasticity_acquisition: float
+    new_retention_during_replay: float
     accounting: ReplayAccounting
     replay_budget: int
     mean_recovery_delta: float
@@ -182,6 +182,8 @@ class ScientificVariantEvaluation:
     stability_plasticity_tradeoff: float
     candidate_pool: tuple[CandidateAuditRecord, ...]
     selected_candidates: tuple[CandidateAuditRecord, ...]
+    new_competence_reference: float | None = None
+    new_competence_delta: float | None = None
 
     def __post_init__(self) -> None:
         if self.variant not in ("A", "B", "C"):
@@ -195,6 +197,11 @@ class ScientificVariantEvaluation:
             if self.mean_replay_utility is None:
                 raise ValueError("mean_replay_utility is required when replay_updates > 0")
 
+        if self.new_competence_reference is None:
+            object.__setattr__(self, "new_competence_reference", self.new_competence_acquired)
+        if self.new_competence_delta is None:
+            object.__setattr__(self, "new_competence_delta", self.new_retention_during_replay)
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "variant": self.variant,
@@ -206,9 +213,13 @@ class ScientificVariantEvaluation:
             "old_forgetting_post": list(self.old_forgetting_post),
             "old_recovery_delta": list(self.old_recovery_delta),
             "net_stability_delta": list(self.net_stability_delta),
-            "new_competence_reference": self.new_competence_reference,
+            "new_competence_initial": self.new_competence_initial,
+            "new_competence_acquired": self.new_competence_acquired,
             "new_competence_post": self.new_competence_post,
+            "new_competence_reference": self.new_competence_reference,
             "new_competence_delta": self.new_competence_delta,
+            "plasticity_acquisition": self.plasticity_acquisition,
+            "new_retention_during_replay": self.new_retention_during_replay,
             "accounting": {
                 "new_updates": self.accounting.new_updates,
                 "replay_updates": self.accounting.replay_updates,
@@ -291,7 +302,7 @@ def compare_scientific_variants(
     else:
         c_vs_b_util = None
 
-    c_vs_b_plas = eval_c.new_competence_delta - eval_b.new_competence_delta
+    c_vs_b_plas = eval_c.plasticity_acquisition - eval_b.plasticity_acquisition
     c_vs_b_tradeoff = eval_c.stability_plasticity_tradeoff - eval_b.stability_plasticity_tradeoff
 
     a_tot = max(eval_a.accounting.total_updates, 1)
@@ -303,8 +314,12 @@ def compare_scientific_variants(
         "Represents training step budget, not wall-clock execution time or device energy."
     )
 
-    # Honest assessment: directed is superior only if recovery advantage > 0 with non-inferior plasticity
-    is_superior = (c_vs_b_rec > 0.0) and (c_vs_b_plas >= 0.0)
+    # Honest assessment: directed is superior only if recovery advantage > 0 with non-inferior plasticity and replay retention
+    is_superior = (
+        (c_vs_b_rec > 0.0)
+        and (c_vs_b_plas >= 0.0)
+        and (eval_c.new_retention_during_replay >= eval_b.new_retention_during_replay)
+    )
 
     claim = (
         "Protocol execution and accounting fairness are validated. "
