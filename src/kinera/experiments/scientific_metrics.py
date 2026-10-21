@@ -3,6 +3,7 @@
 This module computes empirical metrics defined in Issue #34 (Tranche L4):
 - ReplayUtility = recovery_delta / replay_updates
 - Retained competence and recovery deltas across probe groups
+- Retention ratio = post_competence / reference_competence
 - Stability vs. plasticity trade-offs (old retention vs new assimilation)
 - Strict pairwise comparisons between variants A (no replay), B (random replay),
   and C (directed replay).
@@ -88,9 +89,9 @@ def calculate_stability_plasticity_tradeoff(
 ) -> float:
     """Harmonic-style composite index of stability (old recovery) and plasticity (new learning).
 
-    If either delta is non-positive, returns the arithmetic sum (which will reflect
+    If either delta is non-positive, returns the arithmetic sum (which reflects
     the penalty). If both are positive, computes their harmonic mean to ensure
-    neither side is sacrificed.
+    neither stability nor plasticity is sacrificed.
     """
     old_d = _validate_finite_float(old_recovery_delta, "old_recovery_delta")
     new_d = _validate_finite_float(new_competence_delta, "new_competence_delta")
@@ -116,6 +117,8 @@ class ScientificVariantEvaluation:
     accounting: ReplayAccounting
     mean_recovery_delta: float
     mean_replay_utility: float | None
+    mean_retention_ratio: float
+    stability_plasticity_tradeoff: float
 
     def __post_init__(self) -> None:
         if self.variant not in ("A", "B", "C"):
@@ -149,6 +152,8 @@ class ScientificVariantEvaluation:
             },
             "mean_recovery_delta": self.mean_recovery_delta,
             "mean_replay_utility": self.mean_replay_utility,
+            "mean_retention_ratio": self.mean_retention_ratio,
+            "stability_plasticity_tradeoff": self.stability_plasticity_tradeoff,
         }
 
 
@@ -160,10 +165,23 @@ class ScientificComparison:
     c_vs_a_recovery_advantage: float
     c_vs_b_utility_advantage: float | None
     c_vs_b_plasticity_delta: float
-    b_vs_a_compute_overhead: float
-    c_vs_a_compute_overhead: float
+    c_vs_b_tradeoff_advantage: float
+    b_vs_a_update_overhead: float
+    c_vs_a_update_overhead: float
     is_fairly_matched_budget: bool
+    is_directed_superior: bool
+    overhead_definition: str
     summary_claim: str
+
+    @property
+    def b_vs_a_compute_overhead(self) -> float:
+        """Alias for backward compatibility representing gradient update count ratio."""
+        return self.b_vs_a_update_overhead
+
+    @property
+    def c_vs_a_compute_overhead(self) -> float:
+        """Alias for backward compatibility representing gradient update count ratio."""
+        return self.c_vs_a_update_overhead
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -171,9 +189,14 @@ class ScientificComparison:
             "c_vs_a_recovery_advantage": self.c_vs_a_recovery_advantage,
             "c_vs_b_utility_advantage": self.c_vs_b_utility_advantage,
             "c_vs_b_plasticity_delta": self.c_vs_b_plasticity_delta,
+            "c_vs_b_tradeoff_advantage": self.c_vs_b_tradeoff_advantage,
+            "b_vs_a_update_overhead": self.b_vs_a_update_overhead,
+            "c_vs_a_update_overhead": self.c_vs_a_update_overhead,
             "b_vs_a_compute_overhead": self.b_vs_a_compute_overhead,
             "c_vs_a_compute_overhead": self.c_vs_a_compute_overhead,
             "is_fairly_matched_budget": self.is_fairly_matched_budget,
+            "is_directed_superior": self.is_directed_superior,
+            "overhead_definition": self.overhead_definition,
             "summary_claim": self.summary_claim,
         }
 
@@ -201,14 +224,22 @@ def compare_scientific_variants(
         c_vs_b_util = None
 
     c_vs_b_plas = eval_c.new_competence_delta - eval_b.new_competence_delta
+    c_vs_b_tradeoff = eval_c.stability_plasticity_tradeoff - eval_b.stability_plasticity_tradeoff
 
     a_tot = max(eval_a.accounting.total_updates, 1)
-    b_overhead = float(eval_b.accounting.total_updates - eval_a.accounting.total_updates) / a_tot
-    c_overhead = float(eval_c.accounting.total_updates - eval_a.accounting.total_updates) / a_tot
+    b_up_overhead = float(eval_b.accounting.total_updates - eval_a.accounting.total_updates) / a_tot
+    c_up_overhead = float(eval_c.accounting.total_updates - eval_a.accounting.total_updates) / a_tot
+
+    overhead_def = "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Not wall-clock or energy."
+
+    # Honest assessment: directed is superior only if recovery advantage > 0 with non-inferior plasticity
+    is_superior = (c_vs_b_rec > 0.0) and (c_vs_b_plas >= 0.0)
 
     claim = (
-        "Evaluation conducted under strict L4 fair-budget constraints. "
-        "No general linguistic superiority is claimed unless supported across scaled corpora."
+        "Protocol execution and accounting fairness are validated. "
+        "Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical "
+        "superiority over uniform random replay (B). Promotion to core architecture is deferred "
+        "pending scaled corpora experiments."
     )
 
     return ScientificComparison(
@@ -216,9 +247,12 @@ def compare_scientific_variants(
         c_vs_a_recovery_advantage=c_vs_a_rec,
         c_vs_b_utility_advantage=c_vs_b_util,
         c_vs_b_plasticity_delta=c_vs_b_plas,
-        b_vs_a_compute_overhead=b_overhead,
-        c_vs_a_compute_overhead=c_overhead,
+        c_vs_b_tradeoff_advantage=c_vs_b_tradeoff,
+        b_vs_a_update_overhead=b_up_overhead,
+        c_vs_a_update_overhead=c_up_overhead,
         is_fairly_matched_budget=fair_budget,
+        is_directed_superior=is_superior,
+        overhead_definition=overhead_def,
         summary_claim=claim,
     )
 

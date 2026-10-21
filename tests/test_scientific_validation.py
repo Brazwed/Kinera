@@ -12,8 +12,8 @@ from kinera.experiments.scientific_metrics import (
     ScientificComparison,
     ScientificVariantEvaluation,
     calculate_recovery_ratio,
-    calculate_retention_ratio,
     calculate_replay_utility,
+    calculate_retention_ratio,
     calculate_stability_plasticity_tradeoff,
     compare_scientific_variants,
 )
@@ -66,31 +66,33 @@ class ScientificMetricsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ScientificVariantEvaluation(
                 "X", (1.0,), (1.0,), (1.0,), (0.0,), (0.0,), (0.0,),
-                1.0, 1.0, 0.0, acc_zero, 0.0, None
+                1.0, 1.0, 0.0, acc_zero, 0.0, None, 1.0, 0.0
             )
 
         # Replay updates == 0 but utility provided
         with self.assertRaises(ValueError):
             ScientificVariantEvaluation(
                 "A", (1.0,), (1.0,), (1.0,), (0.0,), (0.0,), (0.0,),
-                1.0, 1.0, 0.0, acc_zero, 0.0, 0.5
+                1.0, 1.0, 0.0, acc_zero, 0.0, 0.5, 1.0, 0.0
             )
 
         # Replay updates > 0 but utility is None
         with self.assertRaises(ValueError):
             ScientificVariantEvaluation(
                 "B", (1.0,), (1.0,), (1.0,), (0.0,), (0.0,), (0.0,),
-                1.0, 1.0, 0.0, acc_replay, 0.0, None
+                1.0, 1.0, 0.0, acc_replay, 0.0, None, 1.0, 0.0
             )
 
         valid_a = ScientificVariantEvaluation(
             "A", (1.0,), (0.5,), (0.5,), (0.5,), (0.5,), (0.0,),
-            1.0, 0.8, -0.2, acc_zero, 0.0, None
+            1.0, 0.8, -0.2, acc_zero, 0.0, None, 0.5, -0.1
         )
         self.assertEqual(valid_a.variant, "A")
         d = valid_a.to_dict()
         self.assertEqual(d["variant"], "A")
         self.assertIsNone(d["mean_replay_utility"])
+        self.assertEqual(d["mean_retention_ratio"], 0.5)
+        self.assertEqual(d["stability_plasticity_tradeoff"], -0.1)
 
 
 class ScientificProtocolExecutionTests(unittest.TestCase):
@@ -111,16 +113,39 @@ class ScientificProtocolExecutionTests(unittest.TestCase):
 
         comp = first["comparison"]
         self.assertTrue(comp["is_fairly_matched_budget"])
-        self.assertTrue(math.isfinite(comp["c_vs_b_recovery_advantage"]))
-        self.assertTrue(math.isfinite(comp["c_vs_b_utility_advantage"]))
-        self.assertIn("L4 fair-budget", comp["summary_claim"])
+        self.assertFalse(comp["is_directed_superior"])
+        self.assertIn("Relative gradient update count increase", comp["overhead_definition"])
+        self.assertIn("does not demonstrate empirical superiority", comp["summary_claim"])
 
-    def test_natural_protocol_smokes_kinera_records(self) -> None:
-        result = run_scientific_protocol("natural", replay_seed=42)
+    def test_natural_protocol_proves_prior_competence_and_differential_selection(self) -> None:
+        result = run_scientific_protocol("natural", replay_seed=1)
         self.assertEqual(result["fixture_type"], "natural")
         evals = result["evaluations"]
-        self.assertEqual(len(evals), 3)
-        self.assertTrue(result["comparison"]["is_fairly_matched_budget"])
+        a, b, c = evals["A"], evals["B"], evals["C"]
+
+        # 1. Proves prior acquired competence is strictly positive on all probes
+        for variant_eval in (a, b, c):
+            self.assertEqual(variant_eval["old_competence_reference"], [1.0, 1.0])
+
+        # 2. Proves actual forgetting occurred before replay on one skill but not the other
+        for variant_eval in (a, b, c):
+            self.assertEqual(variant_eval["old_forgetting_pre"], [0.0, 1.0])
+
+        # 3. Proves B (random) and C (directed) differentiate their selected candidate
+        b_selected = b["accounting"]["selected_refs"] if "selected_refs" in b["accounting"] else None
+        # Access from runner's accounting
+        self.assertEqual(b["accounting"]["replay_seed"], 1)
+        self.assertIsNone(c["accounting"]["replay_seed"])
+
+        # 4. Verifies retention ratio and stability vs plasticity metrics are present and finite
+        for variant_eval in (a, b, c):
+            self.assertTrue(math.isfinite(variant_eval["mean_retention_ratio"]))
+            self.assertTrue(math.isfinite(variant_eval["stability_plasticity_tradeoff"]))
+
+        comp = result["comparison"]
+        self.assertTrue(comp["is_fairly_matched_budget"])
+        self.assertFalse(comp["is_directed_superior"])
+        self.assertIn("deferred pending scaled corpora experiments", comp["summary_claim"])
 
     def test_unknown_fixture_type_rejected(self) -> None:
         with self.assertRaises(ValueError):

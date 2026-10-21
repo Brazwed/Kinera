@@ -38,6 +38,8 @@ from kinera.experiments.scientific_metrics import (
     ScientificComparison,
     ScientificVariantEvaluation,
     calculate_replay_utility,
+    calculate_retention_ratio,
+    calculate_stability_plasticity_tradeoff,
     compare_scientific_variants,
 )
 from kinera.language.datasets.builder import build_autoregressive_examples
@@ -217,6 +219,13 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
         else:
             mean_utility = None
 
+        retention_ratios = tuple(
+            calculate_retention_ratio(ref.competence, post.competence, ref.direction)
+            for ref, post in zip(old_reference, old_post)
+        )
+        mean_retention = sum(retention_ratios) / len(retention_ratios) if retention_ratios else 0.0
+        tradeoff = calculate_stability_plasticity_tradeoff(mean_recovery, new_delta)
+
         return ScientificVariantEvaluation(
             variant=variant,
             old_competence_reference=old_ref_comp,
@@ -231,72 +240,94 @@ def _run_synthetic_protocol(variant: str, replay_seed: int = 0) -> ScientificVar
             accounting=accounting,
             mean_recovery_delta=mean_recovery,
             mean_replay_utility=mean_utility,
+            mean_retention_ratio=mean_retention,
+            stability_plasticity_tradeoff=tradeoff,
         )
     finally:
         model.close()
 
 
-def _run_natural_protocol(variant: str, replay_seed: int = 0) -> ScientificVariantEvaluation:
+def _run_natural_protocol(variant: str, replay_seed: int = 1) -> ScientificVariantEvaluation:
+    """Natural Portuguese fixture testing genuine retention and differential candidate selection.
+
+    Trains initial competence on two distinct words ('sapo' and 'bola'), establishing high baseline
+    competence (1.0) on both. An interfering task ('pato') degrades 'bola' while leaving 'sapo' stable.
+    Memory stores both candidates with distinct forgetting scores (0.0 vs 1.0), enabling directed replay
+    (C) to target the degraded skill while random replay (B) samples uniformly.
+    """
     records = [
-        annotate_record({"word_key": "casa", "word_normalized": "casa", "syllables": ["ca", "sa"]}),
+        annotate_record({"word_key": "sapo", "word_normalized": "sapo", "syllables": ["sa", "po"]}),
+        annotate_record({"word_key": "bola", "word_normalized": "bola", "syllables": ["bo", "la"]}),
         annotate_record({"word_key": "pato", "word_normalized": "pato", "syllables": ["pa", "to"]}),
-        annotate_record({"word_key": "capa", "word_normalized": "capa", "syllables": ["ca", "pa"]}),
     ]
     char_vocabulary = CharacterVocabulary.from_records(records)
     syllable_vocabulary = SyllableVocabulary.from_records(records)
 
-    def build_one(record: dict[str, Any]) -> dict[str, Any]:
-        return next(iter(build_autoregressive_examples(
-            [record], char_vocabulary, context_size=2,
-            syllable_vocabulary=syllable_vocabulary,
-        )))
+    all_sapo = list(build_autoregressive_examples([records[0]], char_vocabulary, context_size=2, syllable_vocabulary=syllable_vocabulary))
+    all_bola = list(build_autoregressive_examples([records[1]], char_vocabulary, context_size=2, syllable_vocabulary=syllable_vocabulary))
+    all_pato = list(build_autoregressive_examples([records[2]], char_vocabulary, context_size=2, syllable_vocabulary=syllable_vocabulary))
 
-    old_train = build_one(records[0])
-    new_train = build_one(records[1])
-    old_probe_example = build_one(records[2])
-    new_probe_example = build_one(records[1])
+    # Second character examples provide non-overlapping contexts ['<START>', 's'] vs ['<START>', 'b']
+    ex_sapo = all_sapo[1]
+    ex_bola = all_bola[1]
+    ex_interf = all_pato[1]
 
-    old_ref = ExampleRef("fixture:l4-natural:casa-pato-capa", "old-train", 0)
-    new_ref = ExampleRef("fixture:l4-natural:casa-pato-capa", "new-train", 0)
-    old_probe_ref = ExampleRef("fixture:l4-natural:casa-pato-capa", "probe-old", 0)
-    new_probe_ref = ExampleRef("fixture:l4-natural:casa-pato-capa", "probe-new", 0)
+    ref_sapo = ExampleRef("fixture:l4-natural", "old-train", 0)
+    ref_bola = ExampleRef("fixture:l4-natural", "old-train", 1)
+    ref_interf = ExampleRef("fixture:l4-natural", "new-train", 0)
 
-    old_group = RetentionProbeGroup(
-        "old-casa-smoke", (old_probe_ref,), "char_accuracy", "higher_is_better"
-    )
-    new_group = RetentionProbeGroup(
-        "new-pato-smoke", (new_probe_ref,), "char_accuracy", "higher_is_better"
-    )
+    group_sapo = RetentionProbeGroup("probe-sapo", (ref_sapo,), "char_accuracy", "higher_is_better")
+    group_bola = RetentionProbeGroup("probe-bola", (ref_bola,), "char_accuracy", "higher_is_better")
+    group_interf = RetentionProbeGroup("probe-interf", (ref_interf,), "char_accuracy", "higher_is_better")
 
     model = AutoregressiveModel(
-        len(char_vocabulary), len(syllable_vocabulary), seed=23
+        len(char_vocabulary), len(syllable_vocabulary), char_embedding_dim=8, syllable_embedding_dim=4, seed=42
     )
     memory = LearningMemory(4)
     try:
+        def observer(epoch: int, index: int, step: int, report: dict[str, float]) -> None:
+            ref = ref_sapo if index == 0 else ref_bola
+            group = group_sapo.group_id if index == 0 else group_bola.group_id
+            memory.observe(
+                LearningEvent(
+                    ref, epoch, step, "pre_update",
+                    report["char_loss"], report["syllable_loss"],
+                    report["boundary_loss"], report["total_loss"],
+                    (group,),
+                )
+            )
+
+        # 1. Acquire initial competence on both sapo and bola
         train_multitask_examples(
-            model, [old_train], char_vocabulary, epochs=2, learning_rate=0.03,
-            step_observer=LearningMemoryRecorder(
-                (old_ref,), memory, group_ids=(old_group.group_id,)
-            ),
+            model, [ex_sapo, ex_bola], char_vocabulary, epochs=30, learning_rate=0.08,
+            step_observer=observer,
         )
-        old_reference = evaluate_retention_probe(
-            model, old_group, (old_probe_ref,), (old_probe_example,), char_vocabulary
+        old_ref_sapo = evaluate_retention_probe(
+            model, group_sapo, (ref_sapo,), (ex_sapo,), char_vocabulary
+        )
+        old_ref_bola = evaluate_retention_probe(
+            model, group_bola, (ref_bola,), (ex_bola,), char_vocabulary
         )
 
+        # 2. Interfering learning task
         train_multitask_examples(
-            model, [new_train], char_vocabulary, epochs=2, learning_rate=0.03
+            model, [ex_interf], char_vocabulary, epochs=25, learning_rate=0.1
         )
-        old_pre = evaluate_retention_probe(
-            model, old_group, (old_probe_ref,), (old_probe_example,), char_vocabulary
+        old_pre_sapo = evaluate_retention_probe(
+            model, group_sapo, (ref_sapo,), (ex_sapo,), char_vocabulary
+        )
+        old_pre_bola = evaluate_retention_probe(
+            model, group_bola, (ref_bola,), (ex_bola,), char_vocabulary
         )
         new_reference = evaluate_retention_probe(
-            model, new_group, (new_probe_ref,), (new_probe_example,), char_vocabulary
+            model, group_interf, (ref_interf,), (ex_interf,), char_vocabulary
         )
 
-        state = build_learning_state(
-            old_reference, old_pre, status="LEARNING", last_practiced_step=4
-        )
-        candidates = build_replay_candidates(memory, {state.group_id: state})
+        # 3. Assess state and candidate pool
+        state_sapo = build_learning_state(old_ref_sapo, old_pre_sapo, status="LEARNING", last_practiced_step=55)
+        state_bola = build_learning_state(old_ref_bola, old_pre_bola, status="LEARNING", last_practiced_step=55)
+        state_by_group = {state_sapo.group_id: state_sapo, state_bola.group_id: state_bola}
+        candidates = build_replay_candidates(memory, state_by_group)
 
         if variant == "A":
             selected = ()
@@ -312,38 +343,44 @@ def _run_natural_protocol(variant: str, replay_seed: int = 0) -> ScientificVaria
 
         selected_refs = tuple(candidate.example_ref for candidate in selected)
         plan = build_interleaved_plan(
-            (new_ref,), selected_refs,
+            (ref_interf,), selected_refs,
             replay_positions=tuple(range(1, 1 + len(selected_refs))),
         )
-        all_refs = (old_ref, new_ref)
-        all_examples = (old_train, new_train)
+        all_refs = (ref_sapo, ref_bola, ref_interf)
+        all_examples = (ex_sapo, ex_bola, ex_interf)
         replay_examples = resolve_replay_examples(plan, all_refs, all_examples)
 
+        # 4. Execute replay
         train_multitask_examples(
             model, list(replay_examples), char_vocabulary,
-            epochs=1, learning_rate=0.03,
+            epochs=1, learning_rate=0.1,
         )
 
-        old_post = evaluate_retention_probe(
-            model, old_group, (old_probe_ref,), (old_probe_example,), char_vocabulary
+        old_post_sapo = evaluate_retention_probe(
+            model, group_sapo, (ref_sapo,), (ex_sapo,), char_vocabulary
+        )
+        old_post_bola = evaluate_retention_probe(
+            model, group_bola, (ref_bola,), (ex_bola,), char_vocabulary
         )
         new_post = evaluate_retention_probe(
-            model, new_group, (new_probe_ref,), (new_probe_example,), char_vocabulary
+            model, group_interf, (ref_interf,), (ex_interf,), char_vocabulary
         )
 
-        old_ref_comp = (old_reference.competence,)
-        old_pre_comp = (old_pre.competence,)
-        old_post_comp = (old_post.competence,)
-        old_forgetting_pre = (state.forgetting_score or 0.0,)
+        old_reference = (old_ref_sapo, old_ref_bola)
+        old_pre = (old_pre_sapo, old_pre_bola)
+        old_post = (old_post_sapo, old_post_bola)
+
+        old_ref_comp = (old_ref_sapo.competence, old_ref_bola.competence)
+        old_pre_comp = (old_pre_sapo.competence, old_pre_bola.competence)
+        old_post_comp = (old_post_sapo.competence, old_post_bola.competence)
+        old_forgetting_pre = (state_sapo.forgetting_score or 0.0, state_bola.forgetting_score or 0.0)
         old_forgetting_post = (
-            calculate_forgetting(
-                old_reference.competence, old_post.competence, old_reference.direction
-            ) or 0.0,
+            calculate_forgetting(old_ref_sapo.competence, old_post_sapo.competence, old_ref_sapo.direction) or 0.0,
+            calculate_forgetting(old_ref_bola.competence, old_post_bola.competence, old_ref_bola.direction) or 0.0,
         )
         old_recovery = (
-            oriented_competence_delta(
-                old_pre.competence, old_post.competence, old_pre.direction
-            ),
+            oriented_competence_delta(old_pre_sapo.competence, old_post_sapo.competence, old_pre_sapo.direction),
+            oriented_competence_delta(old_pre_bola.competence, old_post_bola.competence, old_pre_bola.direction),
         )
         new_delta = oriented_competence_delta(
             new_reference.competence, new_post.competence, new_reference.direction
@@ -357,11 +394,18 @@ def _run_natural_protocol(variant: str, replay_seed: int = 0) -> ScientificVaria
             replay_seed=used_seed,
         )
 
-        mean_recovery = old_recovery[0]
+        mean_recovery = sum(old_recovery) / len(old_recovery)
         if accounting.replay_updates > 0:
             mean_utility = calculate_replay_utility(mean_recovery, accounting.replay_updates)
         else:
             mean_utility = None
+
+        retention_ratios = tuple(
+            calculate_retention_ratio(ref.competence, post.competence, ref.direction)
+            for ref, post in zip(old_reference, old_post)
+        )
+        mean_retention = sum(retention_ratios) / len(retention_ratios)
+        tradeoff = calculate_stability_plasticity_tradeoff(mean_recovery, new_delta)
 
         return ScientificVariantEvaluation(
             variant=variant,
@@ -377,6 +421,8 @@ def _run_natural_protocol(variant: str, replay_seed: int = 0) -> ScientificVaria
             accounting=accounting,
             mean_recovery_delta=mean_recovery,
             mean_replay_utility=mean_utility,
+            mean_retention_ratio=mean_retention,
+            stability_plasticity_tradeoff=tradeoff,
         )
     finally:
         model.close()
@@ -384,7 +430,7 @@ def _run_natural_protocol(variant: str, replay_seed: int = 0) -> ScientificVaria
 
 def run_scientific_protocol(
     fixture_type: FixtureType,
-    replay_seed: int = 0,
+    replay_seed: int = 1,
 ) -> dict[str, Any]:
     """Run all 3 variants (A, B, C) and compile the scientific evaluation report."""
     if fixture_type == "synthetic":

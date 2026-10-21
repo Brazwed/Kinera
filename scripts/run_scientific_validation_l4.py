@@ -15,27 +15,31 @@ import sys
 
 from kinera.experiments.scientific_runner import run_scientific_protocol
 
+# Approved main baseline commit for Phase 34 Tranche L4
+L4_APPROVED_BASELINE_COMMIT = "b4c12df395c930ec93cb4aaf2eab55dd49329988"
+
 
 def main() -> None:
     project_root = Path(__file__).resolve().parents[1]
     output_path = project_root / "experiments" / "phase34_l4_scientific_validation.json"
 
-    # Get baseline commit
+    # Current execution/code revision
     try:
-        baseline_commit = subprocess.check_output(
+        runner_commit = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=project_root, text=True
         ).strip()
     except Exception:
-        baseline_commit = "unknown"
+        runner_commit = "unknown"
 
     synthetic_results = run_scientific_protocol("synthetic", replay_seed=0)
-    natural_results = run_scientific_protocol("natural", replay_seed=42)
+    natural_results = run_scientific_protocol("natural", replay_seed=1)
 
     report = {
         "schema_version": 1,
         "phase": "34-L4",
         "description": "Scientific validation of controlled learning replay (Variants A, B, C)",
-        "baseline_commit": baseline_commit,
+        "baseline_commit": L4_APPROVED_BASELINE_COMMIT,
+        "runner_commit": runner_commit,
         "status": "VALIDATED",
         "protocol": {
             "variants": {
@@ -45,22 +49,31 @@ def main() -> None:
             },
             "metrics": [
                 "retained_competence",
+                "retention_ratio",
                 "recovery_delta",
                 "replay_utility",
                 "stability_plasticity_tradeoff",
-                "compute_overhead",
+                "update_overhead",
             ],
+            "overhead_definition": (
+                "Relative gradient update count increase: (total_updates - A_updates) / A_updates. "
+                "Represents training step budget, not wall-clock execution time or device energy."
+            ),
         },
         "results": {
             "synthetic_fixture": synthetic_results,
             "natural_fixture": natural_results,
         },
         "conclusions": {
+            "protocol_validated": True,
             "fairness_confirmed": True,
             "replay_budget_matched": True,
+            "empirical_superiority_demonstrated": False,
             "claim": (
-                "Mechanistic fairness between random (B) and directed (C) replay confirmed under equal budgets. "
-                "L4 validation complete. Ready for architectural decision L5."
+                "The controlled replay protocol, measurement hooks, fairness constraints, and "
+                "accounting are mathematically and empirically validated. However, under the evaluated "
+                "micro-fixtures, directed replay (C) does not show empirical superiority over uniform "
+                "random replay (B). Promotion to core architecture is deferred pending scaled experiments."
             ),
         },
     }
