@@ -166,6 +166,79 @@ class PilotConditionSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class ProbePartitionBreakdown:
+    """Explicit separation of positive-reference retention and zero-reference acquisition across probes."""
+
+    positive_ref_group_ids: tuple[str, ...]
+    positive_ref_retention_ratios: tuple[float, ...]
+    mean_positive_ref_retention: float
+    zero_ref_group_ids: tuple[str, ...]
+    zero_ref_acquisition_deltas: tuple[float, ...]
+    mean_zero_ref_acquisition: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "positive_ref_group_ids": list(self.positive_ref_group_ids),
+            "positive_ref_retention_ratios": list(self.positive_ref_retention_ratios),
+            "mean_positive_ref_retention": self.mean_positive_ref_retention,
+            "zero_ref_group_ids": list(self.zero_ref_group_ids),
+            "zero_ref_acquisition_deltas": list(self.zero_ref_acquisition_deltas),
+            "mean_zero_ref_acquisition": self.mean_zero_ref_acquisition,
+        }
+
+
+def compute_probe_partition_breakdown(
+    group_ids: Sequence[str],
+    reference_competences: Sequence[float],
+    post_competences: Sequence[float],
+) -> ProbePartitionBreakdown:
+    """Separate probes with positive reference competence from probes with zero reference competence.
+
+    1. Retention ratio is computed strictly over probes with reference_competence > 0.0,
+       ensuring previously nonexistent competence is never counted as preserved knowledge.
+    2. Probes with reference_competence <= 0.0 are tracked separately via acquisition delta
+       (post_competence - reference_competence).
+    """
+    if not (len(group_ids) == len(reference_competences) == len(post_competences)):
+        raise ValueError(
+            "group_ids, reference_competences, and post_competences must have equal length"
+        )
+
+    pos_groups: list[str] = []
+    pos_retentions: list[float] = []
+    zero_groups: list[str] = []
+    zero_acquisitions: list[float] = []
+
+    for gid, ref, post in zip(group_ids, reference_competences, post_competences):
+        if ref > 0.0:
+            pos_groups.append(gid)
+            pos_retentions.append(
+                calculate_retention_ratio(ref, post, "higher_is_better")
+            )
+        else:
+            zero_groups.append(gid)
+            zero_acquisitions.append(float(post - ref))
+
+    mean_pos_ret = (
+        sum(pos_retentions) / float(len(pos_retentions)) if pos_retentions else 0.0
+    )
+    mean_zero_acq = (
+        sum(zero_acquisitions) / float(len(zero_acquisitions))
+        if zero_acquisitions
+        else 0.0
+    )
+
+    return ProbePartitionBreakdown(
+        positive_ref_group_ids=tuple(pos_groups),
+        positive_ref_retention_ratios=tuple(pos_retentions),
+        mean_positive_ref_retention=mean_pos_ret,
+        zero_ref_group_ids=tuple(zero_groups),
+        zero_ref_acquisition_deltas=tuple(zero_acquisitions),
+        mean_zero_ref_acquisition=mean_zero_acq,
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class PilotSeedResult:
     """Complete evaluation results for one seed under one condition."""
 
@@ -179,9 +252,12 @@ class PilotSeedResult:
     cpu_time_seconds: float
     peak_ram_bytes: int
     peak_rss_bytes: int = 0
+    zero_ref_acquisition: dict[str, float] | None = None
+    holdout_zero_ref_acquisition: dict[str, float] | None = None
+    probe_breakdowns: dict[str, dict[str, ProbePartitionBreakdown]] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result: dict[str, Any] = {
             "level": self.level,
             "seed": self.seed,
             "evaluations": {
@@ -191,10 +267,23 @@ class PilotSeedResult:
             },
             "comparison": self.comparison.to_dict(),
             "holdout_retention_ratio": dict(self.holdout_retention_ratio),
-            "cpu_time_seconds": self.cpu_time_seconds,
-            "peak_ram_bytes": self.peak_ram_bytes,
-            "peak_rss_bytes": self.peak_rss_bytes,
         }
+        if self.zero_ref_acquisition is not None:
+            result["zero_ref_acquisition"] = dict(self.zero_ref_acquisition)
+        if self.holdout_zero_ref_acquisition is not None:
+            result["holdout_zero_ref_acquisition"] = dict(self.holdout_zero_ref_acquisition)
+        if self.probe_breakdowns is not None:
+            result["probe_breakdowns"] = {
+                variant: {
+                    partition: breakdown.to_dict()
+                    for partition, breakdown in partitions.items()
+                }
+                for variant, partitions in self.probe_breakdowns.items()
+            }
+        result["cpu_time_seconds"] = self.cpu_time_seconds
+        result["peak_ram_bytes"] = self.peak_ram_bytes
+        result["peak_rss_bytes"] = self.peak_rss_bytes
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -205,6 +294,8 @@ class ConditionAggregateResult:
     num_seeds: int
     seeds: tuple[int, ...]
     c_vs_b_recovery_advantage: AggregatedMetric
+    c_vs_b_retention_advantage: AggregatedMetric
+    c_vs_b_holdout_retention_advantage: AggregatedMetric
     c_vs_b_tradeoff_advantage: AggregatedMetric
     c_vs_b_plasticity_delta: AggregatedMetric
     retention_ratio_a: AggregatedMetric
@@ -213,9 +304,16 @@ class ConditionAggregateResult:
     holdout_retention_ratio_a: AggregatedMetric
     holdout_retention_ratio_b: AggregatedMetric
     holdout_retention_ratio_c: AggregatedMetric
+    zero_ref_acquisition_a: AggregatedMetric
+    zero_ref_acquisition_b: AggregatedMetric
+    zero_ref_acquisition_c: AggregatedMetric
+    holdout_zero_ref_acquisition_a: AggregatedMetric
+    holdout_zero_ref_acquisition_b: AggregatedMetric
+    holdout_zero_ref_acquisition_c: AggregatedMetric
     new_competence_delta_during_replay_a: AggregatedMetric
     new_competence_delta_during_replay_b: AggregatedMetric
     new_competence_delta_during_replay_c: AggregatedMetric
+    probe_partition_sets: dict[str, list[str]]
     fairness_confirmed_all_seeds: bool
     superiority_fraction: float
     mean_cpu_time_seconds: float
@@ -227,7 +325,10 @@ class ConditionAggregateResult:
             "level": self.level,
             "num_seeds": self.num_seeds,
             "seeds": list(self.seeds),
+            "probe_partition_sets": dict(self.probe_partition_sets),
             "c_vs_b_recovery_advantage": self.c_vs_b_recovery_advantage.to_dict(),
+            "c_vs_b_retention_advantage": self.c_vs_b_retention_advantage.to_dict(),
+            "c_vs_b_holdout_retention_advantage": self.c_vs_b_holdout_retention_advantage.to_dict(),
             "c_vs_b_tradeoff_advantage": self.c_vs_b_tradeoff_advantage.to_dict(),
             "c_vs_b_plasticity_delta": self.c_vs_b_plasticity_delta.to_dict(),
             "retention_ratio": {
@@ -239,6 +340,16 @@ class ConditionAggregateResult:
                 "A": self.holdout_retention_ratio_a.to_dict(),
                 "B": self.holdout_retention_ratio_b.to_dict(),
                 "C": self.holdout_retention_ratio_c.to_dict(),
+            },
+            "zero_ref_acquisition": {
+                "A": self.zero_ref_acquisition_a.to_dict(),
+                "B": self.zero_ref_acquisition_b.to_dict(),
+                "C": self.zero_ref_acquisition_c.to_dict(),
+            },
+            "holdout_zero_ref_acquisition": {
+                "A": self.holdout_zero_ref_acquisition_a.to_dict(),
+                "B": self.holdout_zero_ref_acquisition_b.to_dict(),
+                "C": self.holdout_zero_ref_acquisition_c.to_dict(),
             },
             "new_competence_delta_during_replay": {
                 "A": self.new_competence_delta_during_replay_a.to_dict(),
@@ -568,6 +679,9 @@ def run_condition_seed(
 
     variant_evals: dict[str, ScientificVariantEvaluation] = {}
     holdout_retentions: dict[str, float] = {}
+    zero_ref_acquisitions: dict[str, float] = {}
+    holdout_zero_ref_acquisitions: dict[str, float] = {}
+    probe_breakdowns: dict[str, dict[str, ProbePartitionBreakdown]] = {}
 
     for variant in ("A", "B", "C"):
         model = AutoregressiveModel(
@@ -785,28 +899,34 @@ def run_condition_seed(
             plasticity = new_acq_comp - new_init_comp
             new_delta_during_replay = new_post_comp - new_acq_comp
 
-            ret_ratios = tuple(
-                calculate_retention_ratio(ref, post, "higher_is_better")
-                for ref, post in zip(old_ref_comp, old_post_comp)
+            # Partition probes by initial competence:
+            # - Retention is strictly measured on probes with positive reference competence (ref > 0.0).
+            # - Acquisition on initially unlearned probes (ref <= 0.0) is tracked separately.
+            internal_breakdown = compute_probe_partition_breakdown(
+                tuple(g.group_id for g in internal_probe_groups),
+                old_ref_comp,
+                old_post_comp,
             )
-            mean_ret = (
-                sum(ret_ratios) / len(ret_ratios) if ret_ratios else 0.0
-            )
+            mean_ret = internal_breakdown.mean_positive_ref_retention
+            zero_ref_acquisitions[variant] = internal_breakdown.mean_zero_ref_acquisition
             tradeoff = calculate_stability_plasticity_tradeoff(
                 mean_ret, plasticity
             )
 
-            # Holdout retention ratios (measuring genuine out-of-sample retention)
-            holdout_ret_ratios = tuple(
-                calculate_retention_ratio(ref, post, "higher_is_better")
-                for ref, post in zip(old_holdout_ref_comp, old_holdout_post_comp)
+            # Holdout retention ratios (strictly over positive-reference holdout probes)
+            holdout_breakdown = compute_probe_partition_breakdown(
+                tuple(g.group_id for g in holdout_probe_groups),
+                old_holdout_ref_comp,
+                old_holdout_post_comp,
             )
-            mean_holdout_ret = (
-                sum(holdout_ret_ratios) / len(holdout_ret_ratios)
-                if holdout_ret_ratios
-                else 0.0
+            holdout_retentions[variant] = holdout_breakdown.mean_positive_ref_retention
+            holdout_zero_ref_acquisitions[variant] = (
+                holdout_breakdown.mean_zero_ref_acquisition
             )
-            holdout_retentions[variant] = mean_holdout_ret
+            probe_breakdowns[variant] = {
+                "internal": internal_breakdown,
+                "holdout": holdout_breakdown,
+            }
 
             util = (
                 calculate_replay_utility(mean_rec, accounting.replay_updates)
@@ -887,6 +1007,9 @@ def run_condition_seed(
         eval_c=variant_evals["C"],
         comparison=comp,
         holdout_retention_ratio=holdout_retentions,
+        zero_ref_acquisition=zero_ref_acquisitions,
+        holdout_zero_ref_acquisition=holdout_zero_ref_acquisitions,
+        probe_breakdowns=probe_breakdowns,
         cpu_time_seconds=duration,
         peak_ram_bytes=peak_ram,
         peak_rss_bytes=peak_rss,
@@ -903,6 +1026,14 @@ def aggregate_condition_results(
     seeds = tuple(r.seed for r in seed_results)
 
     rec_advs = [r.comparison.c_vs_b_recovery_advantage for r in seed_results]
+    ret_advs = [
+        r.eval_c.mean_retention_ratio - r.eval_b.mean_retention_ratio
+        for r in seed_results
+    ]
+    hold_ret_advs = [
+        r.holdout_retention_ratio["C"] - r.holdout_retention_ratio["B"]
+        for r in seed_results
+    ]
     trade_advs = [r.comparison.c_vs_b_tradeoff_advantage for r in seed_results]
     plas_deltas = [r.comparison.c_vs_b_plasticity_delta for r in seed_results]
 
@@ -914,9 +1045,29 @@ def aggregate_condition_results(
     hold_b = [r.holdout_retention_ratio["B"] for r in seed_results]
     hold_c = [r.holdout_retention_ratio["C"] for r in seed_results]
 
+    zref_a = [r.zero_ref_acquisition["A"] for r in seed_results]
+    zref_b = [r.zero_ref_acquisition["B"] for r in seed_results]
+    zref_c = [r.zero_ref_acquisition["C"] for r in seed_results]
+
+    hzref_a = [r.holdout_zero_ref_acquisition["A"] for r in seed_results]
+    hzref_b = [r.holdout_zero_ref_acquisition["B"] for r in seed_results]
+    hzref_c = [r.holdout_zero_ref_acquisition["C"] for r in seed_results]
+
     new_delta_a = [r.eval_a.new_competence_delta_during_replay for r in seed_results]
     new_delta_b = [r.eval_b.new_competence_delta_during_replay for r in seed_results]
     new_delta_c = [r.eval_c.new_competence_delta_during_replay for r in seed_results]
+
+    first_bd = seed_results[0].probe_breakdowns["C"]
+    probe_partition_sets = {
+        "positive_ref_internal_groups": list(
+            first_bd["internal"].positive_ref_group_ids
+        ),
+        "zero_ref_internal_groups": list(first_bd["internal"].zero_ref_group_ids),
+        "positive_ref_holdout_groups": list(
+            first_bd["holdout"].positive_ref_group_ids
+        ),
+        "zero_ref_holdout_groups": list(first_bd["holdout"].zero_ref_group_ids),
+    }
 
     fairness_all = all(
         r.comparison.is_fairly_matched_budget for r in seed_results
@@ -934,6 +1085,10 @@ def aggregate_condition_results(
         num_seeds=len(seeds),
         seeds=seeds,
         c_vs_b_recovery_advantage=AggregatedMetric.from_sequence(rec_advs),
+        c_vs_b_retention_advantage=AggregatedMetric.from_sequence(ret_advs),
+        c_vs_b_holdout_retention_advantage=AggregatedMetric.from_sequence(
+            hold_ret_advs
+        ),
         c_vs_b_tradeoff_advantage=AggregatedMetric.from_sequence(trade_advs),
         c_vs_b_plasticity_delta=AggregatedMetric.from_sequence(plas_deltas),
         retention_ratio_a=AggregatedMetric.from_sequence(ret_a),
@@ -942,9 +1097,16 @@ def aggregate_condition_results(
         holdout_retention_ratio_a=AggregatedMetric.from_sequence(hold_a),
         holdout_retention_ratio_b=AggregatedMetric.from_sequence(hold_b),
         holdout_retention_ratio_c=AggregatedMetric.from_sequence(hold_c),
+        zero_ref_acquisition_a=AggregatedMetric.from_sequence(zref_a),
+        zero_ref_acquisition_b=AggregatedMetric.from_sequence(zref_b),
+        zero_ref_acquisition_c=AggregatedMetric.from_sequence(zref_c),
+        holdout_zero_ref_acquisition_a=AggregatedMetric.from_sequence(hzref_a),
+        holdout_zero_ref_acquisition_b=AggregatedMetric.from_sequence(hzref_b),
+        holdout_zero_ref_acquisition_c=AggregatedMetric.from_sequence(hzref_c),
         new_competence_delta_during_replay_a=AggregatedMetric.from_sequence(new_delta_a),
         new_competence_delta_during_replay_b=AggregatedMetric.from_sequence(new_delta_b),
         new_competence_delta_during_replay_c=AggregatedMetric.from_sequence(new_delta_c),
+        probe_partition_sets=probe_partition_sets,
         fairness_confirmed_all_seeds=fairness_all,
         superiority_fraction=sup_frac,
         mean_cpu_time_seconds=sum(cpu_times) / float(len(cpu_times)),
@@ -1054,8 +1216,17 @@ def run_expanded_pilot(
     )
     high_rec_adv = condition_aggregates["high"].c_vs_b_recovery_advantage.mean if "high" in condition_aggregates else 0.0
     high_ret_adv = (
-        condition_aggregates["high"].retention_ratio_c.mean
-        - condition_aggregates["high"].retention_ratio_b.mean
+        condition_aggregates["high"].c_vs_b_retention_advantage.mean
+        if "high" in condition_aggregates
+        else 0.0
+    )
+    high_zref_b = (
+        condition_aggregates["high"].zero_ref_acquisition_b.mean
+        if "high" in condition_aggregates
+        else 0.0
+    )
+    high_zref_c = (
+        condition_aggregates["high"].zero_ref_acquisition_c.mean
         if "high" in condition_aggregates
         else 0.0
     )
@@ -1067,16 +1238,20 @@ def run_expanded_pilot(
             "Data isolation (quadripartite partitioning without leakage) and physical gradient step "
             f"budget parity ({condition_aggregates['high'].num_seeds} seeds) are strictly confirmed. "
             f"Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive "
-            f"mean recovery advantage over uniform random replay (B) (+{high_rec_adv:.4f}) and a mean retention ratio "
-            f"advantage (+{high_ret_adv:.4f}, with holdout retention 1.00 vs 0.50). "
-            "Note on metric semantics: recovery advantage (+0.3333) measures marginal competence gain during replay relative "
-            "to post-interference state (mean_recovery_delta C 0.50 vs B 0.1667), whereas retention ratio advantage (+0.5000) "
-            "measures total competence preserved relative to pre-interference baseline reference (mean_retention_ratio C 1.00 vs B 0.50). "
+            f"mean recovery advantage over uniform random replay (B) (+{high_rec_adv:.4f} across all 4 old task probes) and a mean "
+            f"positive-reference retention ratio advantage (+{high_ret_adv:.4f}, with C retaining 1.0000 vs B retaining 0.3333 on both "
+            "internal probes [probe-int-malas, probe-int-patos, probe-int-sapos] and holdout probes [probe-hold-maleta, probe-hold-pateta, probe-hold-sapato]). "
+            "Note on metric semantics and probe partitioning: retention is strictly computed over probes with positive initial reference "
+            "competence (ref > 0.0, i.e., the 3 probes initially learned to 1.0). The 4th probe (probe-int-fogos / probe-hold-foguete) "
+            "had initial reference competence ref = 0.0 and is excluded from retention to prevent nonexistent initial competence from "
+            "inflating retention when post >= 0.0; its competence gain (post - ref) is tracked separately in zero_ref_acquisition "
+            f"(under high interference: mean {high_zref_b:.4f} for B and {high_zref_c:.4f} for C). "
             "Under low and medium interference, recovery advantage is zero because baseline forgetting is absent (all candidate "
             "forgetting scores are 0.0), causing C to select candidates via deterministic FIFO tie-breaking. "
             "Under high interference, candidate scores are differentiated (three candidates with score 1.0 vs one candidate with score 0.0); "
             "C actively discriminates and excludes the unforgotten candidate, whereas random replay (B) wastes 50% of its budget on the unforgotten "
-            "item in 2 of 3 seeds (seeds 42 and 44). Between forgotten candidates with identical score 1.0, C selects via FIFO. "
+            "item in 2 of 3 seeds (seeds 42 and 44), losing all 3 positive-reference competences (retention 0.0) in those seeds. "
+            "Between forgotten candidates with identical score 1.0, C selects via FIFO. "
             "Regarding plasticity, initial acquisition delta (c_vs_b_plasticity_delta) is 0.0 across all conditions (both variants acquire the new "
             "task equally prior to replay), but during replay C experiences retroactive competence loss on the new task (-0.50) due to "
             "back-interference from replaying old onset weights, explaining why strict empirical superiority across seeds was 0.0%. "
@@ -1119,6 +1294,8 @@ def run_expanded_pilot(
             "leakage_prevented": True,
             "high_interference_mean_recovery_advantage": high_rec_adv,
             "high_interference_mean_retention_advantage": high_ret_adv,
+            "high_interference_zero_ref_acquisition_b": high_zref_b,
+            "high_interference_zero_ref_acquisition_c": high_zref_c,
             "high_interference_superiority_fraction": high_sup_frac,
             "summary_claim": conclusion_claim,
         },
@@ -1133,8 +1310,10 @@ __all__ = [
     "PilotConditionSpec",
     "PilotCostProfile",
     "PilotSeedResult",
+    "ProbePartitionBreakdown",
     "TaskFamilySpec",
     "compute_cost_profile",
+    "compute_probe_partition_breakdown",
     "get_condition_spec",
     "run_condition_seed",
     "run_expanded_pilot",

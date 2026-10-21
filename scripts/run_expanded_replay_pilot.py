@@ -100,6 +100,11 @@ def main() -> None:
     print(f"Protocol Valid:   {concl['protocol_validated']}")
     print(f"Budget Matched:   {concl['fairness_confirmed_all_seeds']}")
     print(f"High Rec Adv:     {concl['high_interference_mean_recovery_advantage']:+.4f}")
+    print(f"High Ret Adv:     {concl['high_interference_mean_retention_advantage']:+.4f}")
+    print(
+        f"Zero-Ref Acq B/C: {concl['high_interference_zero_ref_acquisition_b']:+.4f} / "
+        f"{concl['high_interference_zero_ref_acquisition_c']:+.4f}"
+    )
     print(f"High Sup Frac:    {concl['high_interference_superiority_fraction'] * 100:.1f}%")
     print("-" * 60)
     print(f"Claim: {concl['summary_claim']}")

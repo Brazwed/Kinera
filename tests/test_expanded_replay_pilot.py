@@ -12,8 +12,10 @@ from kinera.experiments.expanded_pilot import (
     PilotConditionSpec,
     PilotCostProfile,
     PilotSeedResult,
+    ProbePartitionBreakdown,
     TaskFamilySpec,
     compute_cost_profile,
+    compute_probe_partition_breakdown,
     get_condition_spec,
     run_condition_seed,
     run_expanded_pilot,
@@ -234,6 +236,55 @@ class ExpandedPilotExecutionTests(unittest.TestCase):
         selected_again = select_directed_replay(pool, budget=2)
         self.assertEqual(selected, selected_again)
 
+    def test_positive_reference_retention_vs_zero_reference_acquisition(self) -> None:
+        """Verify retention strictly evaluates ref > 0.0 probes while tracking ref <= 0.0 acquisition separately."""
+        groups = ("probe-int-malas", "probe-int-patos", "probe-int-sapos", "probe-int-fogos")
+        ref_comp = (1.0, 1.0, 1.0, 0.0)
+        # Variant B in high-interference seed 42/44: loses all 3 learned probes, gains unlearned 4th probe
+        post_comp_b = (0.0, 0.0, 0.0, 1.0)
+        bd_b = compute_probe_partition_breakdown(groups, ref_comp, post_comp_b)
+
+        self.assertEqual(
+            bd_b.positive_ref_group_ids,
+            ("probe-int-malas", "probe-int-patos", "probe-int-sapos"),
+        )
+        self.assertEqual(bd_b.zero_ref_group_ids, ("probe-int-fogos",))
+        self.assertEqual(bd_b.positive_ref_retention_ratios, (0.0, 0.0, 0.0))
+        self.assertEqual(bd_b.mean_positive_ref_retention, 0.0)
+        self.assertEqual(bd_b.zero_ref_acquisition_deltas, (1.0,))
+        self.assertEqual(bd_b.mean_zero_ref_acquisition, 1.0)
+
+        # Verify actual high-interference seed 42 execution matches this exact breakdown
+        result = run_condition_seed("high", seed=42, char_vocab=self.char_vocab, syl_vocab=self.syl_vocab)
+        self.assertEqual(result.eval_a.mean_retention_ratio, 0.0)
+        self.assertEqual(result.eval_b.mean_retention_ratio, 0.0)
+        self.assertEqual(result.eval_c.mean_retention_ratio, 1.0)
+        self.assertEqual(result.holdout_retention_ratio["A"], 0.0)
+        self.assertEqual(result.holdout_retention_ratio["B"], 0.0)
+        self.assertEqual(result.holdout_retention_ratio["C"], 1.0)
+        self.assertEqual(result.zero_ref_acquisition["A"], 1.0)
+        self.assertEqual(result.zero_ref_acquisition["B"], 1.0)
+        self.assertEqual(result.zero_ref_acquisition["C"], 0.0)
+        self.assertEqual(result.holdout_zero_ref_acquisition["A"], 1.0)
+        self.assertEqual(result.holdout_zero_ref_acquisition["B"], 1.0)
+        self.assertEqual(result.holdout_zero_ref_acquisition["C"], 0.0)
+        self.assertEqual(
+            result.probe_breakdowns["C"]["internal"].positive_ref_group_ids,
+            ("probe-int-malas", "probe-int-patos", "probe-int-sapos"),
+        )
+        self.assertEqual(
+            result.probe_breakdowns["C"]["internal"].zero_ref_group_ids,
+            ("probe-int-fogos",),
+        )
+        self.assertEqual(
+            result.probe_breakdowns["C"]["holdout"].positive_ref_group_ids,
+            ("probe-hold-maleta", "probe-hold-pateta", "probe-hold-sapato"),
+        )
+        self.assertEqual(
+            result.probe_breakdowns["C"]["holdout"].zero_ref_group_ids,
+            ("probe-hold-foguete",),
+        )
+
     def test_holdout_retention_sensitive_to_catastrophic_interference(self) -> None:
         # Under high interference, Variant A baseline must suffer forgetting on holdout probes
         result = run_condition_seed("high", seed=42, char_vocab=self.char_vocab, syl_vocab=self.syl_vocab)
@@ -288,14 +339,30 @@ class ExpandedPilotExecutionTests(unittest.TestCase):
         self.assertEqual(report["conditions_evaluated"], ["low", "high"])
         self.assertEqual(report["seeds_evaluated"], [42, 43])
         self.assertIn("condition_aggregates", report)
-        self.assertIn("new_competence_delta_during_replay", report["condition_aggregates"]["high"])
-        self.assertIn("A", report["condition_aggregates"]["high"]["new_competence_delta_during_replay"])
-        self.assertIn("B", report["condition_aggregates"]["high"]["new_competence_delta_during_replay"])
-        self.assertIn("C", report["condition_aggregates"]["high"]["new_competence_delta_during_replay"])
+        high_agg = report["condition_aggregates"]["high"]
+        self.assertIn("c_vs_b_retention_advantage", high_agg)
+        self.assertIn("c_vs_b_holdout_retention_advantage", high_agg)
+        self.assertIn("zero_ref_acquisition", high_agg)
+        self.assertIn("holdout_zero_ref_acquisition", high_agg)
+        self.assertIn("probe_partition_sets", high_agg)
+        self.assertEqual(
+            high_agg["probe_partition_sets"]["positive_ref_internal_groups"],
+            ["probe-int-malas", "probe-int-patos", "probe-int-sapos"],
+        )
+        self.assertEqual(
+            high_agg["probe_partition_sets"]["zero_ref_internal_groups"],
+            ["probe-int-fogos"],
+        )
+        self.assertIn("new_competence_delta_during_replay", high_agg)
+        self.assertIn("A", high_agg["new_competence_delta_during_replay"])
+        self.assertIn("B", high_agg["new_competence_delta_during_replay"])
+        self.assertIn("C", high_agg["new_competence_delta_during_replay"])
         self.assertIn("cost_profile", report)
         self.assertIn("conclusions", report)
         self.assertIn("high_interference_mean_recovery_advantage", report["conclusions"])
         self.assertIn("high_interference_mean_retention_advantage", report["conclusions"])
+        self.assertIn("high_interference_zero_ref_acquisition_b", report["conclusions"])
+        self.assertIn("high_interference_zero_ref_acquisition_c", report["conclusions"])
         self.assertTrue(report["conclusions"]["fairness_confirmed_all_seeds"])
 
         # Check JSON serializability

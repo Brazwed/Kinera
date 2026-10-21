@@ -80,9 +80,9 @@ A tabela a seguir documenta explicitamente cada transição gerada para `ex[1]` 
 
 | Partição | Palavras | Transição (`ex[1]`) | Contexto Autoregressivo | Alvo | Semântica e Natureza da Sobreposição |
 |---|---|---|---|---|---|
-| **$D_{old, train}$** | `mala`<br>`pato`<br>`sapo`<br>`fogo` | `ma`<br>`pa`<br>`sa`<br>`fo` | `['<START>', 'm']`<br>`['<START>', 'p']`<br>`['<START>', 's']`<br>`['<START>', 'f']` | `'a'`<br>`'a'`<br>`'a'`<br>`'o'` | **Treino Base Antigo:** Estabelece a competência de referência ($C_{ref} = 1.0$). Exemplos admitidos na `LearningMemory`. |
-| **$P_{old, internal}$** | `malas`<br>`patos`<br>`sapos`<br>`fogos` | `ma`<br>`pa`<br>`sa`<br>`fo` | `['<START>', 'm']`<br>`['<START>', 'p']`<br>`['<START>', 's']`<br>`['<START>', 'f']` | `'a'`<br>`'a'`<br>`'a'`<br>`'o'` | **Sobreposição Intencional de Transição:** Compartilha a transição com $D_{old, train}$ para monitorar o estado interno de esquecimento (`forgetting_score`) sem avaliar os mesmos registros de treino. |
-| **$P_{old, holdout}$** | `maleta`<br>`pateta`<br>`sapato`<br>`foguete` | `ma`<br>`pa`<br>`sa`<br>`fo` | `['<START>', 'm']`<br>`['<START>', 'p']`<br>`['<START>', 's']`<br>`['<START>', 'f']` | `'a'`<br>`'a'`<br>`'a'`<br>`'o'` | **Sobreposição Intencional em Registros Isolados:** Compartilha a mesma transição para garantir $C_{ref} = 1.0$ finito. Isola a medição da **Propriedade A** (ver 4.2). |
+| **$D_{old, train}$** | `mala`<br>`pato`<br>`sapo`<br>`fogo` | `ma`<br>`pa`<br>`sa`<br>`fo` | `['<START>', 'm']`<br>`['<START>', 'p']`<br>`['<START>', 's']`<br>`['<START>', 'f']` | `'a'`<br>`'a'`<br>`'a'`<br>`'o'` | **Treino Base Antigo:** Estabelece a competência de referência: $C_{ref} = [1.0, 1.0, 1.0, 0.0]$ (as 3 palavras de vogal `'a'` atingem $1.0$, enquanto `fogo` de vogal minoritária `'o'` permanece em $0.0$). Exemplos admitidos na `LearningMemory`. |
+| **$P_{old, internal}$** | `malas`<br>`patos`<br>`sapos`<br>`fogos` | `ma`<br>`pa`<br>`sa`<br>`fo` | `['<START>', 'm']`<br>`['<START>', 'p']`<br>`['<START>', 's']`<br>`['<START>', 'f']` | `'a'`<br>`'a'`<br>`'a'`<br>`'o'` | **Sobreposição Intencional de Transição:** Compartilha a transição com $D_{old, train}$ para monitorar o estado interno de esquecimento (`forgetting_score`) sem avaliar os mesmos registros de treino ($C_{ref} = [1.0, 1.0, 1.0, 0.0]$). |
+| **$P_{old, holdout}$** | `maleta`<br>`pateta`<br>`sapato`<br>`foguete` | `ma`<br>`pa`<br>`sa`<br>`fo` | `['<START>', 'm']`<br>`['<START>', 'p']`<br>`['<START>', 's']`<br>`['<START>', 'f']` | `'a'`<br>`'a'`<br>`'a'`<br>`'o'` | **Sobreposição Intencional em Registros Isolados:** Compartilha a mesma transição ($C_{ref} = [1.0, 1.0, 1.0, 0.0]$). Isola a medição da **Propriedade A** (ver 4.2) sobre as 3 sondas de referência positiva. |
 | **$D_{new, train}$ (`low`)** | `zero`<br>`luxo` | `ze`<br>`lu` | `['<START>', 'z']`<br>`['<START>', 'l']` | `'e'`<br>`'u'` | **Ortogonal:** Contextos e alvos totalmente disjuntos das tarefas antigas. Mínima interferência. |
 | **$P_{new, holdout}$ (`low`)** | `zebra`<br>`luva` | `ze`<br>`lu` | `['<START>', 'z']`<br>`['<START>', 'l']` | `'e'`<br>`'u'` | **Sobreposição Intencional:** Sonda holdout da tarefa nova em vocábulos isolados. |
 | **$D_{new, train}$ (`medium`)** | `medo`<br>`dado` | `me`<br>`da` | `['<START>', 'm']`<br>`['<START>', 'd']` | `'e'`<br>`'a'` | **Colisão Parcial:** `medo` colide no contexto `['<START>', 'm']` com `mala` (alvo `'e'` vs `'a'`). `dado` é ortogonal. |
@@ -159,11 +159,23 @@ Para assegurar uma comparação justa e isenta de viés de capacidade computacio
 
 ---
 
-## 7. Métricas Primárias, Fórmulas e Projeção de Recursos
+## 7. Métricas Primárias, Partição de Sondas por Competência de Referência e Fórmulas
 
 Todas as métricas são limitadas, finitas e puramente CPU:
-1. **Taxa de Retenção ($R \in [0.0, 1.0]$):**
-   $$\text{Retention Ratio} = \min\left(\max\left(0.0, \frac{C_{post}}{C_{ref}}\right), 1.0\right)$$
+1. **Partição Estrita de Sondas: Competência de Referência Positiva ($C_{ref} > 0$) vs. Competência de Referência Nula ($C_{ref} \le 0$):**
+   - Após o treino inicial ($E_{old} = 20$), as 3 famílias que compartilham a vogal alvo `'a'` atingem competência de referência $C_{ref} = 1.0$, enquanto a 4ª família (`fogo` $\to$ `'o'`) apresenta competência de referência $C_{ref} = 0.0$ ($C_{ref} = [1.0, 1.0, 1.0, 0.0]$).
+   - **Regra Metodológica:** Não se pode "reter" uma competência que nunca foi adquirida ($C_{ref} = 0.0$). Caso uma sonda com $C_{ref} = 0.0$ recebesse razão de retenção $1.0$ sempre que $C_{post} \ge 0.0$, um modelo que perdesse 100% das 3 competências aprendidas ($1.0 \to 0.0$) e adquirisse a 4ª por interferência ($0.0 \to 1.0$) aparentaria reter $0.25$ de seu conhecimento original.
+   - Portanto, as sondas de tarefas antigas são particionadas em dois subconjuntos disjuntos:
+     - **Subconjunto de Referência Positiva ($S_{ref > 0}$, 3 sondas) — Base exclusiva para Retenção:**
+       - Sondas Internas: `["probe-int-malas", "probe-int-patos", "probe-int-sapos"]` ($C_{ref} = [1.0, 1.0, 1.0]$)
+       - Sondas Holdout: `["probe-hold-maleta", "probe-hold-pateta", "probe-hold-sapato"]` ($C_{ref} = [1.0, 1.0, 1.0]$)
+       - Taxa de Retenção ($R \in [0.0, 1.0]$) calculada **exclusivamente** sobre $i \in S_{ref > 0}$:
+         $$R = \frac{1}{|S_{ref > 0}|} \sum_{i \in S_{ref > 0}} \min\left(\max\left(0.0, \frac{C_{post, i}}{C_{ref, i}}\right), 1.0\right)$$
+     - **Subconjunto de Referência Nula ($S_{ref \le 0}$, 1 sonda) — Aquisição em Sondas Não Aprendidas Inicialmente:**
+       - Sonda Interna: `["probe-int-fogos"]` ($C_{ref} = [0.0]$)
+       - Sonda Holdout: `["probe-hold-foguete"]` ($C_{ref} = [0.0]$)
+       - Ganho de Aquisição em Referência Nula (`zero_ref_acquisition` / `holdout_zero_ref_acquisition`) calculado **separadamente** sobre $j \in S_{ref \le 0}$:
+         $$A_{ref \le 0} = \frac{1}{|S_{ref \le 0}|} \sum_{j \in S_{ref \le 0}} (C_{post, j} - C_{ref, j})$$
 2. **Plasticidade Adquirida ($P \in [0.0, 1.0]$):**
    $$P = C_{new, acquired} - C_{new, initial}$$
    - Mede a taxa de aprendizagem na tarefa nova imediatamente após o treinamento interferente e **antes** de qualquer replay.
@@ -173,21 +185,21 @@ Todas as métricas são limitadas, finitas e puramente CPU:
    - Mede o impacto retroativo gerado pelo replay sobre a tarefa nova recém-adquirida (*back-interference*).
    - Em alta interferência, ao atualizar os pesos para reter os onsets de `mala` e `pato`, a Variante C degrada os onsets de `medo` e `povo` ($\Delta_{new, replay} = -0.50$ em todas as sementes).
    - Essa penalidade explica por que a regra de superioridade estrita rejeita declarar C superior (fração de superioridade 0,0%).
-4. **Recuperação de Competência Antiga ($\Delta_{rec}$):**
-   $$\Delta_{rec} = C_{old, post} - C_{old, pre}$$
-   - Mede o ganho marginal de competência obtido estritamente durante a fase de replay em relação ao estado imediato pós-interferência.
-   - **Distinção Crítica entre Vantagem de Recuperação (+0.3333) e Vantagem de Retenção (+0.5000):**
-     - Em alta interferência, a competência média pré-replay ($C_{old, pre}$) era $0.25$ (itens `malas`, `patos` e `sapos` em $0.0$; item `fogos` em $1.0$).
-     - Na Variante C, o replay recupera as 3 tarefas esquecidas ($1.0, 1.0, 1.0$), mas degrada `fogos` para $0.0$, atingindo $C_{old, post} = [1.0, 1.0, 1.0, 0.0]$. A recuperação média é $\Delta_{rec}(C) = (1.0 + 1.0 + 1.0 - 1.0) / 4 = \mathbf{+0.50}$ em todas as sementes.
-     - Na Variante B: na Seed 42, $\Delta_{rec} = 0.00$; na Seed 43, $\Delta_{rec} = +0.50$; na Seed 44, $\Delta_{rec} = 0.00$. A recuperação média é $\overline{\Delta_{rec}}(B) = \frac{0.0 + 0.5 + 0.0}{3} = \mathbf{0.1667}$.
-     - A **Vantagem Média de Recuperação de C sobre B** (`c_vs_b_recovery_advantage`) é:
-       $$\overline{\Delta_{rec}}(C) - \overline{\Delta_{rec}}(B) = 0.5000 - 0.1667 = \mathbf{+0.3333}$$
-     - Já a **Taxa de Retenção** ($R = C_{old, post} / C_{old, ref}$) compara a competência final com a referência original ($C_{ref} = [1.0, 1.0, 1.0, 0.0]$):
-       - Em C: $R(C) = \mathbf{1.00}$ em todas as sementes.
-       - Em B: Seed 42: $0.25$; Seed 43: $1.00$; Seed 44: $0.25 \implies \overline{R}(B) = \mathbf{0.50}$.
-       - A **Vantagem Média de Retenção de C sobre B** é:
-         $$\overline{R}(C) - \overline{R}(B) = 1.0000 - 0.5000 = \mathbf{+0.5000}$$
-     - Ambas as métricas são formalmente consistentes: a recuperação (+0.3333) mede o ganho marginal pós-interferência, enquanto a retenção (+0.5000) mede a preservação absoluta frente à competência inicial pré-interferência.
+4. **Recuperação de Competência Antiga ($\Delta_{rec}$) vs. Retenção em Referência Positiva ($R$):**
+   $$\Delta_{rec} = \frac{1}{4} \sum_{k=1}^{4} (C_{old, post, k} - C_{old, pre, k})$$
+   - Mede o ganho marginal líquido de competência obtido durante a fase de replay em relação ao estado imediato pós-interferência sobre as 4 sondas.
+   - **Reconciliação Exata em Alta Interferência:**
+     - Estado pré-replay após interferência ($C_{old, pre}$): `[0.0, 0.0, 0.0, 1.0]` (média $0.25$).
+     - **Variante A (sem replay):** $C_{old, post} = [0.0, 0.0, 0.0, 1.0]$ em todas as sementes $\implies$ Retenção em $S_{ref > 0}$: **$0.0000$**; Aquisição em $S_{ref \le 0}$ (`fogos`/`foguete`): **$+1.0000$**; Recuperação $\Delta_{rec} = \mathbf{0.0000}$.
+     - **Variante B (replay aleatório):**
+       - Seeds 42 e 44: sorteia `fogos` ($C_{old, post} = [0.0, 0.0, 0.0, 1.0]$) $\implies$ perde todas as 3 competências aprendidas: Retenção $R = \mathbf{0.0000}$, Aquisição em $S_{ref \le 0} = \mathbf{+1.0000}$, Recuperação $\Delta_{rec} = \mathbf{0.0000}$, Trade-off $T = \mathbf{0.0000}$.
+       - Seed 43: sorteia `malas` e `patos` ($C_{old, post} = [1.0, 1.0, 1.0, 0.0]$) $\implies$ preserva todas as 3 competências aprendidas: Retenção $R = \mathbf{1.0000}$, Aquisição em $S_{ref \le 0} = \mathbf{0.0000}$, Recuperação $\Delta_{rec} = \mathbf{+0.5000}$, Trade-off $T = \mathbf{0.6667}$.
+       - Médias de B nas 3 sementes: $\overline{R}(B) = \mathbf{0.3333}$ ($\sigma = 0.4714$), $\overline{A}_{ref \le 0}(B) = \mathbf{0.6667}$ ($\sigma = 0.4714$), $\overline{\Delta_{rec}}(B) = \mathbf{0.1667}$ ($\sigma = 0.2357$), $\overline{T}(B) = \mathbf{0.2222}$ ($\sigma = 0.3143$).
+     - **Variante C (replay direcionado):** exclui `fogos` (score $0.0$) e seleciona `malas` e `patos` em todas as sementes ($C_{old, post} = [1.0, 1.0, 1.0, 0.0]$) $\implies$ $\overline{R}(C) = \mathbf{1.0000}$ ($\sigma = 0.0$), $\overline{A}_{ref \le 0}(C) = \mathbf{0.0000}$ ($\sigma = 0.0$), $\overline{\Delta_{rec}}(C) = \mathbf{+0.5000}$ ($\sigma = 0.0$), $\overline{T}(C) = \mathbf{0.6667}$ ($\sigma = 0.0$).
+     - **Comparações C vs. B em Alta Interferência:**
+       - **Vantagem Média de Recuperação (`c_vs_b_recovery_advantage`):** $\overline{\Delta_{rec}}(C) - \overline{\Delta_{rec}}(B) = 0.5000 - 0.1667 = \mathbf{+0.3333}$ ($\sigma = 0.2357$).
+       - **Vantagem Média de Retenção em Referência Positiva (`c_vs_b_retention_advantage` e `c_vs_b_holdout_retention_advantage`):** $\overline{R}(C) - \overline{R}(B) = 1.0000 - 0.3333 = \mathbf{+0.6667}$ ($\sigma = 0.4714$).
+       - **Vantagem Média de Trade-off (`c_vs_b_tradeoff_advantage`):** $\overline{T}(C) - \overline{T}(B) = 0.6667 - 0.2222 = \mathbf{+0.4444}$ ($\sigma = 0.3143$).
 5. **Trade-off Estabilidade-Plasticidade ($T \in [0.0, 1.0]$):**
    $$T = \begin{cases} \frac{2 \cdot R \cdot P}{R + P}, & \text{se } R > 0 \text{ e } P > 0 \\ 0.0, & \text{caso contrário} \end{cases}$$
 6. **Métricas de Recursos e Memória:**
