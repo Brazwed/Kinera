@@ -203,22 +203,33 @@ Todas as métricas são limitadas, finitas e puramente CPU:
 5. **Trade-off Estabilidade-Plasticidade ($T \in [0.0, 1.0]$):**
    $$T = \begin{cases} \frac{2 \cdot R \cdot P}{R + P}, & \text{se } R > 0 \text{ e } P > 0 \\ 0.0, & \text{caso contrário} \end{cases}$$
 6. **Métricas de Recursos e Memória:**
-   - Tempo de CPU em segundos (`cpu_time_seconds`) medido via `time.perf_counter()`.
-   - Pico de Heap Python em bytes (`peak_ram_bytes` / `peak_ram_mb`) medido via `tracemalloc`.
-   - Pico de Resident Set Size (RSS real do processo no SO) em bytes (`peak_rss_bytes` / `peak_rss_mb`) medido via `resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024` no Linux.
+   - Tempo de parede efetivo de treinamento/avaliação em segundos (`cpu_time_seconds` / `total_cpu_time_seconds`) medido via `time.perf_counter()`, separado do tempo de inicialização/compilação de backend (`backend_init_seconds`).
+   - Pico de Heap Python em bytes (`peak_ram_bytes` / `peak_ram_mb`) medido via `tracemalloc` **apenas quando o modo de profiling de heap é solicitado explicitamente (`--profile-heap`)**, permanecendo desativado por padrão (`profile_heap = False`) nas execuções normais para eliminar o overhead de ~`11,3x` imposto pelo rastreamento de alocações sobre listas Python no `CPUBackend`.
+   - Pico de Resident Set Size (RSS real do processo no SO) em bytes (`peak_rss_bytes` / `peak_rss_mb`) medido sempre via `resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024` no Linux (custo computacional nulo).
 7. **Fórmula de Projeção Paramétrica de Escala:**
-   $$\text{Scale Factor} = \left(\frac{N_{\text{seeds, target}}}{N_{\text{seeds, pilot}}}\right) \times \left(\frac{V_{\text{words, target}}}{V_{\text{words, pilot}}}\right) \times \left(\frac{E_{\text{epochs, target}}}{E_{\text{epochs, pilot}}}\right)$$
+   $$\text{Scale Factor} = \left(\frac{N_{\text{seeds, target}}}{N_{\text{seeds, pilot}}}\right) \times \left(\frac{V_{\text{words, target}}}{V_{\text{words, pilot}}}\right) \times \left(\frac{E_{\text{epochs, target}}}{E_{\text{epochs, pilot}}}\right) = \frac{10}{3} \times \frac{500}{6} \times \frac{50}{36} \approx 385{,}8025\times$$
    $$\text{Projected Hours (Single Core)} = \frac{\text{Pilot CPU Seconds} \times \text{Scale Factor}}{3600}$$
    $$\text{Estimated Parallel Time} = \frac{\text{Projected Hours}}{N_{\text{parallel cores}}} \times 60 \text{ minutos}$$
 
 ---
 
-## 8. Gates de Decisão e Recomendação de Execução Local
+## 8. Gates de Decisão, Medições Reais vs. Projeções e Infraestrutura Experimental
 
-O piloto experimental local serve como instrumento objetivo de decisão para o escalonamento da pesquisa:
-- **Gate 1 (Validação Técnica):** O protocolo executa com sucesso, sem vazamento de dados, com paridade estrita de orçamento físico de gradientes, isolamento causal de C e métricas determinísticas e reproduzíveis. O protocolo é considerado **TECNICAMENTE VÁLIDO**.
-- **Gate 2 (Custo, Projeção e Viabilidade Local):**
-  - O piloto executa na máquina local em ~18-20 segundos por seed sob alta interferência com consumo irrisório de memória (heap Python $< 0.1$ MB, RSS real $< 120$ MB).
-  - A projeção paramétrica extrapolada para um experimento ampliado (10 seeds, 500 palavras, 50 épocas) totaliza ~3.8 horas de tempo de CPU em core único.
-  - Como a execução por seed é embaraçosamente paralela (*embarrassingly parallel*), a distribuição em 8-10 cores na CPU local (28 vCPUs disponíveis) conclui a execução em **~20 a 30 minutos**.
-  - **Recomendação Objetiva:** **Execução Local em Multi-Core CPU (`local_cpu`)**. Não há necessidade nem justificativa técnica medida para migração para Google Colab Pro ou GPUs pagas nesta etapa, pois o overhead de kernel de GPU para modelos autoregressivos compactos não foi benchmarkado e os recursos locais atendem plenamente ao estudo.
+O piloto experimental serve como instrumento objetivo de decisão e separa rigorosamente **medições empíricas reais** de **extrapolações teóricas**:
+
+- **Gate 1 (Validação Técnica):** O protocolo executa com sucesso, sem vazamento de dados, com paridade estrita de orçamento físico de gradientes, isolamento causal de C, separação entre retenção em referência positiva ($S_{\text{ref} > 0}$) e aquisição em referência zero ($S_{\text{ref} \le 0}$), e métricas determinísticas e reproduzíveis por seed e no agregado. O protocolo é considerado **TECNICAMENTE VÁLIDO**.
+- **Gate 2 (Medições Reais vs. Projeções de Custo Computacional):**
+  1. **Medições Reais no Piloto Completo (3 condições $\times$ 3 seeds = 9 unidades = 27 treinamentos A/B/C, $V_{\text{syl}} = 27$, `5.832` passos físicos totais):**
+     - **Com `tracemalloc` ativo (`--profile-heap`, artefato histórico do PR #43):** `166,87 s` totais (~`18,54 s` por unidade condição-seed), pico de heap Python `0,05 MB` (`51.995 bytes`) e pico de RSS real do SO `18,62 MB`.
+     - **Sem `tracemalloc` (padrão nas execuções normais, `profile_heap=False`):** ~`14,5 a 15,5 s` totais (~`1,6 a 1,8 s` por unidade condição-seed), confirmando que o hook `tracemalloc` inflava o tempo de CPU em **~`11,3x`**.
+     - **Medição Real do Custo por Passo vs. Vocabulário Silábico ($V_{\text{syl}}$) no `CPUBackend` (sem `tracemalloc`):**
+       - $V_{\text{syl}} = 27$ (piloto atual): `5,18 ms/passo`
+       - $V_{\text{syl}} = 150$: `14,13 ms/passo` (`2,73x`)
+       - $V_{\text{syl}} = 300$ (~500 palavras): `25,50 ms/passo` (`4,92x`)
+  2. **Projeções Paramétricas Extrapoladas (10 seeds, 500 palavras, 50 épocas; fator linear $385{,}8025\times$):**
+     - **Extrapolação linear a partir do piloto com `tracemalloc` (`166,87 s`):** $\frac{166{,}87 \times 385{,}8025}{3600} = \mathbf{17{,}88\text{ horas}}$ de CPU single-core (~`134,1 min` em 8 cores). *(Nota histórica: uma estimativa anterior de `~3,8 horas` / `~20–30 min` havia aplicado o fator de escala sobre ~`35,5 s` de 2 seeds de uma única condição em vez das 9 unidades do piloto completo).*
+     - **Extrapolação linear a partir do piloto sem `tracemalloc` (~`15,0 s`, assumindo custo por passo fixo em $V_{\text{syl}}=27$):** $\frac{15{,}0 \times 385{,}8025}{3600} \approx \mathbf{1{,}61\text{ horas}}$ single-core (~`12,1 min` em 8 cores).
+     - **Projeção calibrada sem `tracemalloc` incorporando o crescimento medido de $V_{\text{syl}} \approx 300$ (`4,92x` no `CPUBackend`):** $\mathbf{\sim 7{,}8\text{ a }8{,}0\text{ horas}}$ single-core (~`60 min` distribuídos em 8 cores locais).
+  3. **Suporte a Execução Reproduzível, Checkpoint/Resume e Microbenchmark CPU vs. CUDA (T4):**
+     - O runner (`scripts/run_expanded_replay_pilot.py`) suporta `--backend cpu|cuda` (`cpu` por padrão), `--profile-heap` opcional, `--seeds` parametrizáveis, checkpoint atômico incremental a cada par `(condition, seed)` e retomada validada via `--resume` (rejeitando configurações ou backends incompatíveis sem duplicar resultados).
+     - O modo `--benchmark-backends` (`run_cpu_vs_cuda_microbenchmark`) compara `cpu` e `cuda` sob o mesmo workload, mesma configuração e mesmo commit sem `tracemalloc`, separando explicitamente o tempo de inicialização/compilação CUDA (`backend_init_seconds`) do tempo de parede efetivo de treinamento (`training_wall_time_seconds`) e verificando equivalência científica por seed (`atol = 1e-12`) e liberação integral de buffers CUDA (`model.close()`).
