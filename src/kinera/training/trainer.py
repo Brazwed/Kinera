@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Any, Callable
+from contextlib import nullcontext
+from typing import TYPE_CHECKING, Any, Callable
+
+if TYPE_CHECKING:
+    from kinera.monitor.telemetry.timing import TimingSession
 
 from kinera.monitor.metrics.core import mean_from_total, safe_ratio
 from kinera.language.datasets.adapter import example_to_inputs
@@ -175,6 +179,8 @@ def train_multitask_examples(
     max_examples: int | None = None,
     loss_function: MultiTaskLoss | None = None,
     step_observer: Callable[[int, int, int, dict[str, float]], object] | None = None,
+    timing_session: TimingSession | None = None,
+    stage_id_prefix: str | None = None,
 ) -> dict[str, Any]:
     """Treina as três heads e registra métricas por época."""
     if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs <= 0:
@@ -187,29 +193,57 @@ def train_multitask_examples(
 
     history: list[dict[str, float]] = []
     global_step = 0
+    prefix = f"{stage_id_prefix}:" if stage_id_prefix else ""
     for epoch in range(1, epochs + 1):
-        for example_index, example in enumerate(selected):
-            inputs = example_to_inputs(
-                example,
+        try:
+            sgd_ctx = (
+                timing_session.stage(
+                    stage_id=f"{prefix}epoch_{epoch}_sgd",
+                    name="epoch_sgd",
+                )
+                if timing_session is not None
+                else nullcontext()
+            )
+        except Exception:
+            sgd_ctx = nullcontext()
+
+        with sgd_ctx:
+            for example_index, example in enumerate(selected):
+                inputs = example_to_inputs(
+                    example,
+                    vocabulary,
+                    syllable_unknown_id=syllable_unknown_id,
+                )
+                scalar_report = model.multitask_train_step(
+                    *inputs,
+                    targets=_multitask_targets(example),
+                    learning_rate=learning_rate,
+                    loss_function=loss_function,
+                )
+                global_step += 1
+                if step_observer is not None:
+                    step_observer(epoch, example_index, global_step, scalar_report)
+
+        try:
+            eval_ctx = (
+                timing_session.stage(
+                    stage_id=f"{prefix}epoch_{epoch}_eval",
+                    name="epoch_evaluation",
+                )
+                if timing_session is not None
+                else nullcontext()
+            )
+        except Exception:
+            eval_ctx = nullcontext()
+
+        with eval_ctx:
+            metrics = evaluate_multitask_examples(
+                model,
+                selected,
                 vocabulary,
                 syllable_unknown_id=syllable_unknown_id,
-            )
-            scalar_report = model.multitask_train_step(
-                *inputs,
-                targets=_multitask_targets(example),
-                learning_rate=learning_rate,
                 loss_function=loss_function,
             )
-            global_step += 1
-            if step_observer is not None:
-                step_observer(epoch, example_index, global_step, scalar_report)
-        metrics = evaluate_multitask_examples(
-            model,
-            selected,
-            vocabulary,
-            syllable_unknown_id=syllable_unknown_id,
-            loss_function=loss_function,
-        )
         history.append({
             key: value for key, value in metrics.items() if key != "examples"
         })

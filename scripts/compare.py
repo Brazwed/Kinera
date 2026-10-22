@@ -39,6 +39,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="cpu",
         help="backend de execução (padrão: cpu)",
     )
+    parser.add_argument(
+        "--collect-telemetry",
+        action="store_true",
+        default=False,
+        help="ativa coleta básica de telemetria controlada",
+    )
     return parser
 
 
@@ -49,6 +55,7 @@ def main(argv: list[str] | None = None) -> None:
         execution_config = ExecutionConfig(
             workers=args.workers,
             backend=args.backend,
+            collect_telemetry=args.collect_telemetry,
         )
     except (TypeError, ValueError) as exc:
         parser.error(str(exc))

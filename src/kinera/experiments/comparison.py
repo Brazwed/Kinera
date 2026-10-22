@@ -16,10 +16,18 @@ from kinera.backends import get_backend
 from kinera.experiments.config import ExperimentConfig, ExecutionConfig
 from kinera.monitor.metrics.aggregation import mean_std
 from kinera.monitor.telemetry.records import (
+    TELEMETRY_SCHEMA_VERSION,
+    TelemetryAttemptRecord,
     TelemetryEnvelope,
+    TelemetryRunRecord,
+    TelemetrySegmentRecord,
     _merge_run_payloads,
     _prepare_envelope_payload,
+    _report_telemetry_diagnostic,
 )
+from kinera.monitor.telemetry.environment import collect_environment_snapshot
+from kinera.monitor.telemetry.resources import collect_resource_snapshot
+from kinera.monitor.telemetry.timing import TimingSession, _seconds_from_ns, utc_now
 from kinera.language.vocabulary import CharacterVocabulary
 from kinera.nn.models.hybrid import AutoregressiveModel
 from kinera.training.evaluator import evaluate_multitask_examples
@@ -34,6 +42,18 @@ from kinera.experiments.variants import (
     VARIANTS,
     _validate_variant_selection,
 )
+
+
+def _safe_monotonic_delta_seconds(start_ns: int | None, finish_ns: int | None) -> float | None:
+    if start_ns is None or finish_ns is None:
+        return None
+    delta = finish_ns - start_ns
+    if delta < 0:
+        return None
+    try:
+        return _seconds_from_ns(delta)
+    except Exception:
+        return None
 
 
 def _max_rss_kb() -> int:
@@ -98,6 +118,331 @@ def _create_execution_backend(execution_config: ExecutionConfig) -> Any | None:
     return get_backend(execution_config.backend)
 
 
+def _execute_single_experiment(
+    variant: str,
+    seed: int,
+    train_examples: list[dict[str, Any]],
+    validation_examples: list[dict[str, Any]],
+    vocabulary: CharacterVocabulary,
+    syllable_vocab_size: int,
+    epochs: int,
+    learning_rate: float,
+    syllable_unknown_id: int,
+    *,
+    backend: Any | None = None,
+    collect_telemetry: bool = False,
+    prior_telemetry: dict[str, Any] | None = None,
+    process_id: str | None = None,
+    submitted_at: str | None = None,
+    submitted_monotonic_ns: int | None = None,
+    reraise: bool = False,
+) -> tuple[str, int, dict[str, Any]]:
+    started = time.perf_counter()
+    model: AutoregressiveModel | None = None
+    cleanup_stage: Any | None = None
+    cleanup_error: str | None = None
+    timing: TimingSession | None = None
+    attempt_id: str | None = None
+    run_id: str | None = None
+    segment_id: str | None = None
+    attempt_started_civil: str | None = None
+    attempt_started_mono: int | None = None
+    worker_started_civil: str | None = None
+    queue_duration_seconds: float | None = None
+
+    if collect_telemetry:
+        try:
+            attempt_started_civil = utc_now().isoformat()
+            attempt_started_mono = time.monotonic_ns()
+            timing = TimingSession()
+            if (
+                prior_telemetry is not None
+                and isinstance(prior_telemetry, dict)
+                and "run_id" in prior_telemetry
+            ):
+                run_id = prior_telemetry["run_id"]
+            else:
+                run_id = f"{variant}-seed-{seed}"
+
+            existing_attempts = (
+                prior_telemetry.get("attempts", [])
+                if isinstance(prior_telemetry, dict)
+                else []
+            )
+            existing_ids = {
+                a.get("attempt_id")
+                for a in existing_attempts
+                if isinstance(a, dict)
+            }
+            attempt_num = len(existing_attempts) + 1
+            while f"attempt-{attempt_num}" in existing_ids:
+                attempt_num += 1
+            attempt_id = f"attempt-{attempt_num}"
+
+            if process_id is None:
+                process_id = f"controlled-{variant}-seed-{seed}-{attempt_id}"
+            elif not process_id.endswith(f"-{attempt_id}"):
+                process_id = f"{process_id}-{attempt_id}"
+            segment_id = f"segment-{attempt_id}"
+
+            if submitted_at is not None:
+                worker_started_civil = attempt_started_civil
+            if submitted_monotonic_ns is not None:
+                queue_duration_seconds = _safe_monotonic_delta_seconds(
+                    submitted_monotonic_ns, attempt_started_mono
+                )
+        except Exception as exc:
+            _report_telemetry_diagnostic("controlled_comparison.init_telemetry", exc)
+            collect_telemetry = False
+            timing = None
+
+    try:
+        if collect_telemetry and timing is not None:
+            with timing.stage(stage_id="setup", name="setup"):
+                model = AutoregressiveModel(
+                    len(vocabulary),
+                    syllable_vocab_size,
+                    seed=seed,
+                    backend=backend,
+                )
+                parameter_count = count_trainable_parameters(model)
+        else:
+            model = AutoregressiveModel(
+                len(vocabulary),
+                syllable_vocab_size,
+                seed=seed,
+                backend=backend,
+            )
+            parameter_count = count_trainable_parameters(model)
+
+        if collect_telemetry and timing is not None:
+            with timing.stage(stage_id="initial_validation", name="initial_validation"):
+                initial = evaluate_multitask_examples(
+                    model,
+                    validation_examples,
+                    vocabulary,
+                    syllable_unknown_id=syllable_unknown_id,
+                )
+        else:
+            initial = evaluate_multitask_examples(
+                model,
+                validation_examples,
+                vocabulary,
+                syllable_unknown_id=syllable_unknown_id,
+            )
+
+        if collect_telemetry and timing is not None:
+            with timing.stage(stage_id="training", name="training"):
+                training = train_multitask_examples(
+                    model,
+                    train_examples,
+                    vocabulary,
+                    epochs=epochs,
+                    learning_rate=learning_rate,
+                    syllable_unknown_id=syllable_unknown_id,
+                    timing_session=timing,
+                    stage_id_prefix="training",
+                )
+        else:
+            training = train_multitask_examples(
+                model,
+                train_examples,
+                vocabulary,
+                epochs=epochs,
+                learning_rate=learning_rate,
+                syllable_unknown_id=syllable_unknown_id,
+            )
+
+        if collect_telemetry and timing is not None:
+            with timing.stage(stage_id="final_validation", name="final_validation"):
+                final = evaluate_multitask_examples(
+                    model,
+                    validation_examples,
+                    vocabulary,
+                    syllable_unknown_id=syllable_unknown_id,
+                )
+        else:
+            final = evaluate_multitask_examples(
+                model,
+                validation_examples,
+                vocabulary,
+                syllable_unknown_id=syllable_unknown_id,
+            )
+
+        if model is not None:
+            if collect_telemetry and timing is not None:
+                with timing.stage(stage_id="cleanup", name="cleanup"):
+                    model.close()
+                    model = None
+                cleanup_stage = next(
+                    (s for s in timing.stages if s.stage_id == "cleanup"), None
+                )
+            else:
+                model.close()
+                model = None
+
+        record = {
+            "seed": seed,
+            "status": "completed",
+            "pid": os.getpid(),
+            "max_rss_kb": _max_rss_kb(),
+            "initial_validation": initial,
+            "training": training,
+            "final_validation": final,
+            "parameter_count": parameter_count,
+            "duration_seconds": time.perf_counter() - started,
+        }
+        if (
+            collect_telemetry
+            and timing is not None
+            and attempt_id
+            and run_id
+            and segment_id
+        ):
+            try:
+                attempt_finished_civil = utc_now().isoformat()
+                attempt_finished_mono = time.monotonic_ns()
+                attempt_duration = _safe_monotonic_delta_seconds(
+                    attempt_started_mono, attempt_finished_mono
+                )
+                segment = TelemetrySegmentRecord(
+                    segment_id=segment_id,
+                    status="completed",
+                    started_at=attempt_started_civil,
+                    finished_at=attempt_finished_civil,
+                    duration_seconds=attempt_duration,
+                    stages=list(timing.stages),
+                )
+                attempt_rec = TelemetryAttemptRecord(
+                    attempt_id=attempt_id,
+                    process_id=cast(str, process_id),
+                    pid=os.getpid(),
+                    status="completed",
+                    submitted_at=submitted_at,
+                    worker_started_at=worker_started_civil,
+                    queue_duration_seconds=queue_duration_seconds,
+                    started_at=attempt_started_civil,
+                    finished_at=attempt_finished_civil,
+                    duration_seconds=attempt_duration,
+                    cleanup_status="completed" if cleanup_stage else "not_run",
+                    segments=[segment],
+                )
+                if cleanup_stage is not None:
+                    attempt_rec.record_cleanup_stage(cleanup_stage)
+                run_rec = TelemetryRunRecord(
+                    telemetry_schema_version=TELEMETRY_SCHEMA_VERSION,
+                    run_id=run_id,
+                    attempts=[attempt_rec],
+                )
+                if prior_telemetry is not None:
+                    merged_rec = _merge_run_payloads(
+                        prior_telemetry,
+                        run_rec,
+                        component="controlled_comparison.record_telemetry",
+                    )
+                    record["telemetry"] = merged_rec if merged_rec is not None else run_rec.to_dict()
+                else:
+                    record["telemetry"] = run_rec.to_dict()
+            except Exception as t_exc:
+                _report_telemetry_diagnostic(
+                    "controlled_comparison.record_telemetry", t_exc
+                )
+    except Exception as exc:
+        error_traceback = traceback.format_exc()
+        if model is not None:
+            try:
+                if collect_telemetry and timing is not None:
+                    with timing.stage(stage_id="cleanup", name="cleanup"):
+                        model.close()
+                        model = None
+                    cleanup_stage = next(
+                        (s for s in timing.stages if s.stage_id == "cleanup"), None
+                    )
+                else:
+                    model.close()
+                    model = None
+            except Exception as c_exc:
+                cleanup_error = str(c_exc)
+                error_traceback += "\nCleanup failure:\n" + traceback.format_exc()
+
+        if reraise:
+            raise
+
+        record = {
+            "seed": seed,
+            "status": "failed",
+            "pid": os.getpid(),
+            "max_rss_kb": _max_rss_kb(),
+            "error": "experiment failed",
+            "traceback": error_traceback,
+            "duration_seconds": time.perf_counter() - started,
+        }
+        if (
+            collect_telemetry
+            and timing is not None
+            and attempt_id
+            and run_id
+            and segment_id
+        ):
+            try:
+                attempt_finished_civil = utc_now().isoformat()
+                attempt_finished_mono = time.monotonic_ns()
+                attempt_duration = _safe_monotonic_delta_seconds(
+                    attempt_started_mono, attempt_finished_mono
+                )
+                segment = TelemetrySegmentRecord(
+                    segment_id=segment_id,
+                    status="failed",
+                    started_at=attempt_started_civil,
+                    finished_at=attempt_finished_civil,
+                    duration_seconds=attempt_duration,
+                    error=str(exc),
+                    stages=list(timing.stages),
+                )
+                attempt_rec = TelemetryAttemptRecord(
+                    attempt_id=attempt_id,
+                    process_id=cast(str, process_id),
+                    pid=os.getpid(),
+                    status="failed",
+                    submitted_at=submitted_at,
+                    worker_started_at=worker_started_civil,
+                    queue_duration_seconds=queue_duration_seconds,
+                    started_at=attempt_started_civil,
+                    finished_at=attempt_finished_civil,
+                    duration_seconds=attempt_duration,
+                    error=str(exc),
+                    cleanup_status=(
+                        "failed"
+                        if cleanup_error
+                        else ("completed" if cleanup_stage else "not_run")
+                    ),
+                    cleanup_error=cleanup_error,
+                    segments=[segment],
+                )
+                if cleanup_stage is not None and cleanup_error is None:
+                    attempt_rec.record_cleanup_stage(cleanup_stage)
+                run_rec = TelemetryRunRecord(
+                    telemetry_schema_version=TELEMETRY_SCHEMA_VERSION,
+                    run_id=run_id,
+                    attempts=[attempt_rec],
+                )
+                if prior_telemetry is not None:
+                    merged_rec = _merge_run_payloads(
+                        prior_telemetry,
+                        run_rec,
+                        component="controlled_comparison.record_telemetry",
+                    )
+                    record["telemetry"] = merged_rec if merged_rec is not None else run_rec.to_dict()
+                else:
+                    record["telemetry"] = run_rec.to_dict()
+            except Exception as t_exc:
+                _report_telemetry_diagnostic(
+                    "controlled_comparison.failed_telemetry", t_exc
+                )
+
+    return variant, seed, record
+
+
 def run_controlled_experiments(
     train_examples: list[dict[str, Any]],
     validation_examples: list[dict[str, Any]],
@@ -115,6 +460,7 @@ def run_controlled_experiments(
     variants: tuple[str, ...] = DEFAULT_VARIANTS,
     execution_config: ExecutionConfig | None = None,
     telemetry: TelemetryEnvelope | dict[str, Any] | None = None,
+    collect_telemetry: bool | None = None,
 ) -> dict[str, Any]:
     """Executa as variantes selecionadas, com checkpoint por variante/seed."""
     variants = _validate_variant_selection(variants)
@@ -124,10 +470,24 @@ def run_controlled_experiments(
         raise TypeError("seeds deve conter inteiros")
     if execution_config is not None and not isinstance(execution_config, ExecutionConfig):
         raise TypeError("execution_config deve ser ExecutionConfig")
+    if collect_telemetry is not None and not isinstance(collect_telemetry, bool):
+        raise TypeError("collect_telemetry deve ser booleano ou None")
     if execution_config is None:
-        execution_config = ExecutionConfig(workers=1 if workers is None else workers)
+        execution_config = ExecutionConfig(
+            workers=1 if workers is None else workers,
+            collect_telemetry=False if collect_telemetry is None else collect_telemetry,
+        )
     elif workers is not None and workers != execution_config.workers:
         raise ValueError("workers deve corresponder a execution_config.workers")
+
+    if collect_telemetry is None:
+        collect_telemetry = execution_config.collect_telemetry
+    elif collect_telemetry != execution_config.collect_telemetry:
+        execution_config = ExecutionConfig(
+            workers=execution_config.workers,
+            backend=execution_config.backend,
+            collect_telemetry=collect_telemetry,
+        )
     workers = execution_config.workers
     metric_names = (
         "char_loss",
@@ -144,6 +504,42 @@ def run_controlled_experiments(
     )
     checkpoint = Path(checkpoint_path) if checkpoint_path is not None else None
     telemetry_section = _serialize_telemetry_envelope(telemetry)
+    if collect_telemetry and telemetry_section is None:
+        session_id = f"controlled-comparison-{utc_now().strftime('%Y%m%dT%H%M%SZ')}"
+        env_snapshot = None
+        res_snapshot = None
+        try:
+            env_snapshot = collect_environment_snapshot()
+        except Exception as exc:
+            _report_telemetry_diagnostic("controlled_comparison.environment", exc)
+        try:
+            res_snapshot = collect_resource_snapshot()
+        except Exception as exc:
+            _report_telemetry_diagnostic("controlled_comparison.resources", exc)
+        envelope = TelemetryEnvelope(
+            telemetry_schema_version=TELEMETRY_SCHEMA_VERSION,
+            session_id=session_id,
+            started_at=utc_now().isoformat(),
+            environment=env_snapshot,
+            resources=res_snapshot,
+        )
+        telemetry_section = envelope.to_dict()
+    elif collect_telemetry and telemetry_section is not None:
+        if "environment" not in telemetry_section:
+            try:
+                env = collect_environment_snapshot()
+                if env is not None:
+                    telemetry_section["environment"] = env.to_dict()
+            except Exception as exc:
+                _report_telemetry_diagnostic("controlled_comparison.environment", exc)
+        if "resources" not in telemetry_section:
+            try:
+                res = collect_resource_snapshot()
+                if res is not None:
+                    telemetry_section["resources"] = res.to_dict()
+            except Exception as exc:
+                _report_telemetry_diagnostic("controlled_comparison.resources", exc)
+
     experiment_config = ExperimentConfig(
         phase="controlled_comparison",
         variants=variants,
@@ -183,6 +579,7 @@ def run_controlled_experiments(
             persisted_execution_config = ExecutionConfig(
                 workers=cast(Any, persisted_execution.get("workers")),
                 backend=cast(Any, persisted_execution.get("backend")),
+                collect_telemetry=bool(persisted_execution.get("collect_telemetry", False)),
             )
         except (TypeError, ValueError) as exc:
             raise ValueError("checkpoint execution_config inválida") from exc
@@ -285,6 +682,7 @@ def run_controlled_experiments(
             workers,
             variants,
             telemetry_section,
+            collect_telemetry=collect_telemetry,
         )
 
     backend = _create_execution_backend(execution_config)
@@ -300,73 +698,27 @@ def run_controlled_experiments(
                 continue
             if previous is not None:
                 reports[variant].remove(previous)
-            started = time.perf_counter()
-            model: AutoregressiveModel | None = None
-            try:
-                model = AutoregressiveModel(
-                    len(vocabulary),
-                    syllable_vocab_size,
-                    seed=seed,
-                    backend=backend,
-                )
-                parameter_counts[variant] = count_trainable_parameters(model)
-                initial = evaluate_multitask_examples(
-                    model,
-                    prepared_validation,
-                    vocabulary,
-                    syllable_unknown_id=syllable_unknown_id,
-                )
-                training = train_multitask_examples(
-                    model,
-                    prepared_train,
-                    vocabulary,
-                    epochs=epochs,
-                    learning_rate=learning_rate,
-                    syllable_unknown_id=syllable_unknown_id,
-                )
-                final = evaluate_multitask_examples(
-                    model,
-                    prepared_validation,
-                    vocabulary,
-                    syllable_unknown_id=syllable_unknown_id,
-                )
-                model.close()
-                model = None
-                completed_record = {
-                    "seed": seed,
-                    "status": "completed",
-                    "pid": os.getpid(),
-                    "max_rss_kb": _max_rss_kb(),
-                    "initial_validation": initial,
-                    "training": training,
-                    "final_validation": final,
-                    "parameter_count": parameter_counts[variant],
-                    "duration_seconds": time.perf_counter() - started,
-                }
-                reports[variant].append(
-                    _preserve_run_telemetry(previous, completed_record)
-                )
-            except Exception:
-                error_traceback = traceback.format_exc()
-                if model is not None:
-                    try:
-                        model.close()
-                    except Exception:
-                        error_traceback += "\nCleanup failure:\n" + traceback.format_exc()
-                if checkpoint is None:
-                    raise
-                failed_record = {
-                    "seed": seed,
-                    "status": "failed",
-                    "pid": os.getpid(),
-                    "max_rss_kb": _max_rss_kb(),
-                    "error": "experiment failed",
-                    "traceback": error_traceback,
-                    "duration_seconds": time.perf_counter() - started,
-                }
-                reports[variant].append(
-                    _preserve_run_telemetry(previous, failed_record)
-                )
+            _, _, record = _execute_single_experiment(
+                variant,
+                seed,
+                prepared_train,
+                prepared_validation,
+                vocabulary,
+                syllable_vocab_size,
+                epochs,
+                learning_rate,
+                syllable_unknown_id,
+                backend=backend,
+                collect_telemetry=collect_telemetry,
+                prior_telemetry=previous.get("telemetry") if previous is not None else None,
+                process_id=None,
+                reraise=(checkpoint is None),
+            )
+            if record.get("status") == "completed":
+                parameter_counts[variant] = record["parameter_count"]
+            reports[variant].append(
+                _preserve_run_telemetry(previous, record)
+            )
             aggregates = _build_aggregates(reports, metric_names, variants)
             if checkpoint is not None:
                 _persist_checkpoint(
@@ -382,6 +734,15 @@ def run_controlled_experiments(
                     ),
                 )
 
+    if collect_telemetry and telemetry_section is not None:
+        try:
+            telemetry_section["finished_at"] = utc_now().isoformat()
+            latest_resources = collect_resource_snapshot()
+            if latest_resources is not None:
+                telemetry_section["resources"] = latest_resources.to_dict()
+        except Exception as exc:
+            _report_telemetry_diagnostic("controlled_comparison.final_telemetry", exc)
+
     aggregates = _build_aggregates(reports, metric_names, variants)
     result = _checkpoint_report(
         configuration,
@@ -395,78 +756,6 @@ def run_controlled_experiments(
     if checkpoint is not None:
         _persist_checkpoint(checkpoint, result)
     return result
-
-
-def _execute_single_experiment(
-    variant: str,
-    seed: int,
-    train_examples: list[dict[str, Any]],
-    validation_examples: list[dict[str, Any]],
-    vocabulary: CharacterVocabulary,
-    syllable_vocab_size: int,
-    epochs: int,
-    learning_rate: float,
-    syllable_unknown_id: int,
-) -> tuple[str, int, dict[str, Any]]:
-    started = time.perf_counter()
-    model: AutoregressiveModel | None = None
-    try:
-        model = AutoregressiveModel(
-            len(vocabulary),
-            syllable_vocab_size,
-            seed=seed,
-        )
-        parameter_count = count_trainable_parameters(model)
-        initial = evaluate_multitask_examples(
-            model,
-            validation_examples,
-            vocabulary,
-            syllable_unknown_id=syllable_unknown_id,
-        )
-        training = train_multitask_examples(
-            model,
-            train_examples,
-            vocabulary,
-            epochs=epochs,
-            learning_rate=learning_rate,
-            syllable_unknown_id=syllable_unknown_id,
-        )
-        final = evaluate_multitask_examples(
-            model,
-            validation_examples,
-            vocabulary,
-            syllable_unknown_id=syllable_unknown_id,
-        )
-        model.close()
-        model = None
-        record = {
-            "seed": seed,
-            "status": "completed",
-            "pid": os.getpid(),
-            "max_rss_kb": _max_rss_kb(),
-            "initial_validation": initial,
-            "training": training,
-            "final_validation": final,
-            "parameter_count": parameter_count,
-            "duration_seconds": time.perf_counter() - started,
-        }
-    except Exception:
-        error_traceback = traceback.format_exc()
-        if model is not None:
-            try:
-                model.close()
-            except Exception:
-                error_traceback += "\nCleanup failure:\n" + traceback.format_exc()
-        record = {
-            "seed": seed,
-            "status": "failed",
-            "pid": os.getpid(),
-            "max_rss_kb": _max_rss_kb(),
-            "error": "experiment failed",
-            "traceback": error_traceback,
-            "duration_seconds": time.perf_counter() - started,
-        }
-    return variant, seed, record
 
 
 def _run_parallel_experiments(
@@ -488,6 +777,7 @@ def _run_parallel_experiments(
     workers: int,
     variants: tuple[str, ...],
     telemetry_section: dict[str, Any] | None,
+    collect_telemetry: bool = False,
 ) -> dict[str, Any]:
     del resume
     for variant in variants:
@@ -528,18 +818,42 @@ def _run_parallel_experiments(
         for variant, seed, train_examples, validation_examples in pending_jobs:
             pending = next(run for run in reports[variant] if run.get("seed") == seed)
             pending["status"] = "running"
-            future = executor.submit(
-                _execute_single_experiment,
-                variant,
-                seed,
-                train_examples,
-                validation_examples,
-                vocabulary,
-                syllable_vocab_size,
-                epochs,
-                learning_rate,
-                syllable_unknown_id,
-            )
+            if collect_telemetry:
+                prior_telemetry = pending.get("telemetry")
+                sub_at = utc_now().isoformat()
+                sub_mono = time.monotonic_ns()
+                future = executor.submit(
+                    _execute_single_experiment,
+                    variant,
+                    seed,
+                    train_examples,
+                    validation_examples,
+                    vocabulary,
+                    syllable_vocab_size,
+                    epochs,
+                    learning_rate,
+                    syllable_unknown_id,
+                    backend=None,
+                    collect_telemetry=True,
+                    prior_telemetry=prior_telemetry,
+                    process_id=f"worker-{variant}-seed-{seed}",
+                    submitted_at=sub_at,
+                    submitted_monotonic_ns=sub_mono,
+                    reraise=False,
+                )
+            else:
+                future = executor.submit(
+                    _execute_single_experiment,
+                    variant,
+                    seed,
+                    train_examples,
+                    validation_examples,
+                    vocabulary,
+                    syllable_vocab_size,
+                    epochs,
+                    learning_rate,
+                    syllable_unknown_id,
+                )
             futures[future] = (variant, seed)
         if checkpoint is not None:
             _persist_checkpoint(
@@ -556,6 +870,7 @@ def _run_parallel_experiments(
             )
         for future in concurrent.futures.as_completed(futures):
             variant, seed = futures[future]
+            existing = next(run for run in reports[variant] if run.get("seed") == seed)
             try:
                 _, _, record = future.result()
             except Exception:
@@ -567,7 +882,32 @@ def _run_parallel_experiments(
                     "error": "worker process failed",
                     "traceback": traceback.format_exc(),
                 }
-            existing = next(run for run in reports[variant] if run.get("seed") == seed)
+                if collect_telemetry:
+                    prior = existing.get("telemetry")
+                    run_id = (
+                        prior.get("run_id")
+                        if isinstance(prior, dict) and "run_id" in prior
+                        else f"{variant}-seed-{seed}"
+                    )
+                    attempt_id = (
+                        f"attempt-{len(prior.get('attempts', [])) + 1}"
+                        if isinstance(prior, dict)
+                        else "attempt-1"
+                    )
+                    attempt_rec = TelemetryAttemptRecord(
+                        attempt_id=attempt_id,
+                        process_id=f"worker-{variant}-seed-{seed}-{attempt_id}",
+                        pid=None,
+                        status="failed",
+                        error="worker process failed",
+                        cleanup_status="not_run",
+                    )
+                    run_rec = TelemetryRunRecord(
+                        telemetry_schema_version=TELEMETRY_SCHEMA_VERSION,
+                        run_id=run_id,
+                        attempts=[attempt_rec],
+                    )
+                    record["telemetry"] = run_rec.to_dict()
             replacement = _preserve_run_telemetry(existing, record)
             reports[variant][reports[variant].index(existing)] = replacement
             if replacement.get("status") == "completed":
@@ -586,6 +926,15 @@ def _run_parallel_experiments(
                         telemetry=telemetry_section,
                     ),
                 )
+
+    if collect_telemetry and telemetry_section is not None:
+        try:
+            telemetry_section["finished_at"] = utc_now().isoformat()
+            latest_resources = collect_resource_snapshot()
+            if latest_resources is not None:
+                telemetry_section["resources"] = latest_resources.to_dict()
+        except Exception as exc:
+            _report_telemetry_diagnostic("controlled_comparison.final_telemetry", exc)
 
     aggregates = _build_aggregates(reports, metric_names, variants)
     result = _checkpoint_report(

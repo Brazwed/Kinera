@@ -78,17 +78,23 @@ class ExecutionConfig:
 
     workers: int = 1
     backend: Literal["cpu", "cuda"] = "cpu"
+    collect_telemetry: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.backend, str) or self.backend not in {"cpu", "cuda"}:
             raise ValueError("backend deve ser 'cpu' ou 'cuda'")
         if isinstance(self.workers, bool) or not isinstance(self.workers, int) or self.workers <= 0:
             raise ValueError("workers deve ser inteiro positivo")
+        if not isinstance(self.collect_telemetry, bool):
+            raise TypeError("collect_telemetry deve ser booleano")
         if self.backend == "cuda" and self.workers != 1:
             raise ValueError("backend='cuda' exige workers=1 nesta fase")
 
-    def to_dict(self) -> dict[str, str | int]:
-        return {"backend": self.backend, "workers": self.workers}
+    def to_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {"backend": self.backend, "workers": self.workers}
+        if self.collect_telemetry:
+            result["collect_telemetry"] = True
+        return result
 
 
 @dataclass
