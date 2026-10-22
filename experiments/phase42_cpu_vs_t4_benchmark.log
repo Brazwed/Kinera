@@ -1,0 +1,289 @@
+=== Kinera Issue #42 / PR #44 — Google Colab NVIDIA T4 Execution Log ===
+Repository: https://github.com/Brazwed/Kinera
+Branch: feature/issue-42-colab-runner
+Tested Commit (HEAD): 2f29fe1880c5881a9be21bb9d99c1ed11472e214
+Baseline Commit: 5dba2ccd6fadd3c2406223e3ec28657cc1fb9138
+GPU Device: NVIDIA Tesla T4 (Compute Capability 7.5, 15360 MiB, Driver 580.82.07, CUDA 13.0 / nvcc V13.0.88)
+Host CPU (Colab VM): Intel(R) Xeon(R) CPU @ 2.00GHz (2 vCPUs), Linux-6.6.122+-x86_64-with-glibc2.39, Python 3.13.15
+
+=== 1. Running CPU vs. CUDA Microbenchmark (Cold CUDA Init + Compile) ===
+Benchmark returncode: 0
+============================================================
+Kinera Phase 42: CPU vs. CUDA Microbenchmark
+Seeds: [42, 43, 44]
+Conditions: ['low', 'medium', 'high']
+Require CUDA: True
+Runner Commit: 2f29fe1880
+============================================================
+CPU  | init=0.0000s | train=14.9429s | 5.391 ms/step
+CUDA | init=14.5790s | train=11.3312s | 4.088 ms/step | live_allocs_after_close=0
+Speedup (train only): 1.32x | Speedup (with init): 0.58x | Max metric error: 0.000e+00
+
+Benchmark report written to /content/phase42_cpu_vs_t4_benchmark.json
+
+
+=== 2. Running Full CUDA Pilot + Equivalence Verification vs. Baseline JSON (Warm CUDA Init) ===
+CUDA Pilot returncode: 0
+============================================================
+Kinera Phase 42: Expanded Controlled Replay Pilot
+Seeds:           [42, 43, 44]
+Conditions:      ['low', 'medium', 'high']
+Backend:         cuda
+Profile Heap:    False
+Resume:          False
+Checkpoint Path: /content/phase42_cuda_pilot_results.json
+Baseline Commit: 5dba2ccd6f
+Runner Commit:   2f29fe1880
+============================================================
+
+============================================================
+Execution Summary:
+Backend:          cuda (init: 0.2296 s)
+Resumed Run:      False (resume_count=0)
+Completed Units:  9
+Total Train Time: 11.25 s
+Peak Heap (TM):   0.00 MB (0 bytes, enabled=False)
+Peak RSS (OS):    125.27 MB (131358720 bytes)
+Scaling Forecast: 1.21 hours CPU
+Recommendation:   LOCAL_CPU
+Protocol Valid:   True
+Budget Matched:   True
+High Rec Adv:     +0.3333
+High Ret Adv:     +0.6667
+Zero-Ref Acq B/C: +0.6667 / +0.0000
+High Sup Frac:    0.0%
+------------------------------------------------------------
+Claim: Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (3 seeds) are strictly confirmed. Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive mean recovery advantage over uniform random replay (B) (+0.3333 across all 4 old task probes) and a mean positive-reference retention ratio advantage (+0.6667, with C retaining 1.0000 vs B retaining 0.3333 on both internal probes [probe-int-malas, probe-int-patos, probe-int-sapos] and holdout probes [probe-hold-maleta, probe-hold-pateta, probe-hold-sapato]). Note on metric semantics and probe partitioning: retention is strictly computed over probes with positive initial reference competence (ref > 0.0, i.e., the 3 probes initially learned to 1.0). The 4th probe (probe-int-fogos / probe-hold-foguete) had initial reference competence ref = 0.0 and is excluded from retention to prevent nonexistent initial competence from inflating retention when post >= 0.0; its competence gain (post - ref) is tracked separately in zero_ref_acquisition (under high interference: mean 0.6667 for B and 0.0000 for C). Under low and medium interference, recovery advantage is zero because baseline forgetting is absent (all candidate forgetting scores are 0.0), causing C to select candidates via deterministic FIFO tie-breaking. Under high interference, candidate scores are differentiated (three candidates with score 1.0 vs one candidate with score 0.0); C actively discriminates and excludes the unforgotten candidate, whereas random replay (B) wastes 50% of its budget on the unforgotten item in 2 of 3 seeds (seeds 42 and 44), losing all 3 positive-reference competences (retention 0.0) in those seeds. Between forgotten candidates with identical score 1.0, C selects via FIFO. Regarding plasticity, initial acquisition delta (c_vs_b_plasticity_delta) is 0.0 across all conditions (both variants acquire the new task equally prior to replay), but during replay C experiences retroactive competence loss on the new task (-0.50) due to back-interference from replaying old onset weights, explaining why strict empirical superiority across seeds was 0.0%. The holdout evaluation measures Property A (retention of shared phonetic-orthographic transitions across isolated lexical records) rather than full lexical generalization to unseen words (Property C) or unseen transitions (Property B). Because this pilot evaluated 3 exploratory seeds on synthetic micro-fixtures, these results provide methodological validation of the protocol rather than definitive proof of general superiority across all linguistic contexts. The protocol is verified, reproducible, and ready for scaled execution on local CPU.
+============================================================
+Scientific Equivalence Verified against /content/Kinera/experiments/phase42_pilot_results.json: checked_units=9, max_abs_error=0.000e+00
+
+Report successfully written to /content/phase42_cuda_pilot_results.json
+
+
+=== Cold Benchmark JSON ===
+{
+  "schema_version": 1,
+  "phase": "42-cpu-vs-cuda-microbenchmark",
+  "baseline_commit": "5dba2ccd6fadd3c2406223e3ec28657cc1fb9138",
+  "runner_commit": "2f29fe1880c5881a9be21bb9d99c1ed11472e214",
+  "workload": {
+    "conditions": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "total_condition_seed_units": 9,
+    "total_models_trained": 27,
+    "total_physical_gradient_steps": 2772,
+    "profile_heap": false
+  },
+  "cpu": {
+    "available": true,
+    "backend": "cpu",
+    "profile_heap": false,
+    "backend_init_seconds": 6.220002433110494e-07,
+    "training_wall_time_seconds": 14.942904618999819,
+    "total_wall_time_seconds": 14.942905241000062,
+    "mean_unit_wall_time_seconds": 1.6603227354444243,
+    "ms_per_gradient_step": 5.390658231962417,
+    "peak_rss_mb": 104.25390625
+  },
+  "cuda": {
+    "available": true,
+    "backend": "cuda",
+    "device_info": {
+      "name": "Tesla T4",
+      "major": 7,
+      "minor": 5,
+      "total_memory_bytes": 15637086208
+    },
+    "profile_heap": false,
+    "backend_init_seconds": 14.57899766499986,
+    "training_wall_time_seconds": 11.331195752999975,
+    "total_wall_time_seconds": 25.910193417999835,
+    "mean_unit_wall_time_seconds": 1.2590217503333305,
+    "ms_per_gradient_step": 4.087732955627696,
+    "peak_rss_mb": 126.40234375,
+    "live_allocations_after_close": 0,
+    "unmatched_frees": 0,
+    "total_allocations": 175086,
+    "total_frees": 175086
+  },
+  "comparison": {
+    "scientific_equivalence_verified": true,
+    "max_absolute_error": 0.0,
+    "training_speedup_cuda_vs_cpu": 1.318740311678371,
+    "total_speedup_including_init": 0.576719169939473
+  }
+}
+
+=== Running Warm CPU vs. CUDA Microbenchmark (Cached CUDA .so) ===
+============================================================
+Kinera Phase 42: CPU vs. CUDA Microbenchmark
+Seeds: [42, 43, 44]
+Conditions: ['low', 'medium', 'high']
+Require CUDA: True
+Runner Commit: 2f29fe1880
+============================================================
+CPU  | init=0.0000s | train=14.8852s | 5.370 ms/step
+CUDA | init=0.2925s | train=11.3560s | 4.097 ms/step | live_allocs_after_close=0
+Speedup (train only): 1.31x | Speedup (with init): 1.28x | Max metric error: 0.000e+00
+
+Benchmark report written to /content/phase42_cpu_vs_t4_benchmark_warm.json
+
+=== Warm Benchmark JSON ===
+{
+  "schema_version": 1,
+  "phase": "42-cpu-vs-cuda-microbenchmark",
+  "baseline_commit": "5dba2ccd6fadd3c2406223e3ec28657cc1fb9138",
+  "runner_commit": "2f29fe1880c5881a9be21bb9d99c1ed11472e214",
+  "workload": {
+    "conditions": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "total_condition_seed_units": 9,
+    "total_models_trained": 27,
+    "total_physical_gradient_steps": 2772,
+    "profile_heap": false
+  },
+  "cpu": {
+    "available": true,
+    "backend": "cpu",
+    "profile_heap": false,
+    "backend_init_seconds": 6.81000074109761e-07,
+    "training_wall_time_seconds": 14.88523949499995,
+    "total_wall_time_seconds": 14.885240176000025,
+    "mean_unit_wall_time_seconds": 1.653915499444439,
+    "ms_per_gradient_step": 5.36985551767675,
+    "peak_rss_mb": 104.25390625
+  },
+  "cuda": {
+    "available": true,
+    "backend": "cuda",
+    "device_info": {
+      "name": "Tesla T4",
+      "major": 7,
+      "minor": 5,
+      "total_memory_bytes": 15637086208
+    },
+    "profile_heap": false,
+    "backend_init_seconds": 0.2924572099996112,
+    "training_wall_time_seconds": 11.355959501000143,
+    "total_wall_time_seconds": 11.648416710999754,
+    "mean_unit_wall_time_seconds": 1.2617732778889048,
+    "ms_per_gradient_step": 4.096666486652288,
+    "peak_rss_mb": 125.4140625,
+    "live_allocations_after_close": 0,
+    "unmatched_frees": 0,
+    "total_allocations": 175086,
+    "total_frees": 175086
+  },
+  "comparison": {
+    "scientific_equivalence_verified": true,
+    "max_absolute_error": 0.0,
+    "training_speedup_cuda_vs_cpu": 1.3107865956803542,
+    "total_speedup_including_init": 1.277876688764379
+  }
+}
+
+=== Running Pytest Suite on Colab T4 ===
+.......................                                                  [100%]
+23 passed in 82.24s (0:01:22)
+
+
+=== 30-Seed Expanded Experiment on NVIDIA T4 (Checkpoint + Resume + Single-Pass Verification) ===
+Verified HEAD before 30-seed T4 run: 2f29fe1880c5881a9be21bb9d99c1ed11472e214
+=== Pass 1: Running first 15 seeds (42..56, 45 units) on T4 with incremental checkpoint ===
+Pass 1 returncode=0 in 58.05s
+============================================================
+Kinera Phase 42: Expanded Controlled Replay Pilot
+Seeds:           [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56]
+Conditions:      ['low', 'medium', 'high']
+Backend:         cuda
+Profile Heap:    False
+Resume:          False
+Checkpoint Path: /content/phase42_30seeds_t4_results.json
+Baseline Commit: 5dba2ccd6f
+Runner Commit:   2f29fe1880
+============================================================
+
+============================================================
+Execution Summary:
+Backend:          cuda (init: 0.2930 s)
+Resumed Run:      False (resume_count=0)
+Completed Units:  45
+Total Train Time: 57.51 s
+Peak Heap (TM):   0.00 MB (0 bytes, enabled=False)
+Peak RSS (OS):    128.73 MB (134983680 bytes)
+Scaling Forecast: 1.23 hours CPU
+Recommendation:   LOCAL_CPU
+Protocol Valid:   True
+Budget Matched:   True
+High Rec Adv:     +0.2167
+High Ret Adv:     +0.4222
+Zero-Ref Acq B/C: +0.4667 / +0.0667
+High Sup Frac:    6.7%
+------------------------------------------------------------
+Claim: Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (15 seeds) are strictly confirmed. Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive mean recovery advantage over uniform random replay (B) (+0.2167 across all 4 old task probes) and a mean positive-reference retention ratio advantage (+0.4222, with C retaining 1.0000 vs B retaining 0.3333 on both internal probes [probe-int-malas, probe-int-patos, probe-int-sapos] and holdout probes [probe-hold-maleta, probe-hold-pateta, probe-hold-sapato]). Note on metric semantics and probe partitioning: retention is strictly computed over probes with positive initial reference competence (ref > 0.0, i.e., the 3 probes initially learned to 1.0). The 4th probe (probe-int-fogos / probe-hold-foguete) had initial reference competence ref = 0.0 and is excluded from retention to prevent nonexistent initial competence from inflating retention when post >= 0.0; its competence gain (post - ref) is tracked separately in zero_ref_acquisition (under high interference: mean 0.4667 for B and 0.0667 for C). Under low and medium interference, recovery advantage is zero because baseline forgetting is absent (all candidate forgetting scores are 0.0), causing C to select candidates via deterministic FIFO tie-breaking. Under high interference, candidate scores are differentiated (three candidates with score 1.0 vs one candidate with score 0.0); C actively discriminates and excludes the unforgotten candidate, whereas random replay (B) wastes 50% of its budget on the unforgotten item in 2 of 3 seeds (seeds 42 and 44), losing all 3 positive-reference competences (retention 0.0) in those seeds. Between forgotten candidates with identical score 1.0, C selects via FIFO. Regarding plasticity, initial acquisition delta (c_vs_b_plasticity_delta) is 0.0 across all conditions (both variants acquire the new task equally prior to replay), but during replay C experiences retroactive competence loss on the new task (-0.50) due to back-interference from replaying old onset weights, explaining why strict empirical superiority across seeds was 0.0%. The holdout evaluation measures Property A (retention of shared phonetic-orthographic transitions across isolated lexical records) rather than full lexical generalization to unseen words (Property C) or unseen transitions (Property B). Because this pilot evaluated 3 exploratory seeds on synthetic micro-fixtures, these results provide methodological validation of the protocol rather than definitive proof of general superiority across all linguistic contexts. The protocol is verified, reproducible, and ready for scaled execution on local CPU.
+============================================================
+
+Report successfully written to /content/phase42_30seeds_t4_results.json
+
+Checkpoint after Pass 1: status=completed, completed_units=45
+
+=== Pass 2: Resuming (--resume) to complete all 30 seeds (42..71, 90 units total) on T4 ===
+Pass 2 returncode=0 in 58.09s (Total P1+P2 wall time: 116.13s)
+============================================================
+Kinera Phase 42: Expanded Controlled Replay Pilot
+Seeds:           [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71]
+Conditions:      ['low', 'medium', 'high']
+Backend:         cuda
+Profile Heap:    False
+Resume:          True
+Checkpoint Path: /content/phase42_30seeds_t4_results.json
+Baseline Commit: 5dba2ccd6f
+Runner Commit:   2f29fe1880
+============================================================
+
+============================================================
+Execution Summary:
+Backend:          cuda (init: 0.2348 s)
+Resumed Run:      True (resume_count=1)
+Completed Units:  90
+Total Train Time: 113.96 s
+Peak Heap (TM):   0.00 MB (0 bytes, enabled=False)
+Peak RSS (OS):    133.08 MB (139542528 bytes)
+Scaling Forecast: 1.22 hours CPU
+Recommendation:   LOCAL_CPU
+Protocol Valid:   True
+Budget Matched:   True
+High Rec Adv:     +0.2417
+High Ret Adv:     +0.4778
+Zero-Ref Acq B/C: +0.5000 / +0.0333
+High Sup Frac:    3.3%
+------------------------------------------------------------
+Claim: Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (30 seeds) are strictly confirmed. Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive mean recovery advantage over uniform random replay (B) (+0.2417 across all 4 old task probes) and a mean positive-reference retention ratio advantage (+0.4778, with C retaining 1.0000 vs B retaining 0.3333 on both internal probes [probe-int-malas, probe-int-patos, probe-int-sapos] and holdout probes [probe-hold-maleta, probe-hold-pateta, probe-hold-sapato]). Note on metric semantics and probe partitioning: retention is strictly computed over probes with positive initial reference competence (ref > 0.0, i.e., the 3 probes initially learned to 1.0). The 4th probe (probe-int-fogos / probe-hold-foguete) had initial reference competence ref = 0.0 and is excluded from retention to prevent nonexistent initial competence from inflating retention when post >= 0.0; its competence gain (post - ref) is tracked separately in zero_ref_acquisition (under high interference: mean 0.5000 for B and 0.0333 for C). Under low and medium interference, recovery advantage is zero because baseline forgetting is absent (all candidate forgetting scores are 0.0), causing C to select candidates via deterministic FIFO tie-breaking. Under high interference, candidate scores are differentiated (three candidates with score 1.0 vs one candidate with score 0.0); C actively discriminates and excludes the unforgotten candidate, whereas random replay (B) wastes 50% of its budget on the unforgotten item in 2 of 3 seeds (seeds 42 and 44), losing all 3 positive-reference competences (retention 0.0) in those seeds. Between forgotten candidates with identical score 1.0, C selects via FIFO. Regarding plasticity, initial acquisition delta (c_vs_b_plasticity_delta) is 0.0 across all conditions (both variants acquire the new task equally prior to replay), but during replay C experiences retroactive competence loss on the new task (-0.50) due to back-interference from replaying old onset weights, explaining why strict empirical superiority across seeds was 0.0%. The holdout evaluation measures Property A (retention of shared phonetic-orthographic transitions across isolated lexical records) rather than full lexical generalization to unseen words (Property C) or unseen transitions (Property B). Because this pilot evaluated 3 exploratory seeds on synthetic micro-fixtures, these results provide methodological validation of the protocol rather than definitive proof of general superiority across all linguistic contexts. The protocol is verified, reproducible, and ready for scaled execution on local CPU.
+============================================================
+
+Report successfully written to /content/phase42_30seeds_t4_results.json
+
+
+1. Equivalence of seeds 42..44 in 30-seed T4 run vs 3-seed CPU reference: True, max_abs_error = 0.0
+2. Single-pass 30-seed verification returncode: 0
+   Backend:          cuda (init: 0.3019 s)
+   Resumed Run:      False (resume_count=0)
+   Completed Units:  90
+   Total Train Time: 113.66 s
+   Scientific Equivalence Verified against /content/phase42_30seeds_t4_results.json: checked_units=90, max_abs_error=0.000e+00

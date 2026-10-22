@@ -1,0 +1,1065 @@
+{
+  "schema_version": 1,
+  "phase": "42-colab-t4-vs-cpu-benchmark-report",
+  "generated_at_utc": "2026-10-22T14:00:01.342414+00:00",
+  "baseline_commit": "5dba2ccd6fadd3c2406223e3ec28657cc1fb9138",
+  "runner_commit": "2f29fe1880c5881a9be21bb9d99c1ed11472e214",
+  "drive_mounted": false,
+  "environment": {
+    "platform": "Linux-6.6.122+-x86_64-with-glibc2.39",
+    "python_version": "3.13.15 (main, Aug  6 2026, 11:06:22) [GCC 13.3.0]",
+    "colab_image_type": "gpu",
+    "host_cpu_model": "Intel(R) Xeon(R) CPU @ 2.00GHz",
+    "host_cpu_count": 2,
+    "gpu_query": "Tesla T4, 580.82.07, 15360 MiB, 7.5",
+    "nvcc_version": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2025 NVIDIA Corporation\nBuilt on Wed_Aug_20_01:58:59_PM_PDT_2025\nCuda compilation tools, release 13.0, V13.0.88\nBuild cuda_13.0.r13.0/compiler.36424714_0",
+    "cuda_device_info": {
+      "name": "Tesla T4",
+      "major": 7,
+      "minor": 5,
+      "total_memory_bytes": 15637086208
+    }
+  },
+  "experiment_config": {
+    "phase": "42-expanded-pilot",
+    "variants": [
+      "A",
+      "B",
+      "C"
+    ],
+    "conditions": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "condition_specs": {
+      "low": {
+        "level": "low",
+        "description": "Disjoint prefixes and orthogonal character transitions; low representational collision",
+        "old_words": [
+          "mala",
+          "pato",
+          "sapo",
+          "fogo"
+        ],
+        "new_words": [
+          "zero",
+          "luxo"
+        ],
+        "old_internal_words": [
+          "malas",
+          "patos",
+          "sapos",
+          "fogos"
+        ],
+        "old_holdout_words": [
+          "maleta",
+          "pateta",
+          "sapato",
+          "foguete"
+        ],
+        "new_holdout_words": [
+          "zebra",
+          "luva"
+        ],
+        "old_epochs": 20,
+        "new_epochs": 4,
+        "replay_epochs": 1,
+        "old_learning_rate": 0.08,
+        "new_learning_rate": 0.04,
+        "replay_learning_rate": 0.2,
+        "replay_budget": 2
+      },
+      "medium": {
+        "level": "medium",
+        "description": "Partial consonant/vowel sharing with single-word collision; moderate representational drift",
+        "old_words": [
+          "mala",
+          "pato",
+          "sapo",
+          "fogo"
+        ],
+        "new_words": [
+          "medo",
+          "dado"
+        ],
+        "old_internal_words": [
+          "malas",
+          "patos",
+          "sapos",
+          "fogos"
+        ],
+        "old_holdout_words": [
+          "maleta",
+          "pateta",
+          "sapato",
+          "foguete"
+        ],
+        "new_holdout_words": [
+          "meta",
+          "data"
+        ],
+        "old_epochs": 20,
+        "new_epochs": 10,
+        "replay_epochs": 1,
+        "old_learning_rate": 0.08,
+        "new_learning_rate": 0.07,
+        "replay_learning_rate": 0.2,
+        "replay_budget": 2
+      },
+      "high": {
+        "level": "high",
+        "description": "Direct prefix context collision on identical n-grams ('<START>', 'm') and ('<START>', 'p') with divergent targets",
+        "old_words": [
+          "mala",
+          "pato",
+          "sapo",
+          "fogo"
+        ],
+        "new_words": [
+          "medo",
+          "povo"
+        ],
+        "old_internal_words": [
+          "malas",
+          "patos",
+          "sapos",
+          "fogos"
+        ],
+        "old_holdout_words": [
+          "maleta",
+          "pateta",
+          "sapato",
+          "foguete"
+        ],
+        "new_holdout_words": [
+          "meta",
+          "pote"
+        ],
+        "old_epochs": 20,
+        "new_epochs": 15,
+        "replay_epochs": 1,
+        "old_learning_rate": 0.08,
+        "new_learning_rate": 0.1,
+        "replay_learning_rate": 0.2,
+        "replay_budget": 2
+      }
+    }
+  },
+  "workload": {
+    "conditions": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "total_condition_seed_units": 9,
+    "total_models_trained": 27,
+    "total_physical_gradient_steps": 2772,
+    "profile_heap": false
+  },
+  "cold_start_benchmark": {
+    "schema_version": 1,
+    "phase": "42-cpu-vs-cuda-microbenchmark",
+    "baseline_commit": "5dba2ccd6fadd3c2406223e3ec28657cc1fb9138",
+    "runner_commit": "2f29fe1880c5881a9be21bb9d99c1ed11472e214",
+    "workload": {
+      "conditions": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "total_condition_seed_units": 9,
+      "total_models_trained": 27,
+      "total_physical_gradient_steps": 2772,
+      "profile_heap": false
+    },
+    "cpu": {
+      "available": true,
+      "backend": "cpu",
+      "profile_heap": false,
+      "backend_init_seconds": 6.220002433110494e-07,
+      "training_wall_time_seconds": 14.942904618999819,
+      "total_wall_time_seconds": 14.942905241000062,
+      "mean_unit_wall_time_seconds": 1.6603227354444243,
+      "ms_per_gradient_step": 5.390658231962417,
+      "peak_rss_mb": 104.25390625
+    },
+    "cuda": {
+      "available": true,
+      "backend": "cuda",
+      "device_info": {
+        "name": "Tesla T4",
+        "major": 7,
+        "minor": 5,
+        "total_memory_bytes": 15637086208
+      },
+      "profile_heap": false,
+      "backend_init_seconds": 14.57899766499986,
+      "training_wall_time_seconds": 11.331195752999975,
+      "total_wall_time_seconds": 25.910193417999835,
+      "mean_unit_wall_time_seconds": 1.2590217503333305,
+      "ms_per_gradient_step": 4.087732955627696,
+      "peak_rss_mb": 126.40234375,
+      "live_allocations_after_close": 0,
+      "unmatched_frees": 0,
+      "total_allocations": 175086,
+      "total_frees": 175086
+    },
+    "comparison": {
+      "scientific_equivalence_verified": true,
+      "max_absolute_error": 0.0,
+      "training_speedup_cuda_vs_cpu": 1.318740311678371,
+      "total_speedup_including_init": 0.576719169939473
+    }
+  },
+  "warm_start_benchmark": {
+    "schema_version": 1,
+    "phase": "42-cpu-vs-cuda-microbenchmark",
+    "baseline_commit": "5dba2ccd6fadd3c2406223e3ec28657cc1fb9138",
+    "runner_commit": "2f29fe1880c5881a9be21bb9d99c1ed11472e214",
+    "workload": {
+      "conditions": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "total_condition_seed_units": 9,
+      "total_models_trained": 27,
+      "total_physical_gradient_steps": 2772,
+      "profile_heap": false
+    },
+    "cpu": {
+      "available": true,
+      "backend": "cpu",
+      "profile_heap": false,
+      "backend_init_seconds": 6.81000074109761e-07,
+      "training_wall_time_seconds": 14.88523949499995,
+      "total_wall_time_seconds": 14.885240176000025,
+      "mean_unit_wall_time_seconds": 1.653915499444439,
+      "ms_per_gradient_step": 5.36985551767675,
+      "peak_rss_mb": 104.25390625
+    },
+    "cuda": {
+      "available": true,
+      "backend": "cuda",
+      "device_info": {
+        "name": "Tesla T4",
+        "major": 7,
+        "minor": 5,
+        "total_memory_bytes": 15637086208
+      },
+      "profile_heap": false,
+      "backend_init_seconds": 0.2924572099996112,
+      "training_wall_time_seconds": 11.355959501000143,
+      "total_wall_time_seconds": 11.648416710999754,
+      "mean_unit_wall_time_seconds": 1.2617732778889048,
+      "ms_per_gradient_step": 4.096666486652288,
+      "peak_rss_mb": 125.4140625,
+      "live_allocations_after_close": 0,
+      "unmatched_frees": 0,
+      "total_allocations": 175086,
+      "total_frees": 175086
+    },
+    "comparison": {
+      "scientific_equivalence_verified": true,
+      "max_absolute_error": 0.0,
+      "training_speedup_cuda_vs_cpu": 1.3107865956803542,
+      "total_speedup_including_init": 1.277876688764379
+    }
+  },
+  "full_cuda_pilot_verification": {
+    "backend_init_seconds": 0.22956990199963911,
+    "cost_profile": {
+      "total_cpu_time_seconds": 11.25275910099981,
+      "peak_ram_bytes": 0,
+      "peak_ram_mb": 0.0,
+      "peak_rss_bytes": 131358720,
+      "peak_rss_mb": 125.2734375,
+      "projected_scaled_hours_cpu": 1.2059284015989165,
+      "scaling_recommendation": "local_cpu",
+      "recommendation_rationale": "Measured execution wall time (cuda): 11.25s (backend init: 0.2296s). Parametric projection for full-scale experiment (10 seeds, 500 words, 50 epochs): 1.21 single-thread CPU core-hours (linear scaling factor 385.8x from 11.25s measured pilot; note that CPUBackend step cost also grows with syllable vocabulary size V_syl). Peak process RSS measured 125.3 MB (tracemalloc disabled by default to avoid ~11x profiling overhead). Execution is fully viable on the local machine using multi-core parallelization (estimated ~9.0 min across 8 cores at constant step cost). For Google Colab T4 evaluation, use run_cpu_vs_cuda_microbenchmark to empirically compare CPU and CUDA wall times without tracemalloc.",
+      "profile_heap_enabled": false,
+      "backend": "cuda",
+      "backend_init_seconds": 0.22956990199963911
+    },
+    "scientific_equivalence_overall": {
+      "equivalent": true,
+      "max_absolute_error": 0.0,
+      "checked_seed_units": 9
+    },
+    "per_seed_equivalence": [
+      {
+        "condition": "low",
+        "seed": 42,
+        "equivalent": true,
+        "max_abs_error": 0.0,
+        "physical_steps_a": 90,
+        "physical_steps_b": 92,
+        "physical_steps_c": 92,
+        "total_unit_physical_steps": 274
+      },
+      {
+        "condition": "low",
+        "seed": 43,
+        "equivalent": true,
+        "max_abs_error": 0.0,
+        "physical_steps_a": 90,
+        "physical_steps_b": 92,
+        "physical_steps_c": 92,
+        "total_unit_physical_steps": 274
+      },
+      {
+        "condition": "low",
+        "seed": 44,
+        "equivalent": true,
+        "max_abs_error": 0.0,
+        "physical_steps_a": 90,
+        "physical_steps_b": 92,
+        "physical_steps_c": 92,
+        "total_unit_physical_steps": 274
+      },
+      {
+        "condition": "medium",
+        "seed": 42,
+        "equivalent": true,
+        "max_abs_error": 0.0,
+        "physical_steps_a": 102,
+        "physical_steps_b": 104,
+        "physical_steps_c": 104,
+        "total_unit_physical_steps": 310
+      },
+      {
+        "condition": "medium",
+        "seed": 43,
+        "equivalent": true,
+        "max_abs_error": 0.0,
+        "physical_steps_a": 102,
+        "physical_steps_b": 104,
+        "physical_steps_c": 104,
+        "total_unit_physical_steps": 310
+      },
+      {
+        "condition": "medium",
+        "seed": 44,
+        "equivalent": true,
+        "max_abs_error": 0.0,
+        "physical_steps_a": 102,
+        "physical_steps_b": 104,
+        "physical_steps_c": 104,
+        "total_unit_physical_steps": 310
+      },
+      {
+        "condition": "high",
+        "seed": 42,
+        "equivalent": true,
+        "max_abs_error": 0.0,
+        "physical_steps_a": 112,
+        "physical_steps_b": 114,
+        "physical_steps_c": 114,
+        "total_unit_physical_steps": 340
+      },
+      {
+        "condition": "high",
+        "seed": 43,
+        "equivalent": true,
+        "max_abs_error": 0.0,
+        "physical_steps_a": 112,
+        "physical_steps_b": 114,
+        "physical_steps_c": 114,
+        "total_unit_physical_steps": 340
+      },
+      {
+        "condition": "high",
+        "seed": 44,
+        "equivalent": true,
+        "max_abs_error": 0.0,
+        "physical_steps_a": 112,
+        "physical_steps_b": 114,
+        "physical_steps_c": 114,
+        "total_unit_physical_steps": 340
+      }
+    ],
+    "condition_aggregate_equivalence": {
+      "low": {
+        "equivalent": true,
+        "max_abs_error": 0.0
+      },
+      "medium": {
+        "equivalent": true,
+        "max_abs_error": 0.0
+      },
+      "high": {
+        "equivalent": true,
+        "max_abs_error": 0.0
+      }
+    }
+  },
+  "expanded_30seeds_t4_summary": {
+    "artifact_path": "experiments/phase42_30seeds_t4_results.json",
+    "runner_commit": "2f29fe1880c5881a9be21bb9d99c1ed11472e214",
+    "baseline_commit": "5dba2ccd6fadd3c2406223e3ec28657cc1fb9138",
+    "backend": "cuda",
+    "seeds_evaluated": [
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71
+    ],
+    "conditions_evaluated": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "total_condition_seed_units": 90,
+    "total_models_trained": 270,
+    "total_physical_gradient_steps": 27720,
+    "pass1_units_completed": 45,
+    "pass1_training_wall_time_seconds": 57.51,
+    "pass1_backend_init_seconds": 0.293,
+    "pass2_resumed": true,
+    "pass2_resume_count": 1,
+    "pass2_resumed_completed_units": 45,
+    "pass2_backend_init_seconds": 0.23479851900083304,
+    "total_training_wall_time_seconds_resumed_run": 113.95953042100246,
+    "single_pass_uninterrupted_training_wall_time_seconds": 113.66,
+    "single_pass_backend_init_seconds": 0.3019,
+    "resumed_vs_single_pass_equivalence": {
+      "equivalent": true,
+      "checked_seed_units": 90,
+      "max_absolute_error": 0.0
+    },
+    "pilot_3seeds_subset_vs_cpu_reference_equivalence": {
+      "equivalent": true,
+      "checked_seed_units": 9,
+      "max_absolute_error": 0.0
+    },
+    "peak_rss_bytes": 139542528,
+    "peak_rss_mb": 133.078125,
+    "condition_aggregates_summary": {
+      "low": {
+        "level": "low",
+        "num_seeds": 30,
+        "seeds": [
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64,
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71
+        ],
+        "probe_partition_sets": {
+          "positive_ref_internal_groups": [
+            "probe-int-malas",
+            "probe-int-patos",
+            "probe-int-sapos"
+          ],
+          "zero_ref_internal_groups": [
+            "probe-int-fogos"
+          ],
+          "positive_ref_holdout_groups": [
+            "probe-hold-maleta",
+            "probe-hold-pateta",
+            "probe-hold-sapato"
+          ],
+          "zero_ref_holdout_groups": [
+            "probe-hold-foguete"
+          ]
+        },
+        "c_vs_b_recovery_advantage": {
+          "mean": -0.008333333333333333,
+          "std": 0.044876373392787536,
+          "min": -0.25,
+          "max": 0.0
+        },
+        "c_vs_b_retention_advantage": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "c_vs_b_holdout_retention_advantage": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "c_vs_b_tradeoff_advantage": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "c_vs_b_plasticity_delta": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "retention_ratio": {
+          "A": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          },
+          "B": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          },
+          "C": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          }
+        },
+        "holdout_retention_ratio": {
+          "A": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          },
+          "B": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          },
+          "C": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          }
+        },
+        "zero_ref_acquisition": {
+          "A": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "B": {
+            "mean": 0.03333333333333333,
+            "std": 0.17950549357115014,
+            "min": 0.0,
+            "max": 1.0
+          },
+          "C": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          }
+        },
+        "holdout_zero_ref_acquisition": {
+          "A": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "B": {
+            "mean": 0.03333333333333333,
+            "std": 0.17950549357115014,
+            "min": 0.0,
+            "max": 1.0
+          },
+          "C": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          }
+        },
+        "new_competence_delta_during_replay": {
+          "A": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "B": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "C": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          }
+        },
+        "fairness_confirmed_all_seeds": true,
+        "superiority_fraction": 0.0,
+        "mean_cpu_time_seconds": 1.132413633299954,
+        "peak_ram_bytes": 0,
+        "peak_rss_bytes": 137445376
+      },
+      "medium": {
+        "level": "medium",
+        "num_seeds": 30,
+        "seeds": [
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64,
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71
+        ],
+        "probe_partition_sets": {
+          "positive_ref_internal_groups": [
+            "probe-int-malas",
+            "probe-int-patos",
+            "probe-int-sapos"
+          ],
+          "zero_ref_internal_groups": [
+            "probe-int-fogos"
+          ],
+          "positive_ref_holdout_groups": [
+            "probe-hold-maleta",
+            "probe-hold-pateta",
+            "probe-hold-sapato"
+          ],
+          "zero_ref_holdout_groups": [
+            "probe-hold-foguete"
+          ]
+        },
+        "c_vs_b_recovery_advantage": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "c_vs_b_retention_advantage": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "c_vs_b_holdout_retention_advantage": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "c_vs_b_tradeoff_advantage": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "c_vs_b_plasticity_delta": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "retention_ratio": {
+          "A": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          },
+          "B": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          },
+          "C": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          }
+        },
+        "holdout_retention_ratio": {
+          "A": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          },
+          "B": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          },
+          "C": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          }
+        },
+        "zero_ref_acquisition": {
+          "A": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "B": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "C": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          }
+        },
+        "holdout_zero_ref_acquisition": {
+          "A": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "B": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "C": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          }
+        },
+        "new_competence_delta_during_replay": {
+          "A": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "B": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "C": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          }
+        },
+        "fairness_confirmed_all_seeds": true,
+        "superiority_fraction": 0.0,
+        "mean_cpu_time_seconds": 1.274092832500052,
+        "peak_ram_bytes": 0,
+        "peak_rss_bytes": 138362880
+      },
+      "high": {
+        "level": "high",
+        "num_seeds": 30,
+        "seeds": [
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64,
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71
+        ],
+        "probe_partition_sets": {
+          "positive_ref_internal_groups": [
+            "probe-int-malas",
+            "probe-int-patos",
+            "probe-int-sapos"
+          ],
+          "zero_ref_internal_groups": [
+            "probe-int-fogos"
+          ],
+          "positive_ref_holdout_groups": [
+            "probe-hold-maleta",
+            "probe-hold-pateta",
+            "probe-hold-sapato"
+          ],
+          "zero_ref_holdout_groups": [
+            "probe-hold-foguete"
+          ]
+        },
+        "c_vs_b_recovery_advantage": {
+          "mean": 0.24166666666666667,
+          "std": 0.24565671621639457,
+          "min": 0.0,
+          "max": 0.5
+        },
+        "c_vs_b_retention_advantage": {
+          "mean": 0.4777777777777778,
+          "std": 0.4920353294552117,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "c_vs_b_holdout_retention_advantage": {
+          "mean": 0.4777777777777778,
+          "std": 0.4920353294552117,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "c_vs_b_tradeoff_advantage": {
+          "mean": 0.3244444444444444,
+          "std": 0.327836152993956,
+          "min": 0.0,
+          "max": 0.6666666666666666
+        },
+        "c_vs_b_plasticity_delta": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "retention_ratio": {
+          "A": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "B": {
+            "mean": 0.5,
+            "std": 0.5,
+            "min": 0.0,
+            "max": 1.0
+          },
+          "C": {
+            "mean": 0.9777777777777777,
+            "std": 0.11967032904743342,
+            "min": 0.3333333333333333,
+            "max": 1.0
+          }
+        },
+        "holdout_retention_ratio": {
+          "A": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "B": {
+            "mean": 0.5,
+            "std": 0.5,
+            "min": 0.0,
+            "max": 1.0
+          },
+          "C": {
+            "mean": 0.9777777777777777,
+            "std": 0.11967032904743342,
+            "min": 0.3333333333333333,
+            "max": 1.0
+          }
+        },
+        "zero_ref_acquisition": {
+          "A": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          },
+          "B": {
+            "mean": 0.5,
+            "std": 0.5,
+            "min": 0.0,
+            "max": 1.0
+          },
+          "C": {
+            "mean": 0.03333333333333333,
+            "std": 0.17950549357115014,
+            "min": 0.0,
+            "max": 1.0
+          }
+        },
+        "holdout_zero_ref_acquisition": {
+          "A": {
+            "mean": 1.0,
+            "std": 0.0,
+            "min": 1.0,
+            "max": 1.0
+          },
+          "B": {
+            "mean": 0.5,
+            "std": 0.5,
+            "min": 0.0,
+            "max": 1.0
+          },
+          "C": {
+            "mean": 0.03333333333333333,
+            "std": 0.17950549357115014,
+            "min": 0.0,
+            "max": 1.0
+          }
+        },
+        "new_competence_delta_during_replay": {
+          "A": {
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "B": {
+            "mean": -0.25,
+            "std": 0.25,
+            "min": -0.5,
+            "max": 0.0
+          },
+          "C": {
+            "mean": -0.48333333333333334,
+            "std": 0.08975274678557507,
+            "min": -0.5,
+            "max": 0.0
+          }
+        },
+        "fairness_confirmed_all_seeds": true,
+        "superiority_fraction": 0.03333333333333333,
+        "mean_cpu_time_seconds": 1.3921445482334094,
+        "peak_ram_bytes": 0,
+        "peak_rss_bytes": 139542528
+      }
+    },
+    "conclusions": {
+      "protocol_validated": true,
+      "fairness_confirmed_all_seeds": true,
+      "leakage_prevented": true,
+      "high_interference_mean_recovery_advantage": 0.24166666666666667,
+      "high_interference_mean_retention_advantage": 0.4777777777777778,
+      "high_interference_zero_ref_acquisition_b": 0.5,
+      "high_interference_zero_ref_acquisition_c": 0.03333333333333333,
+      "high_interference_superiority_fraction": 0.03333333333333333,
+      "summary_claim": "Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (30 seeds) are strictly confirmed. Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive mean recovery advantage over uniform random replay (B) (+0.2417 across all 4 old task probes) and a mean positive-reference retention ratio advantage (+0.4778, with C retaining 0.9778 vs B retaining 0.5000 on both internal probes [probe-int-malas, probe-int-patos, probe-int-sapos] and holdout probes [probe-hold-maleta, probe-hold-pateta, probe-hold-sapato]). Note on metric semantics and probe partitioning: retention is strictly computed over probes with positive initial reference competence (ref > 0.0, i.e., the 3 probes initially learned to 1.0). The 4th probe (probe-int-fogos / probe-hold-foguete) had initial reference competence ref = 0.0 and is excluded from retention to prevent nonexistent initial competence from inflating retention when post >= 0.0; its competence gain (post - ref) is tracked separately in zero_ref_acquisition (under high interference: mean 0.5000 for B and 0.0333 for C). Under low and medium interference, recovery advantage is zero because baseline forgetting is absent (all candidate forgetting scores are 0.0), causing C to select candidates via deterministic FIFO tie-breaking. Under high interference, candidate scores are differentiated (three candidates with score 1.0 vs one candidate with score 0.0); C actively discriminates and excludes the unforgotten candidate, whereas random replay (B) wastes 50% of its budget on the unforgotten item in 14 of 30 seeds, with retention falling to 0.0 in 15 of 30 seeds. Between forgotten candidates with identical score 1.0, C selects via FIFO. Regarding plasticity, initial acquisition delta (c_vs_b_plasticity_delta) is 0.0 across all conditions (both variants acquire the new task equally prior to replay), but during replay C experiences retroactive competence loss on the new task (-0.4833) due to back-interference from replaying old onset weights, explaining why strict empirical superiority across seeds was 3.3%. The holdout evaluation measures Property A (retention of shared phonetic-orthographic transitions across isolated lexical records) rather than full lexical generalization to unseen words (Property C) or unseen transitions (Property B). Because this pilot evaluated 30 seeds on synthetic micro-fixtures, these results provide methodological validation of the protocol rather than definitive proof of general superiority across all linguistic contexts. The protocol is verified, reproducible, and ready for scaled execution on local CPU."
+    }
+  }
+}
