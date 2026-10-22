@@ -624,6 +624,277 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
         ])
         self.assertTrue(args_with.collect_telemetry)
 
+    # -------------------------------------------------------------------------
+    # 9. Verificações aprofundadas pré-merge (Review da Issue #27 / PR #49)
+    # -------------------------------------------------------------------------
+    def test_session_id_uniqueness_across_rapid_and_simultaneous_sessions(self) -> None:
+        """Sessões iniciadas em rápida sucessão têm session_id estritamente únicos."""
+        session_ids: set[str] = set()
+        for _ in range(5):
+            report = run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=3,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                max_examples=1,
+                variants=("A",),
+                collect_telemetry=True,
+                execution_config=ExecutionConfig(workers=1),
+            )
+            session_id = report["telemetry"]["session_id"]
+            self.assertTrue(session_id.startswith("controlled-comparison-"))
+            self.assertNotIn(session_id, session_ids)
+            session_ids.add(session_id)
+        self.assertEqual(len(session_ids), 5)
+
+    def test_identities_and_history_round_trip_faithfully_after_checkpoint_persistence_and_reload(
+        self,
+    ) -> None:
+        """Garante que identidades e histórico sobrevivem à persistência em disco e recarga no resume."""
+        call_count = 0
+        orig_train = comparison_module.train_multitask_examples
+
+        def failing_on_attempt_1(*args: Any, **kwargs: Any) -> Any:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 2:
+                raise RuntimeError("disk round-trip test failure")
+            return orig_train(*args, **kwargs)
+
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint_file = Path(directory) / "checkpoint_roundtrip.json"
+
+            # 1. Primeira execução: seed 7 tem sucesso, seed 42 falha no attempt 1
+            with patch.object(
+                comparison_module,
+                "train_multitask_examples",
+                side_effect=failing_on_attempt_1,
+            ):
+                first_run = run_controlled_experiments(
+                    self.examples,
+                    self.examples,
+                    self.vocabulary,
+                    syllable_vocab_size=3,
+                    seeds=[7, 42],
+                    epochs=1,
+                    learning_rate=0.05,
+                    max_examples=1,
+                    variants=("A",),
+                    checkpoint_path=checkpoint_file,
+                    collect_telemetry=True,
+                    execution_config=ExecutionConfig(workers=1),
+                )
+
+            self.assertEqual(first_run["status"], "failed")
+            self.assertTrue(checkpoint_file.exists())
+
+            # 2. Ler diretamente o arquivo JSON do disco
+            persisted_raw = json.loads(checkpoint_file.read_text(encoding="utf-8"))
+            session_id_persisted = persisted_raw["telemetry"]["session_id"]
+            runs_persisted = {r["seed"]: r for r in persisted_raw["runs"]["A"]}
+            self.assertEqual(runs_persisted[7]["status"], "completed")
+            self.assertEqual(runs_persisted[42]["status"], "failed")
+
+            # Validar identidades e tipos persistidos no attempt 1 da seed 42
+            attempt_1_raw = runs_persisted[42]["telemetry"]["attempts"][0]
+            self.assertEqual(attempt_1_raw["attempt_id"], "attempt-1")
+            self.assertEqual(attempt_1_raw["process_id"], "controlled-A-seed-42-attempt-1")
+            self.assertEqual(attempt_1_raw["segments"][0]["segment_id"], "segment-attempt-1")
+            self.assertNotEqual(attempt_1_raw["process_id"], str(attempt_1_raw["pid"]))
+
+            # 3. Retomar execução a partir do disco com resume=True
+            with patch.object(
+                comparison_module,
+                "train_multitask_examples",
+                side_effect=failing_on_attempt_1,
+            ):
+                resumed_run = run_controlled_experiments(
+                    self.examples,
+                    self.examples,
+                    self.vocabulary,
+                    syllable_vocab_size=3,
+                    seeds=[7, 42],
+                    epochs=1,
+                    learning_rate=0.05,
+                    max_examples=1,
+                    variants=("A",),
+                    checkpoint_path=checkpoint_file,
+                    resume=True,
+                    collect_telemetry=True,
+                    execution_config=ExecutionConfig(workers=1),
+                )
+
+            self.assertEqual(resumed_run["status"], "completed")
+            self.assertEqual(call_count, 3)
+
+            # 4. Ler novamente do disco para garantir round-trip completo após persistência
+            resumed_raw = json.loads(checkpoint_file.read_text(encoding="utf-8"))
+            self.assertEqual(resumed_raw["telemetry"]["session_id"], session_id_persisted)
+            resumed_runs_raw = {r["seed"]: r for r in resumed_raw["runs"]["A"]}
+
+            # Seed 7 permanece intacto
+            self.assertEqual(resumed_runs_raw[7]["status"], "completed")
+            self.assertEqual(len(resumed_runs_raw[7]["telemetry"]["attempts"]), 1)
+
+            # Seed 42 tem agora attempt-1 (failed) E attempt-2 (completed) preservados no disco
+            attempts_42_disk = resumed_runs_raw[42]["telemetry"]["attempts"]
+            self.assertEqual(len(attempts_42_disk), 2)
+            self.assertEqual(attempts_42_disk[0]["attempt_id"], "attempt-1")
+            self.assertEqual(attempts_42_disk[0]["status"], "failed")
+            self.assertEqual(attempts_42_disk[0]["process_id"], "controlled-A-seed-42-attempt-1")
+            self.assertEqual(attempts_42_disk[1]["attempt_id"], "attempt-2")
+            self.assertEqual(attempts_42_disk[1]["status"], "completed")
+            self.assertEqual(attempts_42_disk[1]["process_id"], "controlled-A-seed-42-attempt-2")
+            self.assertEqual(attempts_42_disk[1]["segments"][0]["segment_id"], "segment-attempt-2")
+
+    def test_resume_from_telemetry_checkpoint_with_telemetry_disabled(self) -> None:
+        """Retomada com collect_telemetry=False preserva telemetria anterior sem coletar novas."""
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint_file = Path(directory) / "checkpoint_mixed.json"
+
+            # 1. Executa seed 7 com telemetria
+            run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=3,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                max_examples=1,
+                variants=("A",),
+                checkpoint_path=checkpoint_file,
+                collect_telemetry=True,
+                execution_config=ExecutionConfig(workers=1),
+            )
+
+            # 2. Retoma expandindo para seeds=[7, 42] com collect_telemetry=False
+            resumed = run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=3,
+                seeds=[7, 42],
+                epochs=1,
+                learning_rate=0.05,
+                max_examples=1,
+                variants=("A",),
+                checkpoint_path=checkpoint_file,
+                resume=True,
+                collect_telemetry=False,
+                execution_config=ExecutionConfig(workers=1),
+            )
+
+            self.assertEqual(resumed["status"], "completed")
+            runs = {r["seed"]: r for r in resumed["runs"]["A"]}
+            # Seed 7 manteve sua telemetria original
+            self.assertIn("telemetry", runs[7])
+            self.assertEqual(len(runs[7]["telemetry"]["attempts"]), 1)
+            # Seed 42 executou sem telemetria
+            self.assertNotIn("telemetry", runs[42])
+
+    def test_cleanup_stage_error_does_not_mask_scientific_error_and_avoids_duplicate_stage_id(
+        self,
+    ) -> None:
+        """Falha no cleanup após falha científica reporta ambos sem erro de duplicate stage_id."""
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "cleanup_error.json"
+
+            def failing_close(self_model: Any) -> None:
+                raise OSError("cleanup close failed")
+
+            with patch.object(
+                comparison_module.AutoregressiveModel, "close", failing_close
+            ), patch.object(
+                comparison_module,
+                "train_multitask_examples",
+                side_effect=RuntimeError("scientific failure"),
+            ):
+                report = run_controlled_experiments(
+                    self.examples,
+                    self.examples,
+                    self.vocabulary,
+                    syllable_vocab_size=3,
+                    seeds=[7],
+                    epochs=1,
+                    learning_rate=0.05,
+                    max_examples=1,
+                    variants=("A",),
+                    checkpoint_path=checkpoint,
+                    collect_telemetry=True,
+                    execution_config=ExecutionConfig(workers=1),
+                )
+
+            self.assertEqual(report["status"], "failed")
+            run = report["runs"]["A"][0]
+            self.assertEqual(run["status"], "failed")
+            self.assertIn("scientific failure", run["traceback"])
+            self.assertIn("cleanup close failed", run["traceback"])
+
+            attempt = run["telemetry"]["attempts"][0]
+            self.assertEqual(attempt["status"], "failed")
+            self.assertEqual(attempt["cleanup_status"], "failed")
+            self.assertEqual(attempt["cleanup_error"], "cleanup close failed")
+
+    def test_trainer_stages_strictly_mirror_sgd_and_evaluation_intervals(self) -> None:
+        """Confirma que epoch_sgd e epoch_evaluation medem exatamente os intervalos corretos sem alterar a ordem."""
+        from kinera.training.trainer import train_multitask_examples
+        from kinera.nn.models.hybrid import AutoregressiveModel
+
+        model = AutoregressiveModel(len(self.vocabulary), 3, seed=7)
+        timing = TimingSession()
+
+        events: list[str] = []
+        orig_step = model.multitask_train_step
+
+        def tracked_step(*args: Any, **kwargs: Any) -> Any:
+            events.append("sgd_step")
+            return orig_step(*args, **kwargs)
+
+        model.multitask_train_step = tracked_step  # type: ignore[assignment]
+
+        with timing.stage(stage_id="training_parent", name="training"):
+            train_multitask_examples(
+                model,
+                self.examples,
+                self.vocabulary,
+                epochs=2,
+                learning_rate=0.05,
+                max_examples=2,
+                timing_session=timing,
+                stage_id_prefix="training_parent",
+            )
+
+        stages_by_id = {s.stage_id: s for s in timing.stages}
+        self.assertIn("training_parent", stages_by_id)
+        self.assertIn("training_parent:epoch_1_sgd", stages_by_id)
+        self.assertIn("training_parent:epoch_1_eval", stages_by_id)
+        self.assertIn("training_parent:epoch_2_sgd", stages_by_id)
+        self.assertIn("training_parent:epoch_2_eval", stages_by_id)
+
+        # SGD steps happened (2 epochs * 2 examples = 4 steps)
+        self.assertEqual(len(events), 4)
+
+        # Each child stage has valid duration and parent
+        for s in (
+            stages_by_id["training_parent:epoch_1_sgd"],
+            stages_by_id["training_parent:epoch_1_eval"],
+            stages_by_id["training_parent:epoch_2_sgd"],
+            stages_by_id["training_parent:epoch_2_eval"],
+        ):
+            self.assertEqual(s.parent_stage_id, "training_parent")
+            self.assertEqual(s.status, "completed")
+            self.assertIsNotNone(s.duration_seconds)
+            self.assertGreater(s.duration_seconds, 0.0)
+
+        # Exclusive duration of parent excludes children duration
+        parent = stages_by_id["training_parent"]
+        self.assertIsNotNone(parent.exclusive_duration_seconds)
+        self.assertLess(parent.exclusive_duration_seconds, parent.duration_seconds)
+
 
 if __name__ == "__main__":
     unittest.main()

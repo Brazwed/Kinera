@@ -352,11 +352,16 @@ def _execute_single_experiment(
         if model is not None:
             try:
                 if collect_telemetry and timing is not None:
-                    with timing.stage(stage_id="cleanup", name="cleanup"):
+                    cleanup_stage_id = (
+                        "cleanup_error"
+                        if "cleanup" in timing._stage_ids
+                        else "cleanup"
+                    )
+                    with timing.stage(stage_id=cleanup_stage_id, name="cleanup"):
                         model.close()
                         model = None
                     cleanup_stage = next(
-                        (s for s in timing.stages if s.stage_id == "cleanup"), None
+                        (s for s in timing.stages if s.stage_id == cleanup_stage_id), None
                     )
                 else:
                     model.close()
@@ -505,7 +510,8 @@ def run_controlled_experiments(
     checkpoint = Path(checkpoint_path) if checkpoint_path is not None else None
     telemetry_section = _serialize_telemetry_envelope(telemetry)
     if collect_telemetry and telemetry_section is None:
-        session_id = f"controlled-comparison-{utc_now().strftime('%Y%m%dT%H%M%SZ')}"
+        now_dt = utc_now()
+        session_id = f"controlled-comparison-{now_dt.strftime('%Y%m%dT%H%M%SZ')}-{os.getpid()}-{time.monotonic_ns()}"
         env_snapshot = None
         res_snapshot = None
         try:
@@ -889,11 +895,20 @@ def _run_parallel_experiments(
                         if isinstance(prior, dict) and "run_id" in prior
                         else f"{variant}-seed-{seed}"
                     )
-                    attempt_id = (
-                        f"attempt-{len(prior.get('attempts', [])) + 1}"
+                    existing_attempts = (
+                        prior.get("attempts", [])
                         if isinstance(prior, dict)
-                        else "attempt-1"
+                        else []
                     )
+                    existing_ids = {
+                        a.get("attempt_id")
+                        for a in existing_attempts
+                        if isinstance(a, dict)
+                    }
+                    attempt_num = len(existing_attempts) + 1
+                    while f"attempt-{attempt_num}" in existing_ids:
+                        attempt_num += 1
+                    attempt_id = f"attempt-{attempt_num}"
                     attempt_rec = TelemetryAttemptRecord(
                         attempt_id=attempt_id,
                         process_id=f"worker-{variant}-seed-{seed}-{attempt_id}",
