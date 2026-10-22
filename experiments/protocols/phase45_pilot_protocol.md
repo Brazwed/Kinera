@@ -16,8 +16,9 @@
   - [`experiments/phase45_interleaving_results.json`](../phase45_interleaving_results.json)
 
 ### 1.1 Rastreabilidade Cronológica e Distinção Metodológica
-- **Decisões Pré-definidas (*a priori*):** As hipóteses centrais, a restrição ao cenário de alta interferência (`high`), as seeds (`42`, `43`, `44`), a faixa de calibração de $\text{LR}_{\text{replay}} \in [0{,}15; 0{,}18]$ com baseline congelada em $0{,}20$, o orçamento estrito de 4 passos físicos de gradiente, as métricas primárias com denominadores explícitos ($R_{\text{pos}}$, $\Delta_{\text{new}}$, log-loss contínuo), os critérios de decisão para avanço ($R_{\text{pos}} \ge 0{,}70 \land \Delta_{\text{new}} \ge -0{,}25$ por seed individual) e as 4 ordens de interleaving foram especificados *a priori* nas instruções de planejamento e execução da Issue #45.
-- **Formalização no Repositório (*a posteriori*):** O presente documento de protocolo foi redigido e versionado no repositório *a posteriori* com o propósito de consolidar, catalogar e preservar os critérios previamente definidos, as justificativas metodológicas, as tabelas de resultados e as limitações do estudo, assegurando a integridade e reproducibilidade dos artefatos da Etapa B.
+- **Decisões Registradas Publicamente no GitHub (*a priori*):** No corpo da [Issue #45](https://github.com/Brazwed/Kinera/issues/45) (criada em 2026-10-22T15:27:06Z), foram formalizados antes dos pilotos: a pergunta de pesquisa, a hipótese de trabalho (ajustes na intensidade e/ou agendamento de replay), o escopo geral (reproduzir a Variante C congelada como baseline, executar piloto prévio de baixa escala na condição de alta interferência antes de qualquer expansão, e comparar intervenção candidata e referência B sob orçamento comparável, reportando separadamente retenção e plasticidade sem métricas compostas ocultadoras).
+- **Especificações Operacionais nas Diretrizes de Sessão (*a priori* interativo, não versionado na issue pública):** Os parâmetros operacionais específicos — a saber: a delimitação a 3 seeds determinísticas (`42`, `43`, `44`), a faixa de variação de $\text{LR}_{\text{replay}} \in [0{,}15; 0{,}18]$ com baseline congelada em $0{,}20$, o orçamento estrito de 4 passos físicos de gradiente (2 novos + 2 replay), as 4 ordens de interleaving, e os limiares quantitativos conjuntos ($R_{\text{pos}} \ge 0{,}70 \land \Delta_{\text{new}} \ge -0{,}25$ exigidos por seed individual) — foram estabelecidos nas diretrizes de trabalho interativo pré-execução com o operador, constando nos registros de diálogo/transcrição da sessão, mas não foram comitados no repositório nem comentados no corpo público da Issue #45 antes da execução dos experimentos.
+- **Formalização no Repositório (*a posteriori*):** O presente documento consolida e formaliza *a posteriori* esses requisitos operacionais no repositório, garantindo rastreabilidade permanente e distinguindo com transparência o que constava na issue pública do que foi especificado nas diretrizes interativas de planejamento.
 
 ---
 
@@ -84,6 +85,29 @@ No experimento ampliado de 30 seeds da Issue #42 sob a condição de alta interf
 Definidos antes da execução do piloto econômico:
 $$\text{Critério de Sucesso:} \quad R_{\text{pos}} \ge 0{,}70 \quad \land \quad \Delta_{\text{new}} \ge -0{,}25$$
 - **Regra Operacional:** Uma variante só seria considerada para expansão a 30 seeds caso demonstrasse atender simultaneamente a ambos os critérios em seeds individuais, e não apenas por artefato de agregação de média.
+
+### 4.3 Análise de Compatibilidade Matemática dos Critérios de Aceitação
+
+A análise dos denominadores discretos e da formulação das tarefas demonstra que o critério conjunto $R_{\text{pos}} \ge 0{,}70 \land \Delta_{\text{new}} \ge -0{,}25$ é **estruturalmente incompatível** no cenário sintético avaliado sob predição discreta por $\text{argmax}$:
+
+1. **Discretização de $R_{\text{pos}}$:**
+   Com $N_{\text{pos}} = 3$ sondas de controle interno com referência positiva (`malas`, `patos`, `sapos`) e avaliação binária por sonda, os únicos valores possíveis para a métrica por seed individual são:
+   $$R_{\text{pos}} \in \left\{ \frac{0}{3},\; \frac{1}{3},\; \frac{2}{3},\; \frac{3}{3} \right\} = \{0{,}0000;\; 0{,}3333;\; 0{,}6667;\; 1{,}0000\}$$
+   Como $2/3 \approx 0{,}6667 < 0{,}70$, satisfazer o limiar $R_{\text{pos}} \ge 0{,}70$ exige estritamente $R_{\text{pos}} = 3/3 = 1{,}0000$. O modelo é forçado a acertar 100% das sondas, exigindo que as predições para as entradas colidentes sejam os alvos antigos:
+   $$y^*(\text{['<START>', 'm']}) = \text{'a'} \quad \land \quad y^*(\text{['<START>', 'p']}) = \text{'a'}$$
+
+2. **Discretização de $\Delta_{\text{new}}$:**
+   Com $N_{\text{new}} = 2$ tarefas novas (`medo`, `povo`) e competência de aquisição prévia $C_{\text{new, acq}} = 0{,}5000$, os valores discretos possíveis de $\Delta_{\text{new}} = C_{\text{new, post}} - C_{\text{new, acq}}$ são:
+   $$\Delta_{\text{new}} \in \{0{,}0 - 0{,}5;\; 0{,}5 - 0{,}5;\; 1{,}0 - 0{,}5\} = \{-0{,}5000;\; 0{,}0000;\; +0{,}5000\}$$
+   Como $-0{,}5000 < -0{,}25$, satisfazer o limiar $\Delta_{\text{new}} \ge -0{,}25$ exige estritamente $\Delta_{\text{new}} \ge 0{,}0000 \iff C_{\text{new, post}} \ge 0{,}5000$. Ou seja, o modelo é forçado a acertar pelo menos uma das tarefas novas pós-replay, exigindo:
+   $$y^*(\text{['<START>', 'm']}) = \text{'e'} \quad \lor \quad y^*(\text{['<START>', 'p']}) = \text{'o'}$$
+
+3. **Incompatibilidade Mútua via Colisão Representacional:**
+   Como as representações de entrada $\vec{h}$ são idênticas entre `mala` e `medo`, e entre `pato` e `povo`, a saída discreta $\text{argmax}(\vec{z})$ é determinística e única. Portanto:
+   - Se $R_{\text{pos}} = 1{,}0000$ (satisfaz o critério de retenção), o modelo necessariamente prevê `'a'` para ambas as entradas, errando `medo` e `povo`. Logo, $C_{\text{new, post}} = 0{,}0000 \implies \Delta_{\text{new}} = -0{,}5000 < -0{,}25$ (o critério novo falha obrigatoriamente).
+   - Se $\Delta_{\text{new}} \ge 0{,}0000$ (satisfaz o critério da tarefa nova), o modelo necessariamente prevê `'e'` ou `'o'` em pelo menos uma das entradas, errando a sonda antiga correspondente. Logo, no máximo 2 das 3 sondas antigas podem estar corretas: $R_{\text{pos}} \le 2/3 \approx 0{,}6667 < 0{,}70$ (o critério de retenção falha obrigatoriamente).
+
+**Conclusão Operacional:** A ausência de execuções aprovadas ($0/42$) decorre dessa incompatibilidade matemática intrínseca sob saídas determinísticas pontuais. Os limiares pré-definidos não são alterados retroativamente, preservando a fidelidade histórica do protocolo; no entanto, a causa de não atendimento fica formalmente caracterizada como decorrência da sobreposição representacional na presença de operadores discretos.
 
 ---
 
