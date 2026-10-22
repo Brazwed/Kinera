@@ -1,0 +1,5731 @@
+{
+  "schema_version": 1,
+  "phase": "42-expanded-pilot",
+  "baseline_commit": "5dba2ccd6fadd3c2406223e3ec28657cc1fb9138",
+  "runner_commit": "3e15cceb0967e03ed8f41817fcade595fd81bc56",
+  "protocol_validated": true,
+  "leakage_prevented": true,
+  "conditions_evaluated": [
+    "low",
+    "medium",
+    "high"
+  ],
+  "seeds_evaluated": [
+    42,
+    43,
+    44
+  ],
+  "condition_aggregates": {
+    "low": {
+      "level": "low",
+      "num_seeds": 3,
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "probe_partition_sets": {
+        "positive_ref_internal_groups": [
+          "probe-int-malas",
+          "probe-int-patos",
+          "probe-int-sapos"
+        ],
+        "zero_ref_internal_groups": [
+          "probe-int-fogos"
+        ],
+        "positive_ref_holdout_groups": [
+          "probe-hold-maleta",
+          "probe-hold-pateta",
+          "probe-hold-sapato"
+        ],
+        "zero_ref_holdout_groups": [
+          "probe-hold-foguete"
+        ]
+      },
+      "c_vs_b_recovery_advantage": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "c_vs_b_retention_advantage": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "c_vs_b_holdout_retention_advantage": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "c_vs_b_tradeoff_advantage": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "c_vs_b_plasticity_delta": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "retention_ratio": {
+        "A": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "B": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "C": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        }
+      },
+      "holdout_retention_ratio": {
+        "A": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "B": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "C": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        }
+      },
+      "zero_ref_acquisition": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "new_competence_delta_during_replay": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "fairness_confirmed_all_seeds": true,
+      "superiority_fraction": 0.0,
+      "mean_cpu_time_seconds": 16.918722158666544,
+      "peak_ram_bytes": 420678,
+      "peak_rss_bytes": 34660352
+    },
+    "medium": {
+      "level": "medium",
+      "num_seeds": 3,
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "probe_partition_sets": {
+        "positive_ref_internal_groups": [
+          "probe-int-malas",
+          "probe-int-patos",
+          "probe-int-sapos"
+        ],
+        "zero_ref_internal_groups": [
+          "probe-int-fogos"
+        ],
+        "positive_ref_holdout_groups": [
+          "probe-hold-maleta",
+          "probe-hold-pateta",
+          "probe-hold-sapato"
+        ],
+        "zero_ref_holdout_groups": [
+          "probe-hold-foguete"
+        ]
+      },
+      "c_vs_b_recovery_advantage": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "c_vs_b_retention_advantage": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "c_vs_b_holdout_retention_advantage": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "c_vs_b_tradeoff_advantage": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "c_vs_b_plasticity_delta": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "retention_ratio": {
+        "A": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "B": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "C": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        }
+      },
+      "holdout_retention_ratio": {
+        "A": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "B": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "C": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        }
+      },
+      "zero_ref_acquisition": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "new_competence_delta_during_replay": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "fairness_confirmed_all_seeds": true,
+      "superiority_fraction": 0.0,
+      "mean_cpu_time_seconds": 18.663546731331735,
+      "peak_ram_bytes": 181080,
+      "peak_rss_bytes": 34660352
+    },
+    "high": {
+      "level": "high",
+      "num_seeds": 3,
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "probe_partition_sets": {
+        "positive_ref_internal_groups": [
+          "probe-int-malas",
+          "probe-int-patos",
+          "probe-int-sapos"
+        ],
+        "zero_ref_internal_groups": [
+          "probe-int-fogos"
+        ],
+        "positive_ref_holdout_groups": [
+          "probe-hold-maleta",
+          "probe-hold-pateta",
+          "probe-hold-sapato"
+        ],
+        "zero_ref_holdout_groups": [
+          "probe-hold-foguete"
+        ]
+      },
+      "c_vs_b_recovery_advantage": {
+        "mean": 0.3333333333333333,
+        "std": 0.23570226039551584,
+        "min": 0.0,
+        "max": 0.5
+      },
+      "c_vs_b_retention_advantage": {
+        "mean": 0.6666666666666666,
+        "std": 0.4714045207910317,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "c_vs_b_holdout_retention_advantage": {
+        "mean": 0.6666666666666666,
+        "std": 0.4714045207910317,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "c_vs_b_tradeoff_advantage": {
+        "mean": 0.4444444444444444,
+        "std": 0.31426968052735443,
+        "min": 0.0,
+        "max": 0.6666666666666666
+      },
+      "c_vs_b_plasticity_delta": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "retention_ratio": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.3333333333333333,
+          "std": 0.4714045207910317,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "C": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        }
+      },
+      "holdout_retention_ratio": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": 0.3333333333333333,
+          "std": 0.4714045207910317,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "C": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        }
+      },
+      "zero_ref_acquisition": {
+        "A": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "B": {
+          "mean": 0.6666666666666666,
+          "std": 0.4714045207910317,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "B": {
+          "mean": 0.6666666666666666,
+          "std": 0.4714045207910317,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "C": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "new_competence_delta_during_replay": {
+        "A": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "B": {
+          "mean": -0.16666666666666666,
+          "std": 0.23570226039551584,
+          "min": -0.5,
+          "max": 0.0
+        },
+        "C": {
+          "mean": -0.5,
+          "std": 0.0,
+          "min": -0.5,
+          "max": -0.5
+        }
+      },
+      "fairness_confirmed_all_seeds": true,
+      "superiority_fraction": 0.0,
+      "mean_cpu_time_seconds": 20.035558369999006,
+      "peak_ram_bytes": 180400,
+      "peak_rss_bytes": 34660352
+    }
+  },
+  "seed_results": [
+    {
+      "level": "low",
+      "seed": 42,
+      "evaluations": {
+        "A": {
+          "variant": "A",
+          "replay_budget": 0,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.0,
+          "new_competence_post": 0.0,
+          "new_competence_reference": 0.0,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 0,
+            "total_updates": 2,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": null,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": []
+        },
+        "B": {
+          "variant": "B",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.0,
+          "new_competence_post": 0.0,
+          "new_competence_reference": 0.0,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": 42
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ]
+        },
+        "C": {
+          "variant": "C",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.0,
+          "new_competence_post": 0.0,
+          "new_competence_reference": 0.0,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            }
+          ]
+        }
+      },
+      "comparison": {
+        "c_vs_b_recovery_advantage": 0.0,
+        "c_vs_a_recovery_advantage": 0.0,
+        "c_vs_b_utility_advantage": 0.0,
+        "c_vs_b_plasticity_delta": 0.0,
+        "c_vs_b_tradeoff_advantage": 0.0,
+        "b_vs_a_update_overhead": 1.0,
+        "c_vs_a_update_overhead": 1.0,
+        "b_vs_a_compute_overhead": 1.0,
+        "c_vs_a_compute_overhead": 1.0,
+        "is_fairly_matched_budget": true,
+        "is_directed_superior": false,
+        "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
+        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
+      },
+      "holdout_retention_ratio": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 1.0
+      },
+      "zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 17.04872772700037,
+      "peak_ram_bytes": 420678,
+      "peak_rss_bytes": 34660352
+    },
+    {
+      "level": "low",
+      "seed": 43,
+      "evaluations": {
+        "A": {
+          "variant": "A",
+          "replay_budget": 0,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.0,
+          "new_competence_post": 0.0,
+          "new_competence_reference": 0.0,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 0,
+            "total_updates": 2,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": null,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": []
+        },
+        "B": {
+          "variant": "B",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.0,
+          "new_competence_post": 0.0,
+          "new_competence_reference": 0.0,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": 43
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ]
+        },
+        "C": {
+          "variant": "C",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.0,
+          "new_competence_post": 0.0,
+          "new_competence_reference": 0.0,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            }
+          ]
+        }
+      },
+      "comparison": {
+        "c_vs_b_recovery_advantage": 0.0,
+        "c_vs_a_recovery_advantage": 0.0,
+        "c_vs_b_utility_advantage": 0.0,
+        "c_vs_b_plasticity_delta": 0.0,
+        "c_vs_b_tradeoff_advantage": 0.0,
+        "b_vs_a_update_overhead": 1.0,
+        "c_vs_a_update_overhead": 1.0,
+        "b_vs_a_compute_overhead": 1.0,
+        "c_vs_a_compute_overhead": 1.0,
+        "is_fairly_matched_budget": true,
+        "is_directed_superior": false,
+        "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
+        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
+      },
+      "holdout_retention_ratio": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 1.0
+      },
+      "zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 16.840613719999965,
+      "peak_ram_bytes": 230240,
+      "peak_rss_bytes": 34660352
+    },
+    {
+      "level": "low",
+      "seed": 44,
+      "evaluations": {
+        "A": {
+          "variant": "A",
+          "replay_budget": 0,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.0,
+          "new_competence_post": 0.0,
+          "new_competence_reference": 0.0,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 0,
+            "total_updates": 2,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": null,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": []
+        },
+        "B": {
+          "variant": "B",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.0,
+          "new_competence_post": 0.0,
+          "new_competence_reference": 0.0,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": 44
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ]
+        },
+        "C": {
+          "variant": "C",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.0,
+          "new_competence_post": 0.0,
+          "new_competence_reference": 0.0,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            }
+          ]
+        }
+      },
+      "comparison": {
+        "c_vs_b_recovery_advantage": 0.0,
+        "c_vs_a_recovery_advantage": 0.0,
+        "c_vs_b_utility_advantage": 0.0,
+        "c_vs_b_plasticity_delta": 0.0,
+        "c_vs_b_tradeoff_advantage": 0.0,
+        "b_vs_a_update_overhead": 1.0,
+        "c_vs_a_update_overhead": 1.0,
+        "b_vs_a_compute_overhead": 1.0,
+        "c_vs_a_compute_overhead": 1.0,
+        "is_fairly_matched_budget": true,
+        "is_directed_superior": false,
+        "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
+        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
+      },
+      "holdout_retention_ratio": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 1.0
+      },
+      "zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 16.8668250289993,
+      "peak_ram_bytes": 194064,
+      "peak_rss_bytes": 34660352
+    },
+    {
+      "level": "medium",
+      "seed": 42,
+      "evaluations": {
+        "A": {
+          "variant": "A",
+          "replay_budget": 0,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 0,
+            "total_updates": 2,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": null,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": []
+        },
+        "B": {
+          "variant": "B",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": 42
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ]
+        },
+        "C": {
+          "variant": "C",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            }
+          ]
+        }
+      },
+      "comparison": {
+        "c_vs_b_recovery_advantage": 0.0,
+        "c_vs_a_recovery_advantage": 0.0,
+        "c_vs_b_utility_advantage": 0.0,
+        "c_vs_b_plasticity_delta": 0.0,
+        "c_vs_b_tradeoff_advantage": 0.0,
+        "b_vs_a_update_overhead": 1.0,
+        "c_vs_a_update_overhead": 1.0,
+        "b_vs_a_compute_overhead": 1.0,
+        "c_vs_a_compute_overhead": 1.0,
+        "is_fairly_matched_budget": true,
+        "is_directed_superior": false,
+        "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
+        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
+      },
+      "holdout_retention_ratio": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 1.0
+      },
+      "zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 18.8608931029994,
+      "peak_ram_bytes": 181080,
+      "peak_rss_bytes": 34660352
+    },
+    {
+      "level": "medium",
+      "seed": 43,
+      "evaluations": {
+        "A": {
+          "variant": "A",
+          "replay_budget": 0,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 0,
+            "total_updates": 2,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": null,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": []
+        },
+        "B": {
+          "variant": "B",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": 43
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ]
+        },
+        "C": {
+          "variant": "C",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            }
+          ]
+        }
+      },
+      "comparison": {
+        "c_vs_b_recovery_advantage": 0.0,
+        "c_vs_a_recovery_advantage": 0.0,
+        "c_vs_b_utility_advantage": 0.0,
+        "c_vs_b_plasticity_delta": 0.0,
+        "c_vs_b_tradeoff_advantage": 0.0,
+        "b_vs_a_update_overhead": 1.0,
+        "c_vs_a_update_overhead": 1.0,
+        "b_vs_a_compute_overhead": 1.0,
+        "c_vs_a_compute_overhead": 1.0,
+        "is_fairly_matched_budget": true,
+        "is_directed_superior": false,
+        "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
+        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
+      },
+      "holdout_retention_ratio": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 1.0
+      },
+      "zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 18.659006571997452,
+      "peak_ram_bytes": 180648,
+      "peak_rss_bytes": 34660352
+    },
+    {
+      "level": "medium",
+      "seed": 44,
+      "evaluations": {
+        "A": {
+          "variant": "A",
+          "replay_budget": 0,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 0,
+            "total_updates": 2,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": null,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": []
+        },
+        "B": {
+          "variant": "B",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": 44
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ]
+        },
+        "C": {
+          "variant": "C",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.5,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.0,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            }
+          ]
+        }
+      },
+      "comparison": {
+        "c_vs_b_recovery_advantage": 0.0,
+        "c_vs_a_recovery_advantage": 0.0,
+        "c_vs_b_utility_advantage": 0.0,
+        "c_vs_b_plasticity_delta": 0.0,
+        "c_vs_b_tradeoff_advantage": 0.0,
+        "b_vs_a_update_overhead": 1.0,
+        "c_vs_a_update_overhead": 1.0,
+        "b_vs_a_compute_overhead": 1.0,
+        "c_vs_a_compute_overhead": 1.0,
+        "is_fairly_matched_budget": true,
+        "is_directed_superior": false,
+        "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
+        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
+      },
+      "holdout_retention_ratio": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 1.0
+      },
+      "zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 18.470740518998355,
+      "peak_ram_bytes": 180392,
+      "peak_rss_bytes": 34660352
+    },
+    {
+      "level": "high",
+      "seed": 42,
+      "evaluations": {
+        "A": {
+          "variant": "A",
+          "replay_budget": 0,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_competence_post": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_forgetting_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            -1.0,
+            -1.0,
+            -1.0,
+            1.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.5,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 0,
+            "total_updates": 2,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": -0.5,
+          "mean_replay_utility": null,
+          "mean_retention_ratio": 0.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": []
+        },
+        "B": {
+          "variant": "B",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_competence_post": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_forgetting_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            -1.0,
+            -1.0,
+            -1.0,
+            1.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.5,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": 42
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": -0.5,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 0.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ]
+        },
+        "C": {
+          "variant": "C",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            1.0,
+            1.0,
+            1.0,
+            -1.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.0,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": -0.5,
+          "plasticity_acquisition": 0.5,
+          "new_competence_delta_during_replay": -0.5,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.5,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.25,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            }
+          ]
+        }
+      },
+      "comparison": {
+        "c_vs_b_recovery_advantage": 0.5,
+        "c_vs_a_recovery_advantage": 0.5,
+        "c_vs_b_utility_advantage": 0.25,
+        "c_vs_b_plasticity_delta": 0.0,
+        "c_vs_b_tradeoff_advantage": 0.6666666666666666,
+        "b_vs_a_update_overhead": 1.0,
+        "c_vs_a_update_overhead": 1.0,
+        "b_vs_a_compute_overhead": 1.0,
+        "c_vs_a_compute_overhead": 1.0,
+        "is_fairly_matched_budget": true,
+        "is_directed_superior": false,
+        "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
+        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
+      },
+      "holdout_retention_ratio": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 1.0
+      },
+      "zero_ref_acquisition": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 20.051556374997745,
+      "peak_ram_bytes": 180400,
+      "peak_rss_bytes": 34660352
+    },
+    {
+      "level": "high",
+      "seed": 43,
+      "evaluations": {
+        "A": {
+          "variant": "A",
+          "replay_budget": 0,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_competence_post": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_forgetting_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            -1.0,
+            -1.0,
+            -1.0,
+            1.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.5,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 0,
+            "total_updates": 2,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": -0.5,
+          "mean_replay_utility": null,
+          "mean_retention_ratio": 0.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": []
+        },
+        "B": {
+          "variant": "B",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            1.0,
+            1.0,
+            1.0,
+            -1.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.0,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": -0.5,
+          "plasticity_acquisition": 0.5,
+          "new_competence_delta_during_replay": -0.5,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": 43
+          },
+          "mean_recovery_delta": 0.5,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.25,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ]
+        },
+        "C": {
+          "variant": "C",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            1.0,
+            1.0,
+            1.0,
+            -1.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.0,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": -0.5,
+          "plasticity_acquisition": 0.5,
+          "new_competence_delta_during_replay": -0.5,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.5,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.25,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            }
+          ]
+        }
+      },
+      "comparison": {
+        "c_vs_b_recovery_advantage": 0.0,
+        "c_vs_a_recovery_advantage": 0.5,
+        "c_vs_b_utility_advantage": 0.0,
+        "c_vs_b_plasticity_delta": 0.0,
+        "c_vs_b_tradeoff_advantage": 0.0,
+        "b_vs_a_update_overhead": 1.0,
+        "c_vs_a_update_overhead": 1.0,
+        "b_vs_a_compute_overhead": 1.0,
+        "c_vs_a_compute_overhead": 1.0,
+        "is_fairly_matched_budget": true,
+        "is_directed_superior": false,
+        "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
+        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
+      },
+      "holdout_retention_ratio": {
+        "A": 0.0,
+        "B": 1.0,
+        "C": 1.0
+      },
+      "zero_ref_acquisition": {
+        "A": 1.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 1.0,
+        "B": 0.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 19.981279613999504,
+      "peak_ram_bytes": 180248,
+      "peak_rss_bytes": 34660352
+    },
+    {
+      "level": "high",
+      "seed": 44,
+      "evaluations": {
+        "A": {
+          "variant": "A",
+          "replay_budget": 0,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_competence_post": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_forgetting_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            -1.0,
+            -1.0,
+            -1.0,
+            1.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.5,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 0,
+            "total_updates": 2,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": -0.5,
+          "mean_replay_utility": null,
+          "mean_retention_ratio": 0.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": []
+        },
+        "B": {
+          "variant": "B",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_competence_post": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_forgetting_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "net_stability_delta": [
+            -1.0,
+            -1.0,
+            -1.0,
+            1.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.5,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": 0.0,
+          "plasticity_acquisition": 0.5,
+          "new_competence_delta_during_replay": 0.0,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": 44
+          },
+          "mean_recovery_delta": 0.0,
+          "mean_net_stability_delta": -0.5,
+          "mean_replay_utility": 0.0,
+          "mean_retention_ratio": 0.0,
+          "stability_plasticity_tradeoff": 0.0,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": true,
+              "selection_reason": "uniform_random_sample"
+            }
+          ]
+        },
+        "C": {
+          "variant": "C",
+          "replay_budget": 2,
+          "old_competence_reference": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_competence_pre": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "old_competence_post": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_pre": [
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ],
+          "old_forgetting_post": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "old_recovery_delta": [
+            1.0,
+            1.0,
+            1.0,
+            -1.0
+          ],
+          "net_stability_delta": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "new_competence_initial": 0.0,
+          "new_competence_acquired": 0.5,
+          "new_competence_post": 0.0,
+          "new_competence_reference": 0.5,
+          "new_competence_delta": -0.5,
+          "plasticity_acquisition": 0.5,
+          "new_competence_delta_during_replay": -0.5,
+          "accounting": {
+            "new_updates": 2,
+            "replay_updates": 2,
+            "total_updates": 4,
+            "replay_seed": null
+          },
+          "mean_recovery_delta": 0.5,
+          "mean_net_stability_delta": 0.0,
+          "mean_replay_utility": 0.25,
+          "mean_retention_ratio": 1.0,
+          "stability_plasticity_tradeoff": 0.6666666666666666,
+          "candidate_pool": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 2
+              },
+              "group_ids": [
+                "probe-int-sapos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": false,
+              "selection_reason": null
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 3
+              },
+              "group_ids": [
+                "probe-int-fogos"
+              ],
+              "forgetting_score": 0.0,
+              "selected": false,
+              "selection_reason": null
+            }
+          ],
+          "selected_candidates": [
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 0
+              },
+              "group_ids": [
+                "probe-int-malas"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            },
+            {
+              "example_ref": {
+                "dataset_artifact_id": "dataset:pilot-old-train",
+                "split": "train",
+                "example_index": 1
+              },
+              "group_ids": [
+                "probe-int-patos"
+              ],
+              "forgetting_score": 1.0,
+              "selected": true,
+              "selection_reason": "max_forgetting_score"
+            }
+          ]
+        }
+      },
+      "comparison": {
+        "c_vs_b_recovery_advantage": 0.5,
+        "c_vs_a_recovery_advantage": 0.5,
+        "c_vs_b_utility_advantage": 0.25,
+        "c_vs_b_plasticity_delta": 0.0,
+        "c_vs_b_tradeoff_advantage": 0.6666666666666666,
+        "b_vs_a_update_overhead": 1.0,
+        "c_vs_a_update_overhead": 1.0,
+        "b_vs_a_compute_overhead": 1.0,
+        "c_vs_a_compute_overhead": 1.0,
+        "is_fairly_matched_budget": true,
+        "is_directed_superior": false,
+        "overhead_definition": "Relative gradient update count increase: (total_updates - A_updates) / A_updates. Represents training step budget, not wall-clock execution time or device energy.",
+        "summary_claim": "Protocol execution and accounting fairness are validated. Under the evaluated micro-fixtures, directed replay (C) does not demonstrate empirical superiority over uniform random replay (B). Promotion to core architecture is deferred pending scaled corpora experiments."
+      },
+      "holdout_retention_ratio": {
+        "A": 0.0,
+        "B": 0.0,
+        "C": 1.0
+      },
+      "zero_ref_acquisition": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 0.0
+      },
+      "holdout_zero_ref_acquisition": {
+        "A": 1.0,
+        "B": 1.0,
+        "C": 0.0
+      },
+      "probe_breakdowns": {
+        "A": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          }
+        },
+        "B": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mean_positive_ref_retention": 0.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              1.0
+            ],
+            "mean_zero_ref_acquisition": 1.0
+          }
+        },
+        "C": {
+          "internal": {
+            "positive_ref_group_ids": [
+              "probe-int-malas",
+              "probe-int-patos",
+              "probe-int-sapos"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-int-fogos"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          },
+          "holdout": {
+            "positive_ref_group_ids": [
+              "probe-hold-maleta",
+              "probe-hold-pateta",
+              "probe-hold-sapato"
+            ],
+            "positive_ref_retention_ratios": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "mean_positive_ref_retention": 1.0,
+            "zero_ref_group_ids": [
+              "probe-hold-foguete"
+            ],
+            "zero_ref_acquisition_deltas": [
+              0.0
+            ],
+            "mean_zero_ref_acquisition": 0.0
+          }
+        }
+      },
+      "cpu_time_seconds": 20.073839120999764,
+      "peak_ram_bytes": 180104,
+      "peak_rss_bytes": 34660352
+    }
+  ],
+  "cost_profile": {
+    "total_cpu_time_seconds": 166.8654390869997,
+    "peak_ram_bytes": 420678,
+    "peak_ram_mb": 0.40118980407714844,
+    "peak_rss_bytes": 34660352,
+    "peak_rss_mb": 33.0546875,
+    "projected_scaled_hours_cpu": 17.88252733699842,
+    "scaling_recommendation": "local_cpu",
+    "recommendation_rationale": "Parametric projection for full-scale experiment (10 seeds, 500 words, 50 epochs): 17.88 single-thread CPU core-hours (scaling factor 385.8x from 166.9s pilot). Peak process RSS measured 33.1 MB (Python heap 0.40 MB). Execution is fully viable on the local machine using multi-core parallelization (estimated ~134.1 min across 8 cores). Cloud or GPU resources are not required or recommended at this stage because GPU speedup has not been benchmarked for small-batch autoregressive transitions and local resources are sufficient."
+  },
+  "conclusions": {
+    "protocol_validated": true,
+    "fairness_confirmed_all_seeds": true,
+    "leakage_prevented": true,
+    "high_interference_mean_recovery_advantage": 0.3333333333333333,
+    "high_interference_mean_retention_advantage": 0.6666666666666666,
+    "high_interference_zero_ref_acquisition_b": 0.6666666666666666,
+    "high_interference_zero_ref_acquisition_c": 0.0,
+    "high_interference_superiority_fraction": 0.0,
+    "summary_claim": "Expanded controlled replay pilot technically validated. Data isolation (quadripartite partitioning without leakage) and physical gradient step budget parity (3 seeds) are strictly confirmed. Under high interference (direct prefix collision), directed replay (C) demonstrates an exploratory positive mean recovery advantage over uniform random replay (B) (+0.3333 across all 4 old task probes) and a mean positive-reference retention ratio advantage (+0.6667, with C retaining 1.0000 vs B retaining 0.3333 on both internal probes [probe-int-malas, probe-int-patos, probe-int-sapos] and holdout probes [probe-hold-maleta, probe-hold-pateta, probe-hold-sapato]). Note on metric semantics and probe partitioning: retention is strictly computed over probes with positive initial reference competence (ref > 0.0, i.e., the 3 probes initially learned to 1.0). The 4th probe (probe-int-fogos / probe-hold-foguete) had initial reference competence ref = 0.0 and is excluded from retention to prevent nonexistent initial competence from inflating retention when post >= 0.0; its competence gain (post - ref) is tracked separately in zero_ref_acquisition (under high interference: mean 0.6667 for B and 0.0000 for C). Under low and medium interference, recovery advantage is zero because baseline forgetting is absent (all candidate forgetting scores are 0.0), causing C to select candidates via deterministic FIFO tie-breaking. Under high interference, candidate scores are differentiated (three candidates with score 1.0 vs one candidate with score 0.0); C actively discriminates and excludes the unforgotten candidate, whereas random replay (B) wastes 50% of its budget on the unforgotten item in 2 of 3 seeds (seeds 42 and 44), losing all 3 positive-reference competences (retention 0.0) in those seeds. Between forgotten candidates with identical score 1.0, C selects via FIFO. Regarding plasticity, initial acquisition delta (c_vs_b_plasticity_delta) is 0.0 across all conditions (both variants acquire the new task equally prior to replay), but during replay C experiences retroactive competence loss on the new task (-0.50) due to back-interference from replaying old onset weights, explaining why strict empirical superiority across seeds was 0.0%. The holdout evaluation measures Property A (retention of shared phonetic-orthographic transitions across isolated lexical records) rather than full lexical generalization to unseen words (Property C) or unseen transitions (Property B). Because this pilot evaluated 3 exploratory seeds on synthetic micro-fixtures, these results provide methodological validation of the protocol rather than definitive proof of general superiority across all linguistic contexts. The protocol is verified, reproducible, and ready for scaled execution on local CPU."
+  }
+}
