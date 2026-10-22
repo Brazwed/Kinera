@@ -734,6 +734,54 @@ class ControlledComparisonTests(unittest.TestCase):
             ]
             self.assertTrue(pending_snapshots)
 
+    def test_aggregates_include_conservation_audit_and_paired_deltas(self) -> None:
+        report = self._run_historical(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            syllable_vocab_size=5,
+            seeds=[7, 42],
+            epochs=1,
+            learning_rate=0.05,
+            max_examples=2,
+            variants=("A", "C"),
+        )
+        # 1. Compatibilidade legada de aggregates
+        self.assertIn("A", report["aggregates"])
+        self.assertIn("C", report["aggregates"])
+        for var in ("A", "C"):
+            agg = report["aggregates"][var]
+            self.assertIn("mean", agg)
+            self.assertIn("std", agg)
+            self.assertIn("n_values", agg)
+            self.assertIn("n_missing", agg)
+            self.assertIn("n_invalid", agg)
+            self.assertIn("seeds", agg)
+
+            # Invariante de conservação para cada métrica:
+            for metric in agg["mean"]:
+                n_v = agg["n_values"][metric]
+                n_m = agg["n_missing"][metric]
+                n_i = agg["n_invalid"][metric]
+                self.assertEqual(n_v + n_m + n_i, 2)
+                self.assertEqual(n_v, len(agg["seeds"][metric]))
+
+        # 2. Presença e invariantes de paired_deltas
+        self.assertIn("paired_deltas", report)
+        deltas = report["paired_deltas"]
+        self.assertTrue(len(deltas) >= 1)
+        pair_ac = next(p for p in deltas if p["base"] == "A" and p["candidate"] == "C")
+        self.assertEqual(pair_ac["n_common_seeds"], 2)
+        self.assertEqual(pair_ac["common_seeds"], [7, 42])
+
+        # Testar invariante por métrica pareada
+        for m_name, m_delta in pair_ac["metrics"].items():
+            n_p = m_delta["n_pairs"]
+            n_mp = m_delta["n_missing_pairs"]
+            n_ip = m_delta["n_invalid_pairs"]
+            self.assertEqual(n_p + n_mp + n_ip, pair_ac["n_common_seeds"])
+            self.assertEqual(n_p, len(m_delta["seeds_used"]))
+
 
 if __name__ == "__main__":
     unittest.main()

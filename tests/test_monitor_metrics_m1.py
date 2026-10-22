@@ -8,8 +8,11 @@ import unittest
 
 from kinera.monitor.metrics import (
     BinaryConfusion,
+    MetricAggregateSummary,
     OffsetSegmentationConfusion,
+    PairedDeltaSummary,
     WordSegmentationResult,
+    aggregate_metric_values,
     balanced_accuracy,
     binary_classification_metrics,
     constant_baseline_from_counts,
@@ -20,6 +23,7 @@ from kinera.monitor.metrics import (
     evaluate_word_offsets,
     f1_score,
     majority_class,
+    mean_std,
     offset_balanced_accuracy,
     offset_f1,
     offset_precision,
@@ -29,6 +33,7 @@ from kinera.monitor.metrics import (
     precision,
     recall,
     specificity,
+    summarize_paired_deltas,
     syllable_lengths_to_offsets,
     word_exact_match_rate,
 )
@@ -511,6 +516,189 @@ class PureMathAndCpuOnlyTests(unittest.TestCase):
         ]
         res = subprocess.run(cmd, capture_output=True, text=True)
         self.assertEqual(res.returncode, 0, f"Falha na garantia CPU-only: {res.stderr}")
+
+
+class MetricAggregationAndConservationTests(unittest.TestCase):
+    """Testes da classificação tripartida e da invariante de conservação em agregação."""
+
+    def test_conservation_invariant_mixed_observations(self) -> None:
+        # 10 observações: 5 válidas, 3 ausentes (None), 2 inválidas (bool, NaN)
+        obs = [
+            (1, 0.8),
+            (2, None),
+            (3, 0.9),
+            (4, float("nan")),
+            (5, True),  # bool é inválido
+            (6, None),
+            (7, 0.7),
+            (8, 0.85),
+            (9, None),
+            (10, 0.75),
+        ]
+        summary = aggregate_metric_values(obs)
+        self.assertEqual(summary.n_values, 5)
+        self.assertEqual(summary.n_missing, 3)
+        self.assertEqual(summary.n_invalid, 2)
+        # Invariante de conservação estrita:
+        self.assertEqual(
+            summary.n_values + summary.n_missing + summary.n_invalid,
+            len(obs),
+        )
+        self.assertEqual(summary.seeds_used, [1, 3, 7, 8, 10])
+        self.assertIsNotNone(summary.mean)
+        self.assertIsNotNone(summary.std)
+        expected_mean = (0.8 + 0.9 + 0.7 + 0.85 + 0.75) / 5.0
+        self.assertAlmostEqual(summary.mean, expected_mean)
+
+    def test_all_valid_observations(self) -> None:
+        obs = [(42, 10.0), (43, 20.0), (44, 30.0)]
+        summary = aggregate_metric_values(obs)
+        self.assertEqual(summary.n_values, 3)
+        self.assertEqual(summary.n_missing, 0)
+        self.assertEqual(summary.n_invalid, 0)
+        self.assertEqual(summary.n_values + summary.n_missing + summary.n_invalid, 3)
+        self.assertAlmostEqual(summary.mean, 20.0)
+        expected_std = math.sqrt(((10.0 - 20.0) ** 2 + (20.0 - 20.0) ** 2 + (30.0 - 20.0) ** 2) / 3.0)
+        self.assertAlmostEqual(summary.std, expected_std)
+
+    def test_all_missing_observations(self) -> None:
+        obs = [(1, None), (2, None)]
+        summary = aggregate_metric_values(obs)
+        self.assertEqual(summary.n_values, 0)
+        self.assertEqual(summary.n_missing, 2)
+        self.assertEqual(summary.n_invalid, 0)
+        self.assertEqual(summary.n_values + summary.n_missing + summary.n_invalid, 2)
+        self.assertIsNone(summary.mean)
+        self.assertIsNone(summary.std)
+        self.assertEqual(summary.seeds_used, [])
+
+    def test_all_invalid_observations(self) -> None:
+        obs = [(1, float("inf")), (2, "texto"), (3, False)]
+        summary = aggregate_metric_values(obs)
+        self.assertEqual(summary.n_values, 0)
+        self.assertEqual(summary.n_missing, 0)
+        self.assertEqual(summary.n_invalid, 3)
+        self.assertEqual(summary.n_values + summary.n_missing + summary.n_invalid, 3)
+        self.assertIsNone(summary.mean)
+        self.assertIsNone(summary.std)
+
+    def test_empty_observations(self) -> None:
+        summary = aggregate_metric_values([])
+        self.assertEqual(summary.n_values, 0)
+        self.assertEqual(summary.n_missing, 0)
+        self.assertEqual(summary.n_invalid, 0)
+        self.assertEqual(summary.n_values + summary.n_missing + summary.n_invalid, 0)
+        self.assertIsNone(summary.mean)
+        self.assertIsNone(summary.std)
+
+
+class PairedDeltaTests(unittest.TestCase):
+    """Testes de deltas pareados com classificação mutuamente exclusiva e invariantes."""
+
+    def test_paired_delta_conservation_invariant(self) -> None:
+        # Base: seeds 1..6
+        base = {1: 1.0, 2: 1.5, 3: None, 4: 2.0, 5: float("nan"), 6: 3.0}
+        # Cand: seeds 1..7 (seed 7 não está em base)
+        cand = {1: 0.8, 2: None, 3: 1.0, 4: 1.2, 5: 1.0, 6: True, 7: 0.5}
+
+        # Common seeds: {1, 2, 3, 4, 5, 6} -> total 6
+        # Pair 1: base=1.0, cand=0.8 -> pairs (válido)
+        # Pair 2: cand=None -> missing_pairs
+        # Pair 3: base=None -> missing_pairs
+        # Pair 4: base=2.0, cand=1.2 -> pairs (válido)
+        # Pair 5: base=nan -> invalid_pairs (nenhum é None)
+        # Pair 6: cand=True (bool) -> invalid_pairs (nenhum é None)
+        summary = summarize_paired_deltas(base, cand, orientation="base - candidate", unit="loss")
+        self.assertEqual(summary.n_pairs, 2)
+        self.assertEqual(summary.n_missing_pairs, 2)
+        self.assertEqual(summary.n_invalid_pairs, 2)
+        # Invariante de conservação:
+        self.assertEqual(
+            summary.n_pairs + summary.n_missing_pairs + summary.n_invalid_pairs,
+            6,
+        )
+        self.assertEqual(summary.seeds_used, [1, 4])
+        self.assertEqual(summary.n_pairs, len(summary.seeds_used))
+        # Deltas: seed 1: 1.0 - 0.8 = 0.2; seed 4: 2.0 - 1.2 = 0.8
+        expected_mean = (0.2 + 0.8) / 2.0
+        self.assertAlmostEqual(summary.mean, expected_mean)
+
+    def test_paired_delta_orientations(self) -> None:
+        base = {42: 0.5}
+        cand = {42: 0.8}
+
+        # Loss (base - candidate: melhora se cand for menor)
+        s_loss = summarize_paired_deltas(base, cand, orientation="base - candidate")
+        self.assertAlmostEqual(s_loss.mean, 0.5 - 0.8)  # -0.3 (candidato piorou em loss)
+
+        # Accuracy (candidate - base: melhora se cand for maior)
+        s_acc = summarize_paired_deltas(base, cand, orientation="candidate - base")
+        self.assertAlmostEqual(s_acc.mean, 0.8 - 0.5)  # +0.3 (candidato melhorou em accuracy)
+
+    def test_no_common_seeds(self) -> None:
+        base = {1: 0.5, 2: 0.6}
+        cand = {3: 0.7, 4: 0.8}
+        summary = summarize_paired_deltas(base, cand)
+        self.assertEqual(summary.n_pairs, 0)
+        self.assertEqual(summary.n_missing_pairs, 0)
+        self.assertEqual(summary.n_invalid_pairs, 0)
+        self.assertEqual(summary.seeds_used, [])
+        self.assertIsNone(summary.mean)
+        self.assertIsNone(summary.std)
+
+
+class EvaluatorM12IntegrationTests(unittest.TestCase):
+    """Testes de integração do avaliador neural, baselines sem vazamento e campos legados."""
+
+    def test_evaluator_majority_baseline_without_leakage(self) -> None:
+        from kinera.language.vocabulary import CharacterVocabulary
+        from kinera.nn.models.hybrid import AutoregressiveModel
+        from kinera.training.evaluator import evaluate_multitask_examples
+
+        vocab = CharacterVocabulary(["<START>", "<END>", "<UNK>", "a", "b", "c"])
+        model = AutoregressiveModel(len(vocab), 10, seed=7)
+        # Exemplo com target_is_syllable_end = 1
+        examples = [{
+            "context_ids": [0, 3],
+            "context_syllable_ids": [0, 0],
+            "context_feature_vectors": [[0.0] * 10] * 2,
+            "target_char_id": 4,
+            "target_char": "b",
+            "target_syllable_id": 1,
+            "target_syllable_index": 0,
+            "target_is_syllable_end": 1,
+        }]
+
+        # 1. Sem train_boundary_distribution: majority baseline deve ser None (sem vazamento)
+        res_no_leak = evaluate_multitask_examples(model, examples, vocab)
+        self.assertIsNone(res_no_leak["boundary_baseline_majority"])
+        self.assertIn("boundary_baseline_constant_0", res_no_leak)
+        self.assertIn("boundary_baseline_constant_1", res_no_leak)
+        self.assertIn("boundary_specificity", res_no_leak)
+        self.assertIn("boundary_balanced_accuracy", res_no_leak)
+        self.assertIn("boundary_true_negative", res_no_leak)
+
+        # 2. Com train_boundary_distribution onde classe majoritária é 0:
+        # No exemplo de eval, target é 1 -> previsão constante 0 acerta 0/1 -> acurácia 0.0
+        train_dist_0 = {"0": 100, "1": 10}
+        res_with_train = evaluate_multitask_examples(
+            model,
+            examples,
+            vocab,
+            train_boundary_distribution=train_dist_0,
+        )
+        self.assertEqual(res_with_train["boundary_baseline_majority"], 0.0)
+
+        # 3. Com train_boundary_distribution onde classe majoritária é 1:
+        # Previsão constante 1 acerta 1/1 -> acurácia 1.0
+        train_dist_1 = {"0": 10, "1": 100}
+        res_with_train_1 = evaluate_multitask_examples(
+            model,
+            examples,
+            vocab,
+            train_boundary_distribution=train_dist_1,
+        )
+        self.assertEqual(res_with_train_1["boundary_baseline_majority"], 1.0)
 
 
 if __name__ == "__main__":

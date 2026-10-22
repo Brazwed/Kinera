@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from kinera.monitor.metrics.aggregation import mean_std
+from kinera.monitor.metrics.aggregation import aggregate_metric_values, mean_std
 
 from kinera.language.syllables.causal import prepare_partial_variant_examples
 from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
@@ -108,10 +108,13 @@ def run_partial_comparison(
     for variant in PARTIAL_VARIANTS:
         aggregates[variant] = {"mean": {}, "std": {}}
         for metric in metric_names:
-            values = [run["metrics"][variant]["validation"][metric] for run in runs]
-            summary = mean_std(values)
-            aggregates[variant]["mean"][metric] = summary["mean"]
-            aggregates[variant]["std"][metric] = summary["std"]
+            observations = [
+                (run["seed"], run["metrics"][variant]["validation"].get(metric))
+                for run in runs
+            ]
+            summary = aggregate_metric_values(observations)
+            aggregates[variant]["mean"][metric] = summary.mean
+            aggregates[variant]["std"][metric] = summary.std
     parameter_counts = {
         variant: runs[0]["metrics"][variant]["parameter_count"]
         for variant in PARTIAL_VARIANTS
