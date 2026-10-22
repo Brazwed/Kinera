@@ -147,7 +147,8 @@ Para assegurar uma comparação justa e isenta de viés de capacidade computacio
 
 ## 6. Múltiplas Seeds e Análise de Dispersão
 
-- **Seeds Avaliadas no Piloto:** `[42, 43, 44]` (3 repetições determinísticas).
+- **Seeds Avaliadas no Piloto Exploratório:** `[42, 43, 44]` (3 repetições determinísticas, `9` unidades `condição × seed`, artefato `experiments/phase42_pilot_results.json`).
+- **Seeds Avaliadas no Experimento Ampliado (T4 CUDA):** `[42, 43, ..., 71]` (30 repetições determinísticas consecutivas, `90` unidades `condição × seed`, artefato `experiments/phase42_30seeds_t4_results.json`).
 - **Escopo das Seeds:**
   - Inicialização de pesos do `AutoregressiveModel`.
   - Amostragem pseudo-aleatória uniforme na Variante B (`replay_seed`).
@@ -155,7 +156,7 @@ Para assegurar uma comparação justa e isenta de viés de capacidade computacio
   - Média ($\mu$).
   - Desvio padrão ($\sigma$).
   - Mínimo ($\min$) e Máximo ($\max$).
-- **Natureza Exploratória:** As 3 repetições do piloto têm propósito estritamente metodológico e de calibração; conclusões definitivas sobre superioridade empírica requerem replicação ampliada ($N \ge 10$ seeds).
+- **Natureza Exploratória vs. Ampliada:** As 3 repetições iniciais serviram para validação metodológica e calibração do protocolo; a execução ampliada de 30 seeds ($N = 30 \ge 10$) avalia a estabilidade estatística das estimativas sob o mesmo vocabulário e orçamento físico.
 
 ---
 
@@ -219,17 +220,61 @@ O piloto experimental serve como instrumento objetivo de decisão e separa rigor
 
 - **Gate 1 (Validação Técnica):** O protocolo executa com sucesso, sem vazamento de dados, com paridade estrita de orçamento físico de gradientes, isolamento causal de C, separação entre retenção em referência positiva ($S_{\text{ref} > 0}$) e aquisição em referência zero ($S_{\text{ref} \le 0}$), e métricas determinísticas e reproduzíveis por seed e no agregado. O protocolo é considerado **TECNICAMENTE VÁLIDO**.
 - **Gate 2 (Medições Reais vs. Projeções de Custo Computacional):**
-  1. **Medições Reais no Piloto Completo (3 condições $\times$ 3 seeds = 9 unidades = 27 treinamentos A/B/C, $V_{\text{syl}} = 27$, `5.832` passos físicos totais):**
+  1. **Medições Reais no Piloto de 3 Seeds (3 condições $\times$ 3 seeds = 9 unidades = 27 treinamentos A/B/C, $V_{\text{syl}} = 27$, `2.772` passos físicos totais por backend):**
      - **Com `tracemalloc` ativo (`--profile-heap`, artefato histórico do PR #43):** `166,87 s` totais (~`18,54 s` por unidade condição-seed), pico de heap Python `0,05 MB` (`51.995 bytes`) e pico de RSS real do SO `18,62 MB`.
-     - **Sem `tracemalloc` (padrão nas execuções normais, `profile_heap=False`):** ~`14,5 a 15,5 s` totais (~`1,6 a 1,8 s` por unidade condição-seed), confirmando que o hook `tracemalloc` inflava o tempo de CPU em **~`11,3x`**.
+     - **Sem `tracemalloc` em CPU (padrão nas execuções normais, `profile_heap=False`):**
+       - **PC Local (CPU):** `14,7736 s` totais (`1,6415 s` por unidade; `5,330 ms/passo`; RSS `24,87 MB`).
+       - **Google Colab VM (`Intel(R) Xeon(R) CPU @ 2.00GHz`, 2 vCPUs):** `14,9429 s` (cold run, `5,391 ms/passo`) e `14,8852 s` (warm run, `5,370 ms/passo`; RSS `104,25 MB`), confirmando que o hook `tracemalloc` inflava o tempo de CPU em **~`11,3x`**.
+     - **Medição Real no Google Colab com GPU `NVIDIA Tesla T4` (Compute Capability `7.5`, `15360 MiB`, Driver `580.82.07`, CUDA `13.0` / `nvcc V13.0.88`, commit `2f29fe1880c5881a9be21bb9d99c1ed11472e214`):**
+       - **Cold Start (inclui compilação `nvcc` da extensão nativa CUDA + warmup):** `backend_init_seconds = 14,5790 s`, `training_wall_time_seconds = 11,3312 s` (`4,088 ms/passo`), `total_wall_time_seconds = 25,9102 s` (speedup de treino vs. CPU Colab: **`1,32x`**; speedup total incluindo compilação: **`0,58x`**).
+       - **Warm Start (biblioteca `.so` já compilada em cache):** `backend_init_seconds = 0,2925 s` (`0,2296 s` no runner completo do piloto), `training_wall_time_seconds = 11,3560 s` (`4,097 ms/passo`), `total_wall_time_seconds = 11,6484 s` (speedup de treino vs. CPU Colab: **`1,31x`**; speedup total c/ init: **`1,28x`**).
+       - **Equivalência Científica e Numérica CPU vs. CUDA:** `scientific_equivalence_verified = True` nas `9/9` unidades e nas agregações por condição, com erro absoluto máximo **`max_absolute_error = 0.0` (`0.000e+00`)** (`atol = 1e-12`).
+       - **Auditoria de Recursos e Buffers CUDA:** `175.086` alocações e `175.086` liberações por execução do piloto de 3 seeds, com **`live_allocations_after_close = 0`** e **`unmatched_frees = 0`**.
      - **Medição Real do Custo por Passo vs. Vocabulário Silábico ($V_{\text{syl}}$) no `CPUBackend` (sem `tracemalloc`):**
        - $V_{\text{syl}} = 27$ (piloto atual): `5,18 ms/passo`
        - $V_{\text{syl}} = 150$: `14,13 ms/passo` (`2,73x`)
        - $V_{\text{syl}} = 300$ (~500 palavras): `25,50 ms/passo` (`4,92x`)
+       - *(Ressalva metodológica: o ganho de `1,32x` da T4 sobre a CPU foi medido para o vocabulário atual $V_{\text{syl}}=27$; eventual ganho adicional da GPU em vocabulários ampliados permanece uma hipótese a ser medida empiricamente quando o léxico for expandido).*
   2. **Projeções Paramétricas Extrapoladas (10 seeds, 500 palavras, 50 épocas; fator linear $385{,}8025\times$):**
      - **Extrapolação linear a partir do piloto com `tracemalloc` (`166,87 s`):** $\frac{166{,}87 \times 385{,}8025}{3600} = \mathbf{17{,}88\text{ horas}}$ de CPU single-core (~`134,1 min` em 8 cores). *(Nota histórica: uma estimativa anterior de `~3,8 horas` / `~20–30 min` havia aplicado o fator de escala sobre ~`35,5 s` de 2 seeds de uma única condição em vez das 9 unidades do piloto completo).*
-     - **Extrapolação linear a partir do piloto sem `tracemalloc` (~`15,0 s`, assumindo custo por passo fixo em $V_{\text{syl}}=27$):** $\frac{15{,}0 \times 385{,}8025}{3600} \approx \mathbf{1{,}61\text{ horas}}$ single-core (~`12,1 min` em 8 cores).
+     - **Extrapolação linear a partir do piloto sem `tracemalloc` (~`15,0 s` em CPU / ~`11,3 s` em T4, assumindo custo por passo fixo em $V_{\text{syl}}=27$):** $\mathbf{1{,}61\text{ horas}}$ em CPU single-core (~`12,1 min` em 8 cores) e $\mathbf{1{,}21\text{ horas}}$ em GPU T4.
      - **Projeção calibrada sem `tracemalloc` incorporando o crescimento medido de $V_{\text{syl}} \approx 300$ (`4,92x` no `CPUBackend`):** $\mathbf{\sim 7{,}8\text{ a }8{,}0\text{ horas}}$ single-core (~`60 min` distribuídos em 8 cores locais).
   3. **Suporte a Execução Reproduzível, Checkpoint/Resume e Microbenchmark CPU vs. CUDA (T4):**
      - O runner (`scripts/run_expanded_replay_pilot.py`) suporta `--backend cpu|cuda` (`cpu` por padrão), `--profile-heap` opcional, `--seeds` parametrizáveis, checkpoint atômico incremental a cada par `(condition, seed)` e retomada validada via `--resume` (rejeitando configurações ou backends incompatíveis sem duplicar resultados).
-     - O modo `--benchmark-backends` (`run_cpu_vs_cuda_microbenchmark`) compara `cpu` e `cuda` sob o mesmo workload, mesma configuração e mesmo commit sem `tracemalloc`, separando explicitamente o tempo de inicialização/compilação CUDA (`backend_init_seconds`) do tempo de parede efetivo de treinamento (`training_wall_time_seconds`) e verificando equivalência científica por seed (`atol = 1e-12`) e liberação integral de buffers CUDA (`model.close()`).
+     - Os resultados consolidados do microbenchmark e os logs brutos de execução na T4 estão versionados em `experiments/phase42_cpu_vs_t4_benchmark.json` e `experiments/phase42_cpu_vs_t4_benchmark.log`.
+
+---
+
+## 9. Execução Ampliada de 30 Seeds na NVIDIA Tesla T4 (`experiments/phase42_30seeds_t4_results.json`)
+
+No commit validado do runner (`2f29fe1880c5881a9be21bb9d99c1ed11472e214`), o experimento foi ampliado de 3 para **30 seeds determinísticas consecutivas (`42` a `71`)** nas 3 condições (`low`, `medium`, `high`), totalizando **90 unidades `(condição, seed)`**, **270 modelos A/B/C treinados** e **`27.720` passos físicos de gradiente**.
+
+### 9.1 Validação Operacional: Checkpoint Incremental, Retomada (`--resume`) e Determinismo
+
+1. **Execução em 2 etapas com checkpoint e `--resume` (`experiments/phase42_30seeds_t4_results.json`):**
+   - **Pass 1 (15 seeds: `42..56`, 45 unidades):** executado em `--backend cuda` em **`57,51 s`** de treino (`backend_init_seconds = 0,2930 s`), persistindo o checkpoint com `45` unidades concluídas.
+   - **Pass 2 (`--resume` para 30 seeds: `42..71`, 90 unidades totais):** retomado a partir do checkpoint sem reexecutar as `45` unidades iniciais (`resumed = True`, `resume_count = 1`, `resumed_completed_units = 45`) e concluindo as `45` unidades restantes em **`56,45 s`** (`backend_init_seconds = 0,2348 s`), totalizando **`113,96 s`** de tempo acumulado de treino (`116,13 s` de parede total; pico RSS `133,08 MB`).
+2. **Verificação Cruzada Ininterrupta (Single-Pass de 90 Unidades) e Paridade com Referência CPU:**
+   - Uma execução contínua das 30 seeds na T4 (`Resumed Run = False`, `113,66 s` de treino, `init = 0,3019 s`) foi comparada via `--verify-against` com o artefato retomado de 90 unidades: **`checked_units = 90`, `max_abs_error = 0.000e+00`**.
+   - As 3 primeiras seeds (`42, 43, 44`, 9 unidades) dentro da execução de 30 seeds na T4 foram comparadas com o artefato de referência em CPU (`experiments/phase42_pilot_results.json`): **`checked_units = 9`, `max_abs_error = 0.000e+00`**.
+   - Em ambas as passagens em CUDA, `_CUDALifecycleTracker` confirmou **zero alocações vivas remanescentes** após o fechamento dos 270 modelos.
+
+### 9.2 Resultados Estatísticos Agregados: Piloto (3 Seeds) vs. Experimento Ampliado (30 Seeds)
+
+| Condição | Métrica | Piloto 3 Seeds (`42..44`) $\mu \pm \sigma$ | Ampliado 30 Seeds (`42..71`) $\mu \pm \sigma$ | Intervalo `[min, max]` (30 Seeds) | Interpretação Científica na Escala de 30 Seeds |
+|---|---|---:|---:|---:|---|
+| **`low`** | `retention_ratio` (A / B / C) | `1.0000` / `1.0000` / `1.0000` | `1.0000` / `1.0000` / `1.0000` ($\sigma=0.0$) | `[1.0, 1.0]` | Retenção perfeita das 3 sondas de referência positiva em 30/30 seeds (internas e holdout). |
+| **`low`** | `c_vs_b_retention_advantage` | `0.0000` $\pm 0.0000$ | **`0.0000` $\pm 0.0000$** | `[0.0, 0.0]` | Nenhuma diferença de retenção em referências positivas. |
+| **`low`** | `zero_ref_acquisition` (A / B / C) | `0.0000` / `0.0000` / `0.0000` | `0.0000` / **`0.0333` $\pm 0.1795$** / `0.0000` | B: `[0.0, 1.0]` | Na `seed=50` (1/30), B sorteou `fogos` e adquiriu a 4ª sonda ($0 \to 1$). A partição $S_{\text{ref}>0}$ impediu distorção em `retention_ratio`, enquanto $\Delta_{\text{rec}}(C)-\Delta_{\text{rec}}(B)$ registrou `-0.0083` $\pm 0.0449$. |
+| **`medium`** | `retention_ratio` (A / B / C) | `1.0000` / `1.0000` / `1.0000` | `1.0000` / `1.0000` / `1.0000` ($\sigma=0.0$) | `[1.0, 1.0]` | Retenção perfeita e zero esquecimento em 30/30 seeds; todas as vantagens C vs. B iguais a `0.0000`. |
+| **`high`** | `retention_ratio` — Variante A | `0.0000` $\pm 0.0000$ | **`0.0000` $\pm 0.0000$** | `[0.0, 0.0]` | Esquecimento catastrófico total das 3 competências positivas em 30/30 seeds sem replay. |
+| **`high`** | `retention_ratio` — Variante B | `0.3333` $\pm 0.4714$ | **`0.5000` $\pm 0.5000$** | `[0.0, 1.0]` | Converge de `1/3` (`0.3333`) para **`15/30` (`0.5000`)**: B sorteia `fogos` (score `0.0`) em 14/30 seeds e `['patos','sapos']` na `seed=51`, perdendo as 3 competências positivas em 15/30 seeds e recuperando-as nas outras 15/30 seeds. |
+| **`high`** | `retention_ratio` — Variante C | `1.0000` $\pm 0.0000$ | **`0.9778` $\pm 0.1197$** | `[0.3333, 1.0]` | C exclui `fogos` em 30/30 seeds: recupera `1.0000` (3/3 sondas) em **29/30 seeds** e `0.3333` (1/3 sonda, `malas`) na `seed=51` (`88/90 = 0.9778`), com paridade exata no holdout. |
+| **`high`** | `c_vs_b_retention_advantage` (interno e holdout) | `+0.6667` $\pm 0.4714$ | **`+0.4778` $\pm 0.4920$** | `[0.0, +1.0]` | Vantagem positiva consistente de C sobre B em retenção de referências positivas ($0.9778 - 0.5000 = +0.4778$). |
+| **`high`** | `c_vs_b_recovery_advantage` | `+0.3333` $\pm 0.2357$ | **`+0.2417` $\pm 0.2457$** | `[0.0, +0.50]` | Vantagem média de recuperação marginal sobre as 4 sondas ($0.4917 - 0.2500 = +0.2417$). |
+| **`high`** | `c_vs_b_tradeoff_advantage` | `+0.4444` $\pm 0.3143$ | **`+0.3244` $\pm 0.3278$** | `[0.0, +0.6667]` | Vantagem média no índice harmônico estabilidade-plasticidade. |
+| **`high`** | `zero_ref_acquisition` (A / B / C) | `1.0000` / `0.6667` / `0.0000` | `1.0000` / **`0.5000` $\pm 0.5000$** / **`0.0333` $\pm 0.1795$** | B: `[0.0, 1.0]`<br>C: `[0.0, 1.0]` | Ganho na 4ª sonda (`fogos`/`foguete`) permanece em `1.0` apenas quando o replay não reverte o viés vocálico para `'a'` (15/30 seeds em B; 1/30 seed em C na `seed=51`). |
+| **`high`** | `new_competence_delta_during_replay` (B / C) | `-0.1667` / `-0.5000` | **`-0.2500` $\pm 0.2500$** / **`-0.4833` $\pm 0.0898$** | B: `[-0.5, 0.0]`<br>C: `[-0.5, 0.0]` | Sempre que o replay recupera as 3 palavras de vogal `'a'` (29/30 seeds em C; 15/30 em B), ocorre perda retroativa de `-0.50` na tarefa nova (*back-interference*). |
+| **`high`** | `superiority_fraction` (`is_directed_superior`) | `0.0%` (`0/3`) | **`3.3%` (`1/30`, `seed=51`)** | — | Na `seed=51`, C recupera parcialmente a tarefa antiga (`R=0.3333` vs. `0.0000` de B) sem sofrer perda retroativa na tarefa nova ($\Delta_{\text{new, replay}} = 0.0$), satisfazendo todos os critérios estritos de superioridade nessa seed. Nas demais 29 seeds, a perda retroativa de `-0.50` na tarefa nova impede declarar superioridade estrita. |
+
+*(Nota de auditoria sobre `conclusions.summary_claim`: no código congelado do commit `2f29fe1880c5881a9be21bb9d99c1ed11472e214`, os campos numéricos de `conclusions` e `condition_aggregates` são calculados dinamicamente sobre as 30 seeds, mas a string descritiva `summary_claim` mantém alguns trechos literais da redação de 3 seeds — como `with C retaining 1.0000 vs B retaining 0.3333` e `in 2 of 3 seeds` — ao lado dos valores interpolados de 30 seeds `+0.2417`, `+0.4778`, `0.5000` e `0.0333`. A tabela acima registra a reconciliação exata das 30 seeds).*
