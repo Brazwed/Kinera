@@ -9,6 +9,11 @@ description = "Implementação didática de modelo híbrido para análise siláb
 requires-python = ">=3.10"
 dependencies = []
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["kinera*"]
