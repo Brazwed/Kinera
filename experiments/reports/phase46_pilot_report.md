@@ -3,7 +3,7 @@
 > **Issue:** [#46 — Research: Desambiguação contextual de entradas com alvos conflitantes](https://github.com/Brazwed/Kinera/issues/46)  
 > **Branch de Trabalho:** `research/issue-46-contextual-disambiguation`  
 > **Commit Base:** `b0502c01ab7d4ce6256fe54e9305d398f10a8702` (`main`)  
-> **Artefatos:** [`scripts/run_phase46_pilot.py`](file:///home/brazwed/Projetos/Kinera/Main/scripts/run_phase46_pilot.py), [`experiments/phase46_pilot_results.json`](file:///home/brazwed/Projetos/Kinera/Main/experiments/phase46_pilot_results.json), [`tests/test_regime1_identifiability.py`](file:///home/brazwed/Projetos/Kinera/Main/tests/test_regime1_identifiability.py)
+> **Artefatos:** [`scripts/run_phase46_pilot.py`](scripts/run_phase46_pilot.py), [`experiments/phase46_pilot_results.json`](experiments/phase46_pilot_results.json), [`tests/test_regime1_identifiability.py`](tests/test_regime1_identifiability.py), [`tests/test_phase46_metrics.py`](tests/test_phase46_metrics.py)
 
 ---
 
@@ -43,35 +43,43 @@ Todas as execuções foram realizadas em CPU local, sem custos de nuvem/GPU, com
 
 ---
 
-### Tabela 2 — Resultados Individuais por Seed
+### Tabela 2 — Resultados Individuais por Seed com Desagregação de Sondas
+
+Para garantir total rigor matemático, a tabela explicita:
+- $N_{\text{pos}}$: número de sondas internas com competência de referência $> 0{,}0$ ($N_{\text{pos}} \in \{3, 4\}$);
+- $k_{\text{pos}}$: número inteiro de sondas positivas preservadas após a intervenção ($0 \le k_{\text{pos}} \le N_{\text{pos}}$);
+- $R_{\text{pos}}$: valor contínuo da razão de retenção ($k_{\text{pos}} / N_{\text{pos}}$);
+- $C_{\text{post}}$: acurácia total sobre as 4 sondas de controle interno (`malas`, `patos`, `sapos`, `fogos`).
 
 #### A. Condição 1 — Baseline Não-Condicionada (Regime 1)
-| Seed | $d_{\text{cos}}$ | $R_{\text{pos}}$ ($N_{\text{pos}}=3$) | $C_{\text{new, acq}}$ | $C_{\text{new, post}}$ | $\Delta_{\text{new}}$ | Log-Loss | Critérios Atendidos? |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **42** | $0{,}0000$ | $3/3$ ($1{,}0000$) | $1{,}00$ | $0{,}50$ | $-0{,}5000$ | $1{,}1654$ | Não |
-| **43** | $0{,}0000$ | $3/3$ ($1{,}0000$) | $1{,}00$ | $0{,}50$ | $-0{,}5000$ | $1{,}1644$ | Não |
-| **44** | $0{,}0000$ | $3/3$ ($1{,}0000$) | $0{,}50$ | $0{,}00$ | $-0{,}5000$ | $1{,}1805$ | Não |
+| Seed | $d_{\text{cos}}$ | $N_{\text{pos}}$ | Sondas Retidas ($k_{\text{pos}}$) | $R_{\text{pos}}$ | Acurácia Interna ($C_{\text{post}}$) | $C_{\text{new, acq}}$ | $C_{\text{new, post}}$ | $\Delta_{\text{new}}$ | Log-Loss | Critérios Atendidos? |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **42** | $0{,}0000$ | 3 | 3 | $3/3$ ($1{,}0000$) | $0{,}75$ (3/4) | $1{,}00$ | $0{,}50$ | $-0{,}5000$ | $1{,}1654$ | Não |
+| **43** | $0{,}0000$ | 3 | 3 | $3/3$ ($1{,}0000$) | $0{,}75$ (3/4) | $1{,}00$ | $0{,}50$ | $-0{,}5000$ | $1{,}1644$ | Não |
+| **44** | $0{,}0000$ | 3 | 3 | $3/3$ ($1{,}0000$) | $0{,}75$ (3/4) | $0{,}50$ | $0{,}00$ | $-0{,}5000$ | $1{,}1805$ | Não |
 
 #### B. Condição 2 — Condicionamento por Lema (Regime 2)
-| Seed | $d_{\text{cos}}$ | $R_{\text{pos}}$ ($N_{\text{pos}}=3$) | $C_{\text{new, acq}}$ | $C_{\text{new, post}}$ | $\Delta_{\text{new}}$ | Log-Loss | Critérios Atendidos? |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **42** | $0{,}4033$ | $3/3$ ($1{,}0000$) | $1{,}00$ | $1{,}00$ | $+0{,}0000$ | $0{,}5273$ | **Sim** |
-| **43** | $0{,}1600$ | $3/3$ ($1{,}0000$) | $1{,}00$ | $1{,}00$ | $+0{,}0000$ | $0{,}8094$ | **Sim** |
-| **44** | $0{,}2220$ | $3/3$ ($1{,}0000$) | $1{,}00$ | $0{,}50$ | $-0{,}5000$ | $0{,}7210$ | Não |
+| Seed | $d_{\text{cos}}$ | $N_{\text{pos}}$ | Sondas Retidas ($k_{\text{pos}}$) | $R_{\text{pos}}$ | Acurácia Interna ($C_{\text{post}}$) | $C_{\text{new, acq}}$ | $C_{\text{new, post}}$ | $\Delta_{\text{new}}$ | Log-Loss | Critérios Atendidos? |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **42** | $0{,}4033$ | 4 | 4 | $4/4$ ($1{,}0000$) | $1{,}00$ (4/4) | $1{,}00$ | $1{,}00$ | $+0{,}0000$ | $0{,}5273$ | **Sim** |
+| **43** | $0{,}1600$ | 3 | 3 | $3/3$ ($1{,}0000$) | $1{,}00$ (4/4)* | $1{,}00$ | $1{,}00$ | $+0{,}0000$ | $0{,}8094$ | **Sim** |
+| **44** | $0{,}2220$ | 3 | 3 | $3/3$ ($1{,}0000$) | $1{,}00$ (4/4)* | $1{,}00$ | $0{,}50$ | $-0{,}5000$ | $0{,}7210$ | Não |
+
+*\*Nota: Nas seeds 43 e 44, a 4ª sonda (`fogos`) possuía competência de referência 0,0 e foi adquirida durante o treinamento, elevando a acurácia total a 4/4 enquanto $N_{\text{pos}}=3$.*
 
 #### C. Condição 3 — Controle Negativo (Lema Permutado na Avaliação)
-| Seed | $d_{\text{cos}}$ | $R_{\text{pos}}$ ($N_{\text{pos}}=3$) | $C_{\text{new, acq}}$ | $C_{\text{new, post}}$ | $\Delta_{\text{new}}$ | Log-Loss | Critérios Atendidos? |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **42** | $0{,}4033$ | $1{,}5/3$ ($0{,}5000$) | $1{,}00$ | $0{,}00$ | $-1{,}0000$ | $2{,}1141$ | Não |
-| **43** | $0{,}1600$ | $1/3$ ($0{,}3333$) | $1{,}00$ | $0{,}00$ | $-1{,}0000$ | $1{,}4191$ | Não |
-| **44** | $0{,}2220$ | $2/3$ ($0{,}6667$) | $1{,}00$ | $0{,}00$ | $-1{,}0000$ | $1{,}6788$ | Não |
+| Seed | $d_{\text{cos}}$ | $N_{\text{pos}}$ | Sondas Retidas ($k_{\text{pos}}$) | $R_{\text{pos}}$ | Acurácia Interna ($C_{\text{post}}$) | $C_{\text{new, acq}}$ | $C_{\text{new, post}}$ | $\Delta_{\text{new}}$ | Log-Loss | Critérios Atendidos? |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **42** | $0{,}4033$ | 4 | 2 | $2/4$ ($0{,}5000$) | $0{,}50$ (2/4) | $1{,}00$ | $0{,}00$ | $-1{,}0000$ | $2{,}1141$ | Não |
+| **43** | $0{,}1600$ | 3 | 1 | $1/3$ ($0{,}3333$) | $0{,}50$ (2/4) | $1{,}00$ | $0{,}00$ | $-1{,}0000$ | $1{,}4191$ | Não |
+| **44** | $0{,}2220$ | 3 | 2 | $2/3$ ($0{,}6667$) | $0{,}75$ (3/4) | $1{,}00$ | $0{,}00$ | $-1{,}0000$ | $1{,}6788$ | Não |
 
 ---
 
 ## 3. Análise Detalhada dos Mecanismos
 
 ### 3.1 Por que o Regime 1 Falha Estruturalmente?
-No teste formal [`tests/test_regime1_identifiability.py`](file:///home/brazwed/Projetos/Kinera/Main/tests/test_regime1_identifiability.py), verificou-se que:
+No teste formal [`tests/test_regime1_identifiability.py`](tests/test_regime1_identifiability.py), verificou-se que:
 $$\vec{x}(\text{mala}, [1]) \equiv \vec{x}(\text{medo}, [1]) = \Big(\text{context\_ids}=[\text{<START>}, \text{'m'}], \text{context\_syllable\_ids}=[\text{<UNK\_SYL>}, \text{<UNK\_SYL>}]\Big)$$
 Como o caractere `'m'` não é final de sílaba, o id silábico é estritamente mascarado por causalidade para evitar vazamento do alvo. Portanto, qualquer função determinística $f(\vec{x})$ produz exatamente o mesmo vetor $\vec{h}$ e os mesmos logits $\vec{z}$. Consequentemente:
 $$\mathbb{I}(\hat{y}_{\text{mala}} = \text{'a'}) + \mathbb{I}(\hat{y}_{\text{medo}} = \text{'e'}) \le 1$$
@@ -79,7 +87,7 @@ Apenas um dos alvos pode vencer o argmax. A busca por ordenação e calibração
 
 ### 3.2 O Que a Condição de Lema Resolve e o Que Não Resolve?
 1. **O que resolve:** A injeção do vetor de lema $\vec{e}_{\text{lemma}}$ no pooling pré-cabeça quebra a simetria de entrada, permitindo representações distintas ($d_{\text{cos}} \ge 0{,}16$). Isso viabilizou a coexistência simultânea em 2 das 3 seeds ($66{,}7\%$).
-2. **O que não resolve:** Na Seed 44, mesmo com $d_{\text{cos}} = 0{,}2220$, a consolidação de `mala` e `pato` com $\text{LR}=0{,}20$ atualizou a matriz da cabeça linear compartilhada em direção a `'a'`, reduzindo a probabilidade de `medo` de $0{,}4995$ para $0{,}2885$ (ficando abaixo do limiar de predição). Ou seja: **o condicionamento remove o colapso representacional, mas a dinâmica de interferência retroativa por gradiente continua existindo no espaço paramétrico compartilhado.**
+2. **O que não resolve:** Na Seed 44, mesmo com $d_{\text{cos}} = 0{,}2220$, a consolidação de `mala` e `pato` com $\text{LR}=0{,}20$ atualizou a matriz da cabeça linear compartilhada em direção a `'a'`, reduzindo a probabilidade de `medo` de $0{,}4995$ para $0{,}2885$ (ficando abaixo do limiar de predição). Ou seja: **o condicionamento remove o colapso representacional, mas a dinâmica de interferência retroativa por gradiente continua existindo no espaço paramétrico compartilhado da cabeça de saída.**
 
 ### 3.3 Validação Causal e Limites de Generalização
 - **Validação Causal:** A inversão/colapso imediato no controle negativo demonstra que a resposta diferencial decorre especificamente do lema e não de convergência espúria de outros pesos.
@@ -92,3 +100,19 @@ Apenas um dos alvos pode vencer o argmax. A busca por ordenação e calibração
 1. **Formalização Teórica nos Documentos de Pesquisa:** Registrar no repositório que predição de sequências ortográficas com prefixos curtos ($k \le 2$) requer necessariamente sinal de intenção lexical ou contexto estendido se os prefixos colidirem.
 2. **Separação de Camadas (Modularidade de Replay):** Para mitigar interferências como a observada na Seed 44, futuras arquiteturas devem desacoplar as projeções contextuais das cabeças lineares de saída ou utilizar regularização de projeção ortogonal durante o replay.
 3. **Não mesclar em `src/kinera/`:** Manter a implementação de protótipo isolada em `scripts/` e `experiments/`, preservando a integridade da biblioteca principal da Kinera.
+
+---
+
+## 5. Auditoria de Divergências Metodológicas (Revisão Pré-Merge do PR #48)
+
+Esta seção documenta a resolução formal de duas divergências identificadas durante a revisão técnica do PR #48:
+
+### 5.1 Alinhamento da Partição Independente e Restrição de Vocabulário
+- **Divergência:** O protocolo conceitual listou no diagrama os exemplos `mola`/`muro`, `pala`/`pipa` e controles `selo`, `toca`, `vela`. O runner executado usou `mola`, `muda`, `pala`, `pelo`, `selo`, `toga`, `vela`.
+- **Causa Raiz Identificada:** O vocabulário canônico unificado de caracteres do projeto (`_build_unified_vocabularies()`) é derivado das palavras de `_WORD_SYLLABLES` e possui apenas 20 caracteres (`['<START>', '<PAD>', '<UNK>', 'a', 'b', 'd', 'e', 'f', 'g', 'l', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'x', 'z']`). Os caracteres `'i'` (presente em `pipa`) e `'c'` (presente em `toca`) **não existem no vocabulário**. A tentativa de codificá-los mapeia o caractere-alvo para `<UNK>`, invalidando o teste de acurácia de letras do português.
+- **Resolução:** O runner adaptou para palavras 100% contidas no vocabulário (`pelo` em vez de `pipa`, `toga` em vez de `toca`, e `muda` no par com `mola`). A semântica original do teste (pares mínimos contrastantes com prefixos em `m` e `p` e controles balanceados) foi preservada. A restrição foi formalizada no código, no protocolo e coberta pelo teste automatizado `test_independent_holdout_vocabulary_compatibility` em [`tests/test_phase46_metrics.py`](tests/test_phase46_metrics.py). Os resultados numéricos foram preservados integralmente sem substituições post hoc.
+
+### 5.2 Resolução da Notação e Cálculo de $R_{\text{pos}}$ no Controle Negativo
+- **Divergência:** A versão preliminar do relatório apresentou `R_pos = 0,5000` na Seed 42 do controle negativo com a notação `1,5/3`.
+- **Causa Raiz Identificada:** O denominador $N_{\text{pos}}$ da métrica `compute_probe_partition_breakdown` não é constante: ele é determinado dinamicamente pelo número de sondas que atingiram referência prévia $> 0{,}0$. Na Seed 42, todas as 4 sondas foram aprendidas na referência ($N_{\text{pos}} = 4$). No controle negativo, exatamente 2 sondas positivas foram retidas ($k_{\text{pos}} = 2$), resultando em $R_{\text{pos}} = 2/4 = 0{,}5000$. A notação `1,5/3` era um artefato de redação que forçou o denominador 3 na tabela. Nas seeds 43 e 44, a referência foi de 3 sondas ($N_{\text{pos}} = 3$), resultando em $1/3$ ($0{,}3333$) e $2/3$ ($0{,}6667$) respectivamente.
+- **Resolução:** A Tabela 2 foi reestruturada para exibir explicitamente e de forma separada: (1) o denominador real $N_{\text{pos}}$, (2) a contagem discreta de sondas retidas $k_{\text{pos}}$, (3) a razão de retenção contínua $R_{\text{pos}}$, e (4) a acurácia interna total. Foi implementado o teste formal `test_positive_retention_ratio_discrete_nature` em [`tests/test_phase46_metrics.py`](tests/test_phase46_metrics.py) para garantir que contagens fracionárias sejam formalmente rejeitadas.

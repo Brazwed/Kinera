@@ -94,6 +94,10 @@ graph TD
 - **Sondas de Diagnóstico (Issue #42):** Palavras já conhecidas pelo histórico da pesquisa. Servem exclusivamente para medir a estabilidade do conhecimento previamente testado e verificar se a intervenção preserva a baseline histórica. **Não são tratadas como teste de generalização independente.**
 - **Partição Independente (Novas Palavras Não-Vistas):** Palavras que jamais participaram do treino, do replay, da calibração de hiperparâmetros ou da seleção de hipóteses. Testam se o modelo transfere ou se apenas consulta identificadores memorizados.
 
+> [!NOTE]
+> **Compatibilidade de Vocabulário da Partição Independente:**  
+> O vocabulário canônico unificado do projeto (`_build_unified_vocabularies()`) possui 20 caracteres (`['<START>', '<PAD>', '<UNK>', 'a', 'b', 'd', 'e', 'f', 'g', 'l', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'x', 'z']`) e não contém `'i'` nem `'c'`. Para que a avaliação meça caracteres ortográficos reais em vez do token `<UNK>`, a partição executada no runner adaptou `pipa` para `pelo`, `toca` para `toga`, e utilizou `mola`, `muda`, `pala`, `selo` e `vela`. Essa adaptação preserva a estrutura de contrastes mínimos (`m` e `p`) e controles dentro do espaço de caracteres suportado pelo núcleo.
+
 ---
 
 ## 5. Níveis de Avaliação e Critérios de Decisão Predefinidos
@@ -104,7 +108,7 @@ graph TD
 |---|---|---|---|---|
 | **A. Representacional** | Distância de Cosseno ($d_{\text{cos}}$) | $1 - \frac{\vec{h}_a \cdot \vec{h}_b}{\|\vec{h}_a\|_2 \|\vec{h}_b\|_2}$ | $d_{\text{cos}} \ge 0{,}10$ | Afastamento angular dos vetores pré-cabeça. Não é prova isolada de sucesso funcional. |
 | **A. Representacional** | Distância Euclidiana ($d_{\text{euc}}$) | $\|\vec{h}_a - \vec{h}_b\|_2$ | $d_{\text{euc}} > 0{,}0$ | Separação métrica estrita. |
-| **B. Coexistência Funcional** | Retenção Positiva ($R_{\text{pos}}$) | Sondas internas positivas ($N_{\text{pos}}=3$) | $R_{\text{pos}} = 3/3 = 1{,}0000$ | Preservação perfeita do conhecimento antigo nas 3 sondas positivas. |
+| **B. Coexistência Funcional** | Retenção Positiva ($R_{\text{pos}}$) | Sondas internas positivas ($N_{\text{pos}} \in \{3, 4\}$) | $R_{\text{pos}} = 1{,}0000$ | Preservação perfeita do conhecimento antigo em todas as sondas com referência positiva ($k_{\text{pos}} = N_{\text{pos}}$). O denominador é dinâmico por seed conforme a aquisição inicial. |
 | **B. Coexistência Funcional** | Delta da Tarefa Nova ($\Delta_{\text{new}}$) | $C_{\text{new, post}} - C_{\text{new, acq}}$ ($N_{\text{new}}=2$) | $\Delta_{\text{new}} \ge 0{,}0000$ | Preservação da competência recém-adquirida sem perda pós-replay. |
 | **B. Coexistência Funcional** | Log-Loss Conjunto | Média de perda nos pares conflitantes | $\le 1{,}0000$ | Redução contínua de incerteza em relação à baseline ($1{,}1695$). |
 | **B. Controle Negativo** | Queda sob Permutação | Comparação: Lema Correto vs. Lema Embaralhado | Colapso de $R_{\text{pos}}$ ou $\Delta_{\text{new}}$ | Comprova dependência causal do sinal lexical. |

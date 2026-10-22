@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-10-22T17:25:49Z",
+    "timestamp": "2026-10-22T17:47:30Z",
     "conditions": [
       "baseline_unconditioned",
       "lemma_conditioned",
@@ -31,6 +31,9 @@
           },
           "functional": {
             "r_pos": 1.0,
+            "n_pos": 3,
+            "k_pos_retained": 3,
+            "acc_old_internal": 0.75,
             "c_new_acq": 0.5,
             "c_new_post": 0.0,
             "delta_new": -0.5,
@@ -78,6 +81,9 @@
           },
           "functional": {
             "r_pos": 1.0,
+            "n_pos": 3,
+            "k_pos_retained": 3,
+            "acc_old_internal": 0.75,
             "c_new_acq": 0.5,
             "c_new_post": 0.0,
             "delta_new": -0.5,
@@ -125,6 +131,9 @@
           },
           "functional": {
             "r_pos": 1.0,
+            "n_pos": 3,
+            "k_pos_retained": 3,
+            "acc_old_internal": 0.75,
             "c_new_acq": 0.5,
             "c_new_post": 0.0,
             "delta_new": -0.5,
@@ -234,6 +243,9 @@
           },
           "functional": {
             "r_pos": 1.0,
+            "n_pos": 4,
+            "k_pos_retained": 4,
+            "acc_old_internal": 1.0,
             "c_new_acq": 1.0,
             "c_new_post": 1.0,
             "delta_new": 0.0,
@@ -281,6 +293,9 @@
           },
           "functional": {
             "r_pos": 1.0,
+            "n_pos": 3,
+            "k_pos_retained": 3,
+            "acc_old_internal": 1.0,
             "c_new_acq": 1.0,
             "c_new_post": 1.0,
             "delta_new": 0.0,
@@ -328,6 +343,9 @@
           },
           "functional": {
             "r_pos": 1.0,
+            "n_pos": 3,
+            "k_pos_retained": 3,
+            "acc_old_internal": 1.0,
             "c_new_acq": 1.0,
             "c_new_post": 0.5,
             "delta_new": -0.5,
@@ -437,6 +455,9 @@
           },
           "functional": {
             "r_pos": 0.5,
+            "n_pos": 4,
+            "k_pos_retained": 2,
+            "acc_old_internal": 0.5,
             "c_new_acq": 1.0,
             "c_new_post": 0.0,
             "delta_new": -1.0,
@@ -484,6 +505,9 @@
           },
           "functional": {
             "r_pos": 0.3333333333333333,
+            "n_pos": 3,
+            "k_pos_retained": 1,
+            "acc_old_internal": 0.5,
             "c_new_acq": 1.0,
             "c_new_post": 0.0,
             "delta_new": -1.0,
@@ -531,6 +555,9 @@
           },
           "functional": {
             "r_pos": 0.6666666666666666,
+            "n_pos": 3,
+            "k_pos_retained": 2,
+            "acc_old_internal": 0.75,
             "c_new_acq": 1.0,
             "c_new_post": 0.0,
             "delta_new": -1.0,

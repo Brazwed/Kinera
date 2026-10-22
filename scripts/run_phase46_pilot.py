@@ -84,6 +84,15 @@ SWAPPED_LEMMA_MAP: dict[str, int] = {
     "fogos": 3,
 }
 
+# Independent holdout partition (unseen words outside training and diagnostic holdouts).
+# NOTE ON VOCABULARY COMPATIBILITY:
+# The canonical character vocabulary from `_build_unified_vocabularies()` has 20 characters:
+#   ['<START>', '<PAD>', '<UNK>', 'a', 'b', 'd', 'e', 'f', 'g', 'l', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'x', 'z']
+# Conceptual candidate words like 'pipa' (requires 'i') and 'toca' (requires 'c') would map target letters
+# to <UNK>. To preserve valid orthographic token evaluation without modifying core vocabularies:
+#   - Pair m: 'mola' (target 'o') and 'muda' (target 'u') [note: 'muro' is also vocabulary-compatible]
+#   - Pair p: 'pala' (target 'a') and 'pelo' (target 'e') [substituting 'pipa' which lacks 'i']
+#   - Controls: 'selo', 'toga' [substituting 'toca' which lacks 'c'], 'vela'
 INDEPENDENT_HOLDOUT_WORDS: list[str] = [
     "mola", "muda", "pala", "pelo", "selo", "toga", "vela"
 ]
@@ -477,6 +486,9 @@ def run_experiment_unit(
         tuple(f"probe_{w}" for w in old_int_words), old_ref_comp, old_post_comp
     )
     r_pos = internal_breakdown.mean_positive_ref_retention
+    n_pos = len(internal_breakdown.positive_ref_group_ids)
+    k_pos_retained = sum(1 for r in internal_breakdown.positive_ref_retention_ratios if r >= 1.0)
+    acc_old_internal = sum(old_post_comp) / float(len(old_post_comp))
     c_new_acq = sum(new_acq_comp) / float(len(new_acq_comp))
     c_new_post = sum(new_post_comp) / float(len(new_post_comp))
     delta_new = c_new_post - c_new_acq
@@ -513,6 +525,9 @@ def run_experiment_unit(
         },
         "functional": {
             "r_pos": r_pos,
+            "n_pos": n_pos,
+            "k_pos_retained": k_pos_retained,
+            "acc_old_internal": acc_old_internal,
             "c_new_acq": c_new_acq,
             "c_new_post": c_new_post,
             "delta_new": delta_new,
