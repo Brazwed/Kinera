@@ -23,9 +23,9 @@ A Fase 46 investigou se a adição de um sinal de condicionamento contextual de 
    - **Falha na Seed 44 ($\Delta_{\text{new}} = -0{,}5000$):** Embora a separação de lema tenha ocorrido, a interferência de gradiente na cabeça compartilhada durante o replay sequencial com $\text{LR}=0{,}20$ fez `medo` perder o argmax para `'a'`. Sob o critério predefinido estrito (`all_seeds_criteria_met`), a taxa de aprovação foi de $2/3$ ($66{,}7\%$).
 3. **Controle Negativo: Dependência Causal Estrita**  
    - Sob permutação de lemas na avaliação (`mala` com lema de `medo`), a acurácia colapsou ($R_{\text{pos}} = 0{,}5000 \pm 0{,}14$, $\Delta_{\text{new}} = -1{,}0000 \pm 0{,}00$, joint loss = $1{,}7373$), provando dependência causal no sinal condicional e descartando artefatos espúrios.
-4. **Generalização em Palavras Não-Vistas (Teste Independente)**  
-   - No holdout diagnóstico (6 palavras conhecidas da Issue #42), o modelo condicionado manteve $94{,}4\%$ de acurácia.
-   - Na partição independente (7 palavras não-vistas com `<UNK_LEMMA>`), a acurácia foi de $14{,}3\%$ (nível de chance para caracteres), confirmando que a tabela de lemas opera como indexação direcionada e não confere generalização autônoma de vocabulário aberto.
+4. **Avaliação de Holdout Diagnóstico vs. Partição Independente:**  
+   - **Holdout Diagnóstico (6 palavras conhecidas da Issue #42):** Sob condicionamento por lema, o modelo atingiu acurácia agregada de $94{,}4\%$ (preservando o controle histórico prévio), contra $50{,}0\%$ na baseline não-condicionada. Essa medição avalia a estabilidade em palavras previamente investigadas e não constitui evidência de generalização para vocabulário novo.
+   - **Partição Independente (7 palavras não-vistas com `<UNK_LEMMA>`):** O modelo obteve $14{,}3\%$ de acurácia (1/7 acertos), descrevendo o desempenho empírico estrito sob a configuração avaliada, onde palavras desconhecidas recebem o token genérico `<UNK_LEMMA>`. O piloto não implementou nem avaliou uma representação composicional de lemas (baseada em raízes ou morfologia compartilhada); portanto, esse resultado delimita o limite da lookup table de IDs categóricos memorizados, sem permitir concluir que toda forma de condicionamento lexical falharia em generalizar.
 
 ---
 
