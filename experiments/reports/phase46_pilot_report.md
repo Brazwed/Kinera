@@ -54,8 +54,8 @@ Para garantir total rigor matemático, a tabela explicita:
 #### A. Condição 1 — Baseline Não-Condicionada (Regime 1)
 | Seed | $d_{\text{cos}}$ | $N_{\text{pos}}$ | Sondas Retidas ($k_{\text{pos}}$) | $R_{\text{pos}}$ | Acurácia Interna ($C_{\text{post}}$) | $C_{\text{new, acq}}$ | $C_{\text{new, post}}$ | $\Delta_{\text{new}}$ | Log-Loss | Critérios Atendidos? |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **42** | $0{,}0000$ | 3 | 3 | $3/3$ ($1{,}0000$) | $0{,}75$ (3/4) | $1{,}00$ | $0{,}50$ | $-0{,}5000$ | $1{,}1654$ | Não |
-| **43** | $0{,}0000$ | 3 | 3 | $3/3$ ($1{,}0000$) | $0{,}75$ (3/4) | $1{,}00$ | $0{,}50$ | $-0{,}5000$ | $1{,}1644$ | Não |
+| **42** | $0{,}0000$ | 3 | 3 | $3/3$ ($1{,}0000$) | $0{,}75$ (3/4) | $0{,}50$ | $0{,}00$ | $-0{,}5000$ | $1{,}1654$ | Não |
+| **43** | $0{,}0000$ | 3 | 3 | $3/3$ ($1{,}0000$) | $0{,}75$ (3/4) | $0{,}50$ | $0{,}00$ | $-0{,}5000$ | $1{,}1644$ | Não |
 | **44** | $0{,}0000$ | 3 | 3 | $3/3$ ($1{,}0000$) | $0{,}75$ (3/4) | $0{,}50$ | $0{,}00$ | $-0{,}5000$ | $1{,}1805$ | Não |
 
 #### B. Condição 2 — Condicionamento por Lema (Regime 2)
@@ -91,7 +91,11 @@ Apenas um dos alvos pode vencer o argmax. A busca por ordenação e calibração
 
 ### 3.3 Validação Causal e Limites de Generalização
 - **Validação Causal:** A inversão/colapso imediato no controle negativo demonstra que a resposta diferencial decorre especificamente do lema e não de convergência espúria de outros pesos.
-- **Limites:** O modelo obteve apenas $14{,}3\%$ na partição independente, demonstrando que a abordagem de tabela de identificadores de lema (`lemma_id`) atua como direcionador de grafia pré-determinada, e não como modelo gerador livre com entendimento contextual semântico.
+- **Delimitação Metodológica sobre Generalização:**
+  1. O resultado de **14,3% (1/7 acertos)** na partição independente corresponde estritamente ao desempenho observado na configuração avaliada, onde todas as palavras não vistas receberam o identificador genérico `<UNK_LEMMA>`.
+  2. O piloto avaliou um embedding de identificador categórico (`lemma_id`), que opera como indexador/chave de memorização direta. O experimento **não demonstra generalização composicional de lemas**, pois essa representação (baseada em raízes compartilhadas, traços morfológicos ou semântica distribucional) não foi implementada neste piloto.
+  3. Esses resultados **não autorizam concluir que toda forma de condicionamento lexical falharia em generalizar**; eles delimitam apenas o comportamento da representação categórica indexada por ID avaliada.
+  4. Palavras cujas entradas permaneçam indistinguíveis (sem contexto discriminativo à esquerda nem sinal lexical diferenciador) continuam estritamente sujeitas à barreira teórica de identificabilidade do Regime 1.
 
 ---
 
@@ -105,7 +109,7 @@ Apenas um dos alvos pode vencer o argmax. A busca por ordenação e calibração
 
 ## 5. Auditoria de Divergências Metodológicas (Revisão Pré-Merge do PR #48)
 
-Esta seção documenta a resolução formal de duas divergências identificadas durante a revisão técnica do PR #48:
+Esta seção documenta a resolução formal das divergências identificadas durante as revisões técnicas do PR #48:
 
 ### 5.1 Alinhamento da Partição Independente e Restrição de Vocabulário
 - **Divergência:** O protocolo conceitual listou no diagrama os exemplos `mola`/`muro`, `pala`/`pipa` e controles `selo`, `toca`, `vela`. O runner executado usou `mola`, `muda`, `pala`, `pelo`, `selo`, `toga`, `vela`.
@@ -116,3 +120,8 @@ Esta seção documenta a resolução formal de duas divergências identificadas 
 - **Divergência:** A versão preliminar do relatório apresentou `R_pos = 0,5000` na Seed 42 do controle negativo com a notação `1,5/3`.
 - **Causa Raiz Identificada:** O denominador $N_{\text{pos}}$ da métrica `compute_probe_partition_breakdown` não é constante: ele é determinado dinamicamente pelo número de sondas que atingiram referência prévia $> 0{,}0$. Na Seed 42, todas as 4 sondas foram aprendidas na referência ($N_{\text{pos}} = 4$). No controle negativo, exatamente 2 sondas positivas foram retidas ($k_{\text{pos}} = 2$), resultando em $R_{\text{pos}} = 2/4 = 0{,}5000$. A notação `1,5/3` era um artefato de redação que forçou o denominador 3 na tabela. Nas seeds 43 e 44, a referência foi de 3 sondas ($N_{\text{pos}} = 3$), resultando em $1/3$ ($0{,}3333$) e $2/3$ ($0{,}6667$) respectivamente.
 - **Resolução:** A Tabela 2 foi reestruturada para exibir explicitamente e de forma separada: (1) o denominador real $N_{\text{pos}}$, (2) a contagem discreta de sondas retidas $k_{\text{pos}}$, (3) a razão de retenção contínua $R_{\text{pos}}$, e (4) a acurácia interna total. Foi implementado o teste formal `test_positive_retention_ratio_discrete_nature` em [`tests/test_phase46_metrics.py`](tests/test_phase46_metrics.py) para garantir que contagens fracionárias sejam formalmente rejeitadas.
+
+### 5.3 Consistência da Tabela de Baseline (Correção de `C_new, acq` e `C_new, post`)
+- **Divergência:** A versão anterior da Tabela 2.A registrou `C_new, acq = 1,00` e `C_new, post = 0,50` para as seeds 42 e 43.
+- **Causa Raiz Identificada:** Erro de transcrição tipográfica na confecção da tabela Markdown. O arquivo estruturado [`experiments/phase46_pilot_results.json`](experiments/phase46_pilot_results.json) registra com fidelidade que, no Regime 1 (baseline não-condicionada), as seeds 42, 43 e 44 atingiram todas `c_new_acq = 0.50` (aquisição de apenas 1 das 2 tarefas novas devido à colisão pré-cabeça com as tarefas antigas) e `c_new_post = 0.00` pós-replay (perda total da nova competência ao sofrer sobrescrita pela consolidação das tarefas antigas), resultando identicamente em $\Delta_{\text{new}} = -0{,}5000$ nas três seeds.
+- **Resolução:** A Tabela 2.A foi alinhada aos dados brutos do JSON (`0,50 | 0,00 | -0,5000` em todas as seeds), preservando a integridade estrita dos artefatos computacionais.
