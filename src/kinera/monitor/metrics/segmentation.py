@@ -7,6 +7,13 @@ distinguindo explicitamente:
   FN (corte omitido), TN (posição interna corretamente não cortada).
 - Universo de candidatos a corte: para palavra de comprimento L, existem exatamente
   L - 1 posições internas candidatas (1, ..., L - 1). Para L <= 1, existem 0 candidatos.
+- Comportamento de palavras sem posições candidatas (L <= 1):
+  Palavras vazias (L=0) ou unicaracteres (L=1) não admitem limites internos de corte
+  (candidate_positions = 0). Quando ambos os conjuntos de offsets (referência e previsão)
+  são vazios, a palavra é considerada uma correspondência exata válida (exact_match=True)
+  e é contabilizada tanto em exact_matches quanto no denominador words_count.
+  Consequentemente, palavras sem posições candidatas influenciam a taxa word_exact_match_rate,
+  mas contribuem com 0 posições para as métricas de offsets (TP=TN=FP=FN=0).
 - Execução puramente CPU-only sem efeitos colaterais.
 """
 
@@ -55,7 +62,19 @@ def _normalize_offsets(
 
 @dataclass(frozen=True)
 class WordSegmentationResult:
-    """Resultado da avaliação de segmentação para uma única palavra."""
+    """Resultado da avaliação de segmentação para uma única palavra.
+
+    Atributos:
+        word_length: Comprimento L da palavra.
+        candidate_positions: Número de posições internas candidatas (max(0, L - 1)).
+        tp: Cortes corretos (Gold ∩ Pred).
+        tn: Posições internas sem corte em Gold e Pred.
+        fp: Cortes espúrios previstos (Pred - Gold).
+        fn: Cortes omitidos (Gold - Pred).
+        exact_match: Indica se todos os offsets previstos coincidem exatamente com o gabarito.
+            Para palavras com L <= 1 (sem limites internos candidatos), exact_match é True
+            sempre que nenhum corte espúrio for atribuído a ela.
+    """
 
     word_length: int
     candidate_positions: int
@@ -68,7 +87,15 @@ class WordSegmentationResult:
 
 @dataclass(frozen=True)
 class OffsetSegmentationConfusion:
-    """Agregação de confusão e métricas de segmentação para um conjunto de palavras."""
+    """Agregação de confusão e métricas de segmentação para um conjunto de palavras.
+
+    Atributos:
+        words_count: Total de palavras avaliadas no corpus (inclui palavras com L <= 1).
+        exact_matches: Total de palavras com exata correspondência de cortes (inclui
+            palavras com L <= 1 sem cortes).
+        candidate_positions: Total de posições internas candidatas a corte no corpus.
+        tp, tn, fp, fn: Contadores acumulados de offsets.
+    """
 
     words_count: int
     exact_matches: int
@@ -189,6 +216,12 @@ def evaluate_word_offsets(
 
     Returns:
         WordSegmentationResult com contagens de TP, TN, FP, FN e exact_match.
+
+    Nota sobre palavras sem candidatos (L <= 1):
+        Para palavras com comprimento L <= 1 (vazias ou de 1 caractere), não existem
+        limites internos candidatos (candidate_positions = 0). Se nem a referência nem
+        a previsão possuírem offsets, exact_match será True, e a palavra contabilizará
+        1 em words_count e 1 em exact_matches quando agregada no corpus.
     """
     if isinstance(word_or_length, str):
         length = len(word_or_length)
@@ -281,6 +314,13 @@ def word_exact_match_rate(confusion: OffsetSegmentationConfusion) -> float | Non
     """Proporção de palavras com segmentação exata: exact_matches / words_count.
 
     Retorna None se não houver palavras no conjunto avaliado.
+
+    Nota semântica sobre o denominador:
+        Todas as palavras avaliadas integram o denominador words_count, inclusive palavras
+        de comprimento L <= 1 (que não possuem limites internos candidatos e são trivialmente
+        exact_match=True na ausência de cortes). Palavras sem candidatos a corte, portanto,
+        elevam exact_matches e words_count sem alterar os contadores de offsets
+        (candidate_positions=0, TP=TN=FP=FN=0).
     """
     if not isinstance(confusion, OffsetSegmentationConfusion):
         raise TypeError("confusion deve ser uma instância de OffsetSegmentationConfusion")

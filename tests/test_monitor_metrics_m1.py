@@ -427,6 +427,61 @@ class OffsetSegmentationMetricsTests(unittest.TestCase):
         self.assertIsNone(offset_f1(conf))
         self.assertIsNone(offset_balanced_accuracy(conf))
 
+    def test_words_without_candidates_impact_on_exact_match_denominator(self) -> None:
+        """Demonstra deterministamente o efeito de palavras sem candidatos (L <= 1) sobre word_exact_match_rate.
+
+        Cenário:
+        1. Subconjunto com posições candidatas (L > 1):
+           - Palavra 1: "casa" (L=4, cand=3, gold={2}, pred={2}) -> exact_match = True
+           - Palavra 2: "banana" (L=6, cand=5, gold={2, 4}, pred={2}) -> exact_match = False
+           Taxa com palavras candidatas: 1 acerto / 2 palavras = 0.50 (50%).
+           Total de posições candidatas: 3 + 5 = 8.
+
+        2. Adição de palavras sem posições candidatas (L <= 1):
+           - Palavra 3: "a" (L=1, cand=0, gold={}, pred={}) -> exact_match = True
+           - Palavra 4: "" (L=0, cand=0, gold={}, pred={}) -> exact_match = True
+
+        3. Efeito na agregação do corpus total:
+           - Numerador (exact_matches): sobe de 1 para 3 (+2).
+           - Denominador (words_count): sobe de 2 para 4 (+2).
+           - word_exact_match_rate: sobe de 0.50 para 3/4 = 0.75 (75%).
+           - candidate_positions: permanece 8 (inalterado).
+           - Contadores de offsets (TP, TN, FP, FN): estritamente inalterados.
+           - offset_precision, offset_recall e offset_f1: estritamente inalterados.
+        """
+        # 1. Corpus apenas com palavras candidatas
+        candidate_words = [
+            ("casa", [2], [2]),
+            ("banana", [2, 4], [2]),
+        ]
+        conf_candidates = evaluate_corpus_offsets(candidate_words)
+        self.assertEqual(conf_candidates.words_count, 2)
+        self.assertEqual(conf_candidates.exact_matches, 1)
+        self.assertEqual(conf_candidates.candidate_positions, 8)
+        self.assertEqual(word_exact_match_rate(conf_candidates), 0.5)
+
+        # 2. Corpus combinado com palavras L <= 1
+        full_corpus = [
+            ("casa", [2], [2]),
+            ("banana", [2, 4], [2]),
+            ("a", [], []),
+            ("", [], []),
+        ]
+        conf_full = evaluate_corpus_offsets(full_corpus)
+        self.assertEqual(conf_full.words_count, 4)
+        self.assertEqual(conf_full.exact_matches, 3)
+        self.assertEqual(conf_full.candidate_positions, 8)  # Inalterado
+        self.assertEqual(word_exact_match_rate(conf_full), 0.75)  # 3 / 4
+
+        # Comprova invariância exata dos contadores e métricas de offsets:
+        self.assertEqual(conf_full.tp, conf_candidates.tp)
+        self.assertEqual(conf_full.tn, conf_candidates.tn)
+        self.assertEqual(conf_full.fp, conf_candidates.fp)
+        self.assertEqual(conf_full.fn, conf_candidates.fn)
+        self.assertEqual(offset_precision(conf_full), offset_precision(conf_candidates))
+        self.assertEqual(offset_recall(conf_full), offset_recall(conf_candidates))
+        self.assertEqual(offset_f1(conf_full), offset_f1(conf_candidates))
+
     def test_syllable_lengths_to_offsets(self) -> None:
         self.assertEqual(syllable_lengths_to_offsets([2, 2]), [2])
         self.assertEqual(syllable_lengths_to_offsets([3, 2, 2, 3]), [3, 5, 7])
