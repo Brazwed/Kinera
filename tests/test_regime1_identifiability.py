@@ -7,11 +7,7 @@ prefix inputs, confirming the exact code origin and bounds of the collision in K
 from __future__ import annotations
 
 import math
-try:
-    import pytest
-except ModuleNotFoundError:
-    import tests._pytest_compat
-    import pytest
+import pytest
 
 from kinera.language.orthography.features import annotate_record
 from kinera.language.datasets.builder import build_autoregressive_examples

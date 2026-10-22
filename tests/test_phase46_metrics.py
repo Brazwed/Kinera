@@ -1,10 +1,6 @@
 """Formal verification of Phase 46 metrics, probe counts, and holdout vocabulary constraints."""
 
-try:
-    import pytest
-except ModuleNotFoundError:
-    import tests._pytest_compat
-    import pytest
+import pytest
 
 from kinera.experiments.expanded_pilot import (
     _build_unified_vocabularies,

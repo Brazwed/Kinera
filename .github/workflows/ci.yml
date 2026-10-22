@@ -21,8 +21,10 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Install Kinera package
-        run: python -m pip install --no-deps -e .
+      - name: Install Kinera package and test dependencies
+        run: python -m pip install -e .[test]
 
       - name: Run test suite
-        run: python -m unittest discover -s tests -v
+        run: |
+          python -m unittest discover -s tests -v
+          pytest tests/test_phase46_metrics.py tests/test_regime1_identifiability.py -v
