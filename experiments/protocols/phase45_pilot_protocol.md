@@ -15,6 +15,10 @@
   - [`experiments/phase45_pilot_results.json`](../phase45_pilot_results.json)
   - [`experiments/phase45_interleaving_results.json`](../phase45_interleaving_results.json)
 
+### 1.1 Rastreabilidade Cronológica e Distinção Metodológica
+- **Decisões Pré-definidas (*a priori*):** As hipóteses centrais, a restrição ao cenário de alta interferência (`high`), as seeds (`42`, `43`, `44`), a faixa de calibração de $\text{LR}_{\text{replay}} \in [0{,}15; 0{,}18]$ com baseline congelada em $0{,}20$, o orçamento estrito de 4 passos físicos de gradiente, as métricas primárias com denominadores explícitos ($R_{\text{pos}}$, $\Delta_{\text{new}}$, log-loss contínuo), os critérios de decisão para avanço ($R_{\text{pos}} \ge 0{,}70 \land \Delta_{\text{new}} \ge -0{,}25$ por seed individual) e as 4 ordens de interleaving foram especificados *a priori* nas instruções de planejamento e execução da Issue #45.
+- **Formalização no Repositório (*a posteriori*):** O presente documento de protocolo foi redigido e versionado no repositório *a posteriori* com o propósito de consolidar, catalogar e preservar os critérios previamente definidos, as justificativas metodológicas, as tabelas de resultados e as limitações do estudo, assegurando a integridade e reproducibilidade dos artefatos da Etapa B.
+
 ---
 
 ## 2. Pergunta de Pesquisa e Hipóteses
@@ -64,8 +68,9 @@ No experimento ampliado de 30 seeds da Issue #42 sob a condição de alta interf
 - **$R_{\text{pos}}$ (Retenção Positiva):**  
   Média da razão de retenção calculada estritamente sobre as sondas de controle interno que apresentavam competência de referência positiva ($\text{ref} > 0{,}0$).
   $$\text{Denominador efetivo:} \quad N_{\text{pos}} = 3 \quad (\text{'malas'}, \text{'patos'}, \text{'sapos'})$$
+  *Equivalência com a Etapa A:* Esta métrica corresponde exatamente ao cálculo de `mean_retention_ratio` registrado em `seed_results` no artefato `phase42_pilot_results.json`, onde o particionamento de sondas avaliava retenção estritamente sobre sondas com $\text{ref} > 0{,}0$.
 - **Retenção Etapa A (Total):**  
-  Média da razão de retenção calculada sobre todas as 4 sondas de controle interno (denominador = 4), considerando sondas não aprendidas mantidas em zero como fração 1.0.
+  Média da razão de retenção calculada sobre todas as 4 sondas de controle interno (denominador $N = 4$). Sob a função `calculate_retention_ratio`, sondas não aprendidas inicialmente ($\text{ref} \le 0{,}0$) mantidas em zero ou com aquisição espúria contam como fração $1{,}0$. Para a Variante B, isso gera $(0 + 0 + 0 + 1)/4 = 0{,}25$ nas seeds 42 e 44, elevando a média agregada da tabela para $0{,}5000$.
 - **Competência Nova ($C_{\text{new, acq}}$, $C_{\text{new, post}}$):**  
   Média da acurácia de caracteres nas duas tarefas novas de treino (`medo` e `povo`).
   $$\text{Denominador efetivo:} \quad N_{\text{new}} = 2 \quad (\text{'medo'}, \text{'povo'})$$
@@ -147,10 +152,10 @@ A auditoria matemática e de código confirmou que a limitação observada é de
 - Nenhuma das 18 execuções do piloto de calibração de $\text{LR}$ atingiu simultaneamente os critérios pré-definidos ($0/18 = 0\%$).
 - Nenhuma das 24 execuções do piloto de interleaving atingiu simultaneamente os critérios pré-definidos ($0/24 = 0\%$).
 
-### 8.2 Limitações Metodológicas
+### 8.2 Limitações Metodológicas e Escopo de Generalização
 - Os testes foram executados com 3 seeds (`42`, `43`, `44`) sob orçamento econômico estrito de 4 atualizações físicas.
-- Resultados limitados ao cenário sintético de alta interferência da Issue #42 (n-gramas iniciais de 2 tokens idênticos).
-- Não se afirma que o interleaving seja ineficaz sob outros volumes de dados, orçamentos maiores ou arquiteturas recorrentes/atencionais; afirma-se estritamente que, dentro do escopo avaliado, a busca por ordenação e taxa não resolve a colisão.
+- **Escopo Restrito do Cenário:** Resultados limitados ao cenário sintético de micro-fixtures de alta interferência da Issue #42 (n-gramas com prefixos idênticos de 2 tokens sob decodificação determinística por argmax em cabeça linear de saída única).
+- **Não Generalização à Arquitetura Ampla:** Não se afirma que o interleaving ou a calibração de taxa sejam ineficazes sob outros volumes de dados, orçamentos maiores ou arquiteturas dotadas de contexto estendido, recorrência, atenção ou variáveis de tarefa. Afirma-se estritamente que, dentro da formulação representacional avaliada, a busca por ordenação e taxa não soluciona a colisão de alvos divergentes sob entradas idênticas.
 
 ### 8.3 Conclusão Permitida
 A investigação da Issue #45 cumpriu seus objetivos experimentais, demonstrando de forma reproduzível que ajustes de taxa de aprendizado e ordenação de passos sob orçamento equivalente não justificam expansão adicional, pois a interferência severa decorre da indistinguibilidade representacional das entradas na parametrização atual. A continuidade da pesquisa é formalmente transferida para a investigação de desambiguação contextual.
