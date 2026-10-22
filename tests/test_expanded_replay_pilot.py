@@ -830,6 +830,92 @@ class ExpandedPilotExecutionTests(unittest.TestCase):
             bench_payload = json.loads(bench_file.read_text(encoding="utf-8"))
             self.assertEqual(bench_payload["phase"], "42-cpu-vs-cuda-microbenchmark")
 
+    def test_summary_claim_dynamically_reflects_evaluated_seeds_and_metrics(self) -> None:
+        """Verify summary_claim derives from actual metrics and seed counts without hardcoded literals."""
+        # 1. Test 3-seed report
+        p3_path = Path("experiments/phase42_pilot_results.json")
+        self.assertTrue(p3_path.exists())
+        d3 = json.loads(p3_path.read_text(encoding="utf-8"))
+        completed_map_3 = {
+            (res.level, res.seed): res
+            for item in d3["seed_results"]
+            if (res := PilotSeedResult.from_dict(item)) is not None
+        }
+        payload_3 = expanded_pilot._build_pilot_report_payload(
+            baseline_commit=d3["baseline_commit"],
+            runner_commit=d3["runner_commit"],
+            conditions=tuple(d3["conditions_evaluated"]),
+            seeds=tuple(d3["seeds_evaluated"]),
+            experiment_config=d3.get("experiment_config", {}),
+            execution_config=d3.get("execution_config", {}),
+            completed_map=completed_map_3,
+            resumed=False,
+            resume_count=0,
+            resumed_units=[],
+            failed_runs=[],
+            status="completed",
+            backend_name="cpu",
+            profile_heap=False,
+            backend_init_seconds=0.0,
+            elapsed_wall_seconds=10.0,
+        )
+        claim_3 = payload_3["conclusions"]["summary_claim"]
+        self.assertIn("budget parity (3 seeds)", claim_3)
+        self.assertIn("with C retaining 1.0000 vs B retaining 0.3333", claim_3)
+        self.assertIn("in 2 of 3 seeds (seeds 42 and 44)", claim_3)
+        self.assertIn("new task (-0.50)", claim_3)
+        self.assertIn("strict empirical superiority across seeds was 0.0%", claim_3)
+        self.assertIn("Because this pilot evaluated 3 exploratory seeds", claim_3)
+
+        # 2. Test 30-seed report
+        p30_path = Path("experiments/phase42_30seeds_t4_results.json")
+        self.assertTrue(p30_path.exists())
+        d30 = json.loads(p30_path.read_text(encoding="utf-8"))
+        completed_map_30 = {
+            (res.level, res.seed): res
+            for item in d30["seed_results"]
+            if (res := PilotSeedResult.from_dict(item)) is not None
+        }
+        payload_30 = expanded_pilot._build_pilot_report_payload(
+            baseline_commit=d30["baseline_commit"],
+            runner_commit=d30["runner_commit"],
+            conditions=tuple(d30["conditions_evaluated"]),
+            seeds=tuple(d30["seeds_evaluated"]),
+            experiment_config=d30.get("experiment_config", {}),
+            execution_config=d30.get("execution_config", {}),
+            completed_map=completed_map_30,
+            resumed=True,
+            resume_count=1,
+            resumed_units=[],
+            failed_runs=[],
+            status="completed",
+            backend_name="cuda",
+            profile_heap=False,
+            backend_init_seconds=0.23,
+            elapsed_wall_seconds=113.96,
+        )
+        claim_30 = payload_30["conclusions"]["summary_claim"]
+        # Assertions for 30-seed dynamic metrics
+        self.assertIn("budget parity (30 seeds)", claim_30)
+        self.assertIn("+0.2417 across all 4 old task probes", claim_30)
+        self.assertIn("+0.4778, with C retaining 0.9778 vs B retaining 0.5000", claim_30)
+        self.assertIn("mean 0.5000 for B and 0.0333 for C", claim_30)
+        self.assertIn(
+            "wastes 50% of its budget on the unforgotten item in 14 of 30 seeds, with retention falling to 0.0 in 15 of 30 seeds",
+            claim_30,
+        )
+        self.assertIn("new task (-0.4833)", claim_30)
+        self.assertIn("strict empirical superiority across seeds was 3.3%", claim_30)
+        self.assertIn("Because this pilot evaluated 30 seeds on synthetic micro-fixtures", claim_30)
+
+        # Explicitly assert 3-seed literals are NEVER present in 30-seed report
+        self.assertNotIn("1.0000 vs B retaining 0.3333", claim_30)
+        self.assertNotIn("2 of 3 seeds", claim_30)
+        self.assertNotIn("seeds 42 and 44", claim_30)
+        self.assertNotIn("new task (-0.50)", claim_30)
+        self.assertNotIn("superiority across seeds was 0.0%", claim_30)
+        self.assertNotIn("3 exploratory seeds", claim_30)
+
 
 if __name__ == "__main__":
     unittest.main()
