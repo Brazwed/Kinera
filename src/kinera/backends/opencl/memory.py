@@ -113,16 +113,19 @@ class OpenCLMemoryManager:
         device_buffer = self.allocate(
             normalized_shape, dtype=dtype, device_id=device_id
         )
-        host_array = (element_type * len(flat_values))(*flat_values)
         try:
+            host_array = (element_type * len(flat_values))(*flat_values)
             self.api.write_buffer(
                 self.queue,
                 device_buffer.handle,
                 ctypes.addressof(host_array),
                 device_buffer.nbytes,
             )
-        except Exception:
-            self.release(device_buffer)
+        except BaseException as error:
+            try:
+                self.release(device_buffer)
+            except BaseException as cleanup_error:
+                raise error from cleanup_error
             raise
         return device_buffer
 

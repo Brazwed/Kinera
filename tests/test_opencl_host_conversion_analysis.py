@@ -29,8 +29,6 @@ EXPECTED_SHA256 = {
         "bf11fef67ee39b1f8432bef90bfc4619a990b5fab9d3871ca0d14ae479fe2856",
     "experiments/results/opencl-rx550-p3c-host-conversions.json":
         "d8d0b5932037320a27f585ebd6c74d7cbfd22ab81c67ac42ee8abbeb93e4adc8",
-    "src/kinera/backends/opencl/memory.py":
-        "19d67e70eb685c82bcb7311c2448e03ff43e9005900eb0453e1e1a3a873ec5d9",
     "src/kinera/backends/opencl/backend.py":
         "cae03486353643ea4ee3d4cab68d085a8c89544359fa29024e280852f6772ff7",
     "src/kinera/backends/cpu/backend.py":
@@ -54,6 +52,13 @@ EXPECTED_SHA256 = {
     "experiments/results/opencl-rx550-p3b-accounting-diagnostic.json":
         "c61235b04424dd5f0fe51a91062c1dffda6b644e2d562c1b37056079e7614255",
 }
+
+# The report records the memory-manager source used for the P3c measurement.
+# Keep that historical fingerprint check while the current implementation gets
+# this separately reviewed resource-lifecycle correction.
+P3C_MEMORY_BASELINE_SHA256 = (
+    "19d67e70eb685c82bcb7311c2448e03ff43e9005900eb0453e1e1a3a873ec5d9"
+)
 
 
 def _sha256(path: Path) -> str:
@@ -221,6 +226,11 @@ class ResultArtifactTests(unittest.TestCase):
 
     def test_report_and_source_fingerprints_match_preserved_artifacts(self) -> None:
         report_text = REPORT_PATH.read_text(encoding="utf-8")
+        self.assertIn(P3C_MEMORY_BASELINE_SHA256, report_text)
+        self.assertNotEqual(
+            _sha256(ROOT / "src/kinera/backends/opencl/memory.py"),
+            P3C_MEMORY_BASELINE_SHA256,
+        )
         for relative_path, expected in EXPECTED_SHA256.items():
             with self.subTest(path=relative_path):
                 actual = _sha256(ROOT / relative_path)
@@ -228,7 +238,6 @@ class ResultArtifactTests(unittest.TestCase):
                 if relative_path in {
                     "experiments/analyze_opencl_host_conversions.py",
                     "experiments/results/opencl-rx550-p3c-host-conversions.json",
-                    "src/kinera/backends/opencl/memory.py",
                     "src/kinera/backends/cpu/backend.py",
                     "src/kinera/nn/layers/linear.py",
                 }:
