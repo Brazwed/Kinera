@@ -24,6 +24,10 @@ def get_backend(name: str = "cpu") -> Backend:
         from .cuda.backend import CUDABackend
 
         return CUDABackend()
+    if normalized == "opencl":
+        from .opencl.backend import OpenCLBackend
+
+        return OpenCLBackend()
     raise ValueError(f"backend desconhecido: {name}")
 
 
