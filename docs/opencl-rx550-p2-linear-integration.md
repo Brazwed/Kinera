@@ -12,7 +12,7 @@ com o mesmo seed. Os testes rodaram na AMD Radeon RX 550 por Mesa Rusticl, em
 | HEAD base | `5ab05239ddb40efe1862e4efac6a499373ce9121` |
 | SHA-256 final de fontes, probe e testes auditados | `2c80713f83193bfcd75739325fbae6658e0fe5a09aeae82ee3694309b988edde` |
 | SHA-256 do wheel validado | `1daa24f8a1a3156df04e64a4c83ba29add897daf1162c13f9b0cd5e7bf373d88` |
-| Worktree | `codigo`, sujo; fixture e relatórios ainda não commitados |
+| Worktree / branch | `codigo` / `feature/issue-52-opencl-rx550`; snapshot commitado |
 | Sistema / kernel | Fedora Linux 45 Workstation / `7.2.11-300.fc45.x86_64` |
 | Python | `3.15.0` |
 | GPU / PCI | AMD Radeon RX 550 / 550 Series / `0000:03:00.0` |
