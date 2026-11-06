@@ -5,8 +5,12 @@ Auditoria e implementação B004, em 2026-11-06.
 ## Referências e escopo
 
 - Branch: `feature/issue-26-metrics-b004`.
-- SHA inicial da `main` e merge-base: `3a9cd4df5a67557e5f8b2de0926f4b9f32b35106`.
-- O SHA inicial é o merge da M1.4/PR #64 na `main`.
+- SHA inicial da `main` e merge-base: `3a9cd4df5a67557e5f8b2de0926f4b9f32b35106`
+  (integração M1.4/PR #64).
+- Durante a tranche, a `main` avançou pelo PR #65 (OpenCL F1b). A branch foi
+  atualizada por merge normal; merge-base atual: `685fa68ea11b1cd500c489b64f7df900920b7f44`.
+- O diff do B004 contra a base atual continua em 11 arquivos de métricas,
+  diagnósticos, documentação e testes; nenhum backend foi alterado pelo B004.
 - A implementação não altera training, optimizer, losses, RNG, modelos,
   datasets, protocolo A/B/C/D, telemetry ou backends.
 - O algoritmo de diferenças finitas em `diagnostics/gradients.py` continua
@@ -110,8 +114,9 @@ continua sob seu schema e fluxo append-only existentes.
 - Pré-refatoração: os três testes congelados passaram contra os resumos legados.
 - Regressão direcionada após a centralização final: `58 passed` e
   `7 subtests passed` nos testes de diagnósticos, métricas e resume.
-- CI da branch, com os cinco testes de piloto excluídos conforme o workflow:
-  `713 passed`, `42 skipped`, `5 deselected` e `500 subtests passed`.
+- CI da branch após atualizar a base, com os cinco testes de piloto excluídos
+  conforme o workflow: `724 passed`, `48 skipped`, `5 deselected` e
+  `519 subtests passed`.
 - `compileall` de `src/kinera` e `scripts/legacy/phase5_3.py`: aprovado.
 - Import CPU-only de `diagnostics.syllables`, `diagnostics.orthography` e
   `monitor.metrics`: aprovado; módulos `pycuda` e `pyopencl` não foram
