@@ -23,14 +23,16 @@ REPORT_PATH = ROOT / "docs/opencl-rx550-p3c-host-conversion-analysis.md"
 
 # The JSON is the original P3c collection. The harness fingerprint is updated
 # after the fail-closed nested-span check was added; the measurements were not
-# regenerated for that accounting guard.
+# regenerated for that accounting guard. The OpenCL source hash below identifies
+# the current F2.1 implementation, while prior implementation hashes remain
+# recorded as historical provenance.
 EXPECTED_SHA256 = {
     "experiments/analyze_opencl_host_conversions.py":
         "bf11fef67ee39b1f8432bef90bfc4619a990b5fab9d3871ca0d14ae479fe2856",
     "experiments/results/opencl-rx550-p3c-host-conversions.json":
         "d8d0b5932037320a27f585ebd6c74d7cbfd22ab81c67ac42ee8abbeb93e4adc8",
     "src/kinera/backends/opencl/backend.py":
-        "33ec898ad316e0083713f35bd31a3fdbe31eb7fe0aeb4b6d387a0ea55cf98525",
+        "f66262e1295ecaa4aa101375af66754dbe2b9d6e141be682f56b9819b4189367",
     "src/kinera/backends/cpu/backend.py":
         "990b9422f425e0136a720bad880dbe5ebc045c275ac762751a0357c8ec9c2ffb",
     "src/kinera/nn/layers/linear.py":
@@ -60,13 +62,16 @@ P3C_OPENCL_BACKEND_SHA256 = (
     "cae03486353643ea4ee3d4cab68d085a8c89544359fa29024e280852f6772ff7"
 )
 
-# The pre-F1b and pre-F1c implementation fingerprints remain part of the audit
-# trail; EXPECTED_SHA256 above locks the current source reviewed by F1c.
+# The pre-F1b, pre-F1c, and F1c implementation fingerprints remain part of the
+# audit trail; EXPECTED_SHA256 above locks the current F2.1 source.
 F1A_OPENCL_BACKEND_SHA256 = (
     "e20423c0386701f9a7e43b9dbb912df85a352b015c5c5597ed2b4e8e6ce34227"
 )
 F1B_OPENCL_BACKEND_SHA256 = (
     "0557ea395cf58f887f4a8f1e23d2aded50ab782f594d3841f59c83b65c1c3e21"
+)
+F1C_OPENCL_BACKEND_SHA256 = (
+    "33ec898ad316e0083713f35bd31a3fdbe31eb7fe0aeb4b6d387a0ea55cf98525"
 )
 
 # The report records the memory-manager source used for the P3c measurement.
@@ -254,6 +259,10 @@ class ResultArtifactTests(unittest.TestCase):
         self.assertNotEqual(
             EXPECTED_SHA256["src/kinera/backends/opencl/backend.py"],
             F1B_OPENCL_BACKEND_SHA256,
+        )
+        self.assertNotEqual(
+            EXPECTED_SHA256["src/kinera/backends/opencl/backend.py"],
+            F1C_OPENCL_BACKEND_SHA256,
         )
         self.assertNotEqual(F1A_OPENCL_BACKEND_SHA256, P3C_OPENCL_BACKEND_SHA256)
         self.assertNotEqual(F1B_OPENCL_BACKEND_SHA256, F1A_OPENCL_BACKEND_SHA256)
