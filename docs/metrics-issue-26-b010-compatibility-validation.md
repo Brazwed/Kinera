@@ -63,7 +63,7 @@ Na [CI do PR #81](https://github.com/Brazwed/Kinera/actions/runs/42281758946), H
 
 ## Continuação B010 — correções de testes e preparação CUDA
 
-Esta continuação mantém o histórico acima como registro do estado inicial. A worktree começou limpa em `d9f9895e06a6884e294fa84805f2a87c09467b76`; a HEAD publicada no PR era `6f1a967dbbaf4d71b886a24c5590f59cfa86a83c`, com a mesma árvore de arquivos. A `main` atualizada estava em `7bff9617a340faab342f5c844464a94d0acec6d0` (PR #80). Seu merge foi feito sem reescrita; em seguida, a referência existente do PR #81 também foi mesclada para preservar o caminho de fast-forward da publicação. Os artefatos de investigação OpenCL da #78 presentes na `main` foram mantidos. Merge-base atual com `main`: `7bff9617a340faab342f5c844464a94d0acec6d0`.
+Esta continuação mantém o histórico acima como registro do estado inicial. A worktree começou limpa em `d9f9895e06a6884e294fa84805f2a87c09467b76`; a HEAD publicada no PR era `6f1a967dbbaf4d71b886a24c5590f59cfa86a83c`, com a mesma árvore de arquivos. Antes da sincronização, o merge-base com a `main` atualizada era `78501f4d8c7b618d5860db4b602d9698d3fa21d6`. A `main` atualizada estava em `7bff9617a340faab342f5c844464a94d0acec6d0` (PR #80). Seu merge foi feito sem reescrita; em seguida, a referência existente do PR #81 também foi mesclada para preservar o caminho de fast-forward da publicação. Os artefatos de investigação OpenCL da #78 presentes na `main` foram mantidos. Merge-base após a sincronização com `main`: `7bff9617a340faab342f5c844464a94d0acec6d0`.
 
 ### P10 — compatibilidade dos testes
 
