@@ -23,6 +23,7 @@ from kinera.backends.opencl.buffer import OpenCLBuffer
 from kinera.backends.opencl.runtime import OpenCLRuntime
 from kinera.nn.layers.embedding import Embedding
 from kinera.nn.layers.hybrid import HybridRepresentation
+from kinera.nn.models.hybrid import AutoregressiveModel
 
 
 class FakeOpenCLApi:
@@ -31,10 +32,12 @@ class FakeOpenCLApi:
         *,
         fp64: bool = True,
         max_allocation: int = 128,
+        global_memory: int = 1024,
         fail_on: str | None = None,
     ) -> None:
         self.fp64 = fp64
         self.max_allocation = max_allocation
+        self.global_memory = global_memory
         self.fail_on = fail_on
         self.allocations: dict[int, bytearray] = {}
         self.released: list[int] = []
@@ -82,7 +85,7 @@ class FakeOpenCLApi:
                 "device": 0,
                 "function": 0,
             },
-            "global_mem_size": 1024,
+            "global_mem_size": self.global_memory,
             "max_mem_alloc_size": self.max_allocation,
             "local_mem_size": 4096,
             "max_work_group_size": 256,
@@ -99,7 +102,7 @@ class FakeOpenCLApi:
         return 11
 
     def create_buffer(self, context, nbytes):
-        if self.fail_on == "create_buffer":
+        if self.fail_on in {"create_buffer", f"create_buffer_{nbytes}"}:
             raise RuntimeError("injected OpenCL allocation failure")
         handle = self._next_handle
         self._next_handle += 1
@@ -119,6 +122,8 @@ class FakeOpenCLApi:
     def release_mem(self, handle):
         self.released.append(handle)
         del self.allocations[handle]
+        if self.fail_on == "release_mem":
+            raise RuntimeError("injected OpenCL memory release failure")
 
     def release_command_queue(self, handle):
         pass
@@ -232,6 +237,45 @@ class FakeOpenCLApi:
                 syllable_offset = feature_offset + feature_dim * 8
                 output[syllable_offset : syllable_offset + syllable_dim * 8] = (
                     syllable_values[syllable_start : syllable_start + syllable_dim * 8]
+                )
+        elif kernel_name == "kinera_mean_pool_validate_finite_f64":
+            vectors = self.allocations[buffers[0]]
+            context_size, feature_dim = values[2], values[3]
+            has_non_finite = any(
+                not math.isfinite(struct.unpack_from("<d", vectors, index * 8)[0])
+                for index in range(context_size * feature_dim)
+            )
+            self.allocations[buffers[1]][:4] = struct.pack(
+                "<i", int(has_non_finite)
+            )
+        elif kernel_name == "kinera_mean_pool_forward_f64":
+            vectors = self.allocations[buffers[0]]
+            pooled = self.allocations[buffers[1]]
+            context_size, feature_dim, compensated_sum = (
+                values[2],
+                values[3],
+                values[4],
+            )
+            inverse_context_size = self.kernel_doubles[kernel][5]
+            for feature in range(feature_dim):
+                high = 0.0
+                low = 0.0
+                for position in range(context_size):
+                    value = struct.unpack_from(
+                        "<d", vectors, (position * feature_dim + feature) * 8
+                    )[0]
+                    next_value = high + value
+                    if compensated_sum:
+                        if abs(high) >= abs(value):
+                            low += (high - next_value) + value
+                        else:
+                            low += (value - next_value) + high
+                    high = next_value
+                total = high
+                if compensated_sum and low != 0.0 and math.isfinite(low):
+                    total += low
+                struct.pack_into(
+                    "<d", pooled, feature * 8, total * inverse_context_size
                 )
         elif kernel_name == "kinera_embedding_forward_f64":
             weights = self.allocations[buffers[0]]
@@ -2774,6 +2818,430 @@ class OpenCLHybridRepresentationForwardTests(unittest.TestCase):
             gpu_layer.syllable_embedding.close()
             cpu_layer.char_embedding.close()
             cpu_layer.syllable_embedding.close()
+
+
+class OpenCLMeanPoolForwardTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.api = FakeOpenCLApi(max_allocation=65536, global_memory=65536)
+        self.backend = OpenCLBackend(runtime=OpenCLRuntime(api=self.api))
+        self.cpu = CPUBackend()
+
+    def tearDown(self) -> None:
+        self.api.fail_on = None
+        self.backend.close()
+
+    def test_resident_pool_matches_cpu_sum_order_and_reads_only_small_status(self) -> None:
+        cases = (
+            [[-0.0, 2.5]],
+            [
+                [1e16, 1e16, 1e16, 1.0, 1e308, 0.125, 1e16],
+                [1.0, -1e16, 1.0, 1e16, -1e308, 0.25, -1e16],
+                [-1e16, 1.0, -1e16, 1.0, 1e292, 0.375, 1.0],
+                [1.0, 1.0, 1.0, -1e16, 0.5, 0.5, -1e16],
+            ],
+            [
+                [1e308, -1e308, 1e16, -1e16],
+                [-1e308, 1e308, 1.0, -1.0],
+                [1e292, 1e292, -1e16, 1e16],
+            ],
+        )
+        long_pattern = (
+            [1e16, -1e16, 1.0, 1e-16],
+            [1.0, 1e16, -1e16, -1e-16],
+            [-1e16, 1.0, 1e16, 1e-16],
+            [-1e16, -1.0, 1e16, -1e-16],
+        )
+        long_context = [long_pattern[row % len(long_pattern)] for row in range(257)]
+        for values in (*cases, long_context):
+            with self.subTest(shape=(len(values), len(values[0]))):
+                vectors = self.backend.buffer_from_host(
+                    values, shape=(len(values), len(values[0]))
+                )
+                try:
+                    expected = self.cpu.mean_pool_forward(values)
+                    input_before = bytes(self.api.allocations[vectors.handle])
+                    reads_before = len(self.api.read_sizes)
+                    writes_before = len(self.api.write_sizes)
+                    pooled = self.backend.mean_pool_forward(vectors)
+                    try:
+                        self.assertEqual(
+                            self.api.read_sizes[reads_before:], [ctypes.sizeof(ctypes.c_int32)]
+                        )
+                        self.assertEqual(len(self.api.write_sizes), writes_before)
+                        self.assertEqual(bytes(self.api.allocations[vectors.handle]), input_before)
+                        self.assertEqual(pooled.shape, (len(values[0]),))
+                        self.assertEqual(pooled.dtype, "float64")
+                        self.assertEqual(pooled.layout, "C")
+                        self.assertIs(pooled._manager, self.backend.memory)
+                        self.assertTrue(pooled.owns_memory)
+                        actual = self.backend.buffer_to_host(pooled)
+                        self.assertEqual(len(actual), len(expected))
+                        for actual_value, expected_value in zip(actual, expected):
+                            if math.isinf(expected_value):
+                                self.assertEqual(actual_value, expected_value)
+                            else:
+                                self.assertTrue(
+                                    math.isclose(
+                                        actual_value,
+                                        expected_value,
+                                        rel_tol=1e-12,
+                                        abs_tol=1e-12,
+                                    ),
+                                    (actual_value, expected_value),
+                                )
+                        self.assertFalse(vectors.closed)
+                    finally:
+                        pooled.close()
+                finally:
+                    vectors.close()
+
+    def test_python_sum_policy_is_passed_to_kernel_and_naive_mode_remains_supported(self) -> None:
+        vectors = self.backend.buffer_from_host(
+            [[0.25, -0.5], [0.5, 1.0], [-0.125, 0.25]],
+            shape=(3, 2),
+        )
+        try:
+            with patch(
+                "kinera.backends.opencl.backend._PYTHON_FLOAT_SUM_COMPENSATED",
+                False,
+            ):
+                pooled = self.backend.mean_pool_forward(vectors)
+            try:
+                pool_kernel = next(
+                    kernel
+                    for kernel, name in self.api.kernel_names.items()
+                    if name == "kinera_mean_pool_forward_f64"
+                )
+                self.assertEqual(self.api.kernel_ints[pool_kernel][4], 0)
+                actual = self.backend.buffer_to_host(pooled)
+                expected = self.cpu.mean_pool_forward(
+                    [[0.25, -0.5], [0.5, 1.0], [-0.125, 0.25]]
+                )
+                for actual_value, expected_value in zip(actual, expected):
+                    self.assertTrue(
+                        math.isclose(
+                            actual_value,
+                            expected_value,
+                            rel_tol=1e-12,
+                            abs_tol=1e-12,
+                        )
+                    )
+            finally:
+                pooled.close()
+        finally:
+            vectors.close()
+
+    def test_finite_inputs_that_overflow_match_cpu_without_claiming_finite_output(self) -> None:
+        values = [[1e308], [1e308]]
+        vectors = self.backend.buffer_from_host(values, shape=(2, 1))
+        try:
+            expected = self.cpu.mean_pool_forward(values)
+            pooled = self.backend.mean_pool_forward(vectors)
+            try:
+                actual = self.backend.buffer_to_host(pooled)
+                self.assertTrue(math.isinf(expected[0]))
+                self.assertEqual(actual, expected)
+            finally:
+                pooled.close()
+        finally:
+            vectors.close()
+
+    def test_resident_non_finite_inputs_are_rejected_before_output_allocation(self) -> None:
+        vectors = self.backend.buffer_from_host(
+            [[1.0, 2.0], [3.0, 4.0]], shape=(2, 2)
+        )
+        try:
+            original = bytes(self.api.allocations[vectors.handle])
+            live = set(self.backend.memory._buffers)
+            for invalid in (float("nan"), float("inf"), -float("inf")):
+                with self.subTest(invalid=invalid):
+                    self.api.allocations[vectors.handle][:8] = struct.pack("<d", invalid)
+                    allocations_before = set(self.api.allocations)
+                    reads_before = len(self.api.read_sizes)
+                    with self.assertRaisesRegex(ValueError, "non-finite"):
+                        self.backend.mean_pool_forward(vectors)
+                    self.assertEqual(set(self.api.allocations), allocations_before)
+                    self.assertEqual(set(self.backend.memory._buffers), live)
+                    self.assertEqual(self.api.read_sizes[reads_before:], [4])
+                    self.api.allocations[vectors.handle][:] = original
+        finally:
+            vectors.close()
+
+    def test_invalid_buffer_metadata_and_ownership_fail_before_dispatch(self) -> None:
+        vectors = self.backend.buffer_from_host([[1.0, 2.0]], shape=(1, 2))
+        wrong_dtype = self.backend.buffer_from_host([1, 2], shape=(2,), dtype="int32")
+        wrong_rank = self.backend.buffer_from_host([1.0, 2.0], shape=(2,))
+        foreign_backend = OpenCLBackend(runtime=OpenCLRuntime(api=FakeOpenCLApi()))
+        foreign = foreign_backend.buffer_from_host([[1.0, 2.0]], shape=(1, 2))
+        try:
+            with self.assertRaisesRegex(ValueError, "dtype float64"):
+                self.backend.mean_pool_forward(wrong_dtype)
+            with self.assertRaisesRegex(ValueError, "rank 2"):
+                self.backend.mean_pool_forward(wrong_rank)
+            with self.assertRaisesRegex(BackendError, "different memory manager"):
+                self.backend.mean_pool_forward(foreign)
+            with patch.object(
+                OpenCLBuffer,
+                "layout",
+                new_callable=PropertyMock,
+                return_value="strided",
+            ):
+                with self.assertRaisesRegex(ValueError, "C layout"):
+                    self.backend.mean_pool_forward(vectors)
+
+            wrong_device = OpenCLBuffer(
+                self.backend.memory,
+                vectors.handle,
+                device_id=1,
+                shape=vectors.shape,
+                dtype="float64",
+                nbytes=vectors.nbytes,
+            )
+            with self.assertRaisesRegex(BackendError, "bound to GPU"):
+                self.backend.mean_pool_forward(wrong_device)
+            wrong_device._mark_closed()
+
+            closed = self.backend.buffer_from_host([[1.0, 2.0]], shape=(1, 2))
+            closed.close()
+            with self.assertRaisesRegex(Exception, "released/closed"):
+                self.backend.mean_pool_forward(closed)
+
+            malformed = OpenCLBuffer(
+                self.backend.memory,
+                vectors.handle,
+                device_id=vectors.device_id,
+                shape=vectors.shape,
+                dtype="float64",
+                nbytes=vectors.nbytes - 8,
+            )
+            with self.assertRaisesRegex(ValueError, "size does not match"):
+                self.backend.mean_pool_forward(malformed)
+            malformed._mark_closed()
+
+            empty = OpenCLBuffer(
+                self.backend.memory,
+                vectors.handle,
+                device_id=vectors.device_id,
+                shape=(0, 2),
+                dtype="float64",
+                nbytes=0,
+            )
+            with self.assertRaisesRegex(ValueError, "positive integers"):
+                self.backend.mean_pool_forward(empty)
+            empty._mark_closed()
+
+            oversized = OpenCLBuffer(
+                self.backend.memory,
+                vectors.handle,
+                device_id=vectors.device_id,
+                shape=(2**31, 1),
+                dtype="float64",
+                nbytes=2**31 * 8,
+            )
+            with self.assertRaisesRegex(ValueError, "signed 32-bit"):
+                self.backend.mean_pool_forward(oversized)
+            oversized._mark_closed()
+            self.assertEqual(set(self.backend.memory._buffers), {vectors, wrong_dtype, wrong_rank})
+        finally:
+            vectors.close()
+            wrong_dtype.close()
+            wrong_rank.close()
+            foreign.close()
+            foreign_backend.close()
+
+    def test_failure_paths_release_temporaries_once_and_keep_input_resident(self) -> None:
+        vectors = self.backend.buffer_from_host([[1.0, 2.0], [3.0, 4.0]], shape=(2, 2))
+        try:
+            input_handles = {vectors.handle}
+            failures = (
+                ("build_program", "program build failure"),
+                ("create_buffer", "allocation failure"),
+                ("create_kinera_mean_pool_validate_finite_f64", "creation failure"),
+                ("set_kernel_buffer_0_kinera_mean_pool_validate_finite_f64", "argument failure"),
+                ("set_kernel_int_3_kinera_mean_pool_validate_finite_f64", "scalar argument failure"),
+                ("enqueue_kinera_mean_pool_validate_finite_f64", "enqueue failure"),
+                ("read_buffer", "status read failure"),
+                ("release_kinera_mean_pool_validate_finite_f64", "kernel release failure"),
+                ("create_buffer_16", "allocation failure"),
+                ("create_kinera_mean_pool_forward_f64", "creation failure"),
+                ("set_kernel_buffer_1_kinera_mean_pool_forward_f64", "argument failure"),
+                ("set_kernel_int_4_kinera_mean_pool_forward_f64", "scalar argument failure"),
+                ("set_kernel_double_5", "double argument failure"),
+                ("enqueue_kinera_mean_pool_forward_f64", "enqueue failure"),
+                ("release_kinera_mean_pool_forward_f64", "kernel release failure"),
+            )
+            for failure, message in failures:
+                with self.subTest(failure=failure):
+                    self.api.fail_on = failure
+                    released_before = len(self.api.released)
+                    kernels_before = len(self.api.released_kernels)
+                    with self.assertRaisesRegex(RuntimeError, message):
+                        self.backend.mean_pool_forward(vectors)
+                    self.api.fail_on = None
+                    new_releases = self.api.released[released_before:]
+                    self.assertEqual(len(new_releases), len(set(new_releases)))
+                    self.assertEqual(
+                        set(self.api.allocations), input_handles
+                    )
+                    self.assertEqual(set(self.backend.memory._buffers), {vectors})
+                    new_kernel_releases = self.api.released_kernels[kernels_before:]
+                    self.assertEqual(
+                        len(new_kernel_releases), len(set(new_kernel_releases))
+                    )
+
+            self.api.fail_on = "release_mem"
+            releases_before = len(self.api.released)
+            with self.assertRaisesRegex(RuntimeError, "memory release failure"):
+                self.backend.mean_pool_forward(vectors)
+            self.api.fail_on = None
+            new_releases = self.api.released[releases_before:]
+            self.assertEqual(len(new_releases), 1)
+            self.assertEqual(len(set(new_releases)), 1)
+            self.assertEqual(set(self.api.allocations), input_handles)
+            self.assertEqual(set(self.backend.memory._buffers), {vectors})
+            self.assertFalse(vectors.closed)
+        finally:
+            self.api.fail_on = None
+            vectors.close()
+
+    def test_primary_error_survives_a_secondary_cleanup_failure(self) -> None:
+        vectors = self.backend.buffer_from_host([[1.0, 2.0]], shape=(1, 2))
+        primary = RuntimeError("primary preflight enqueue failure")
+        cleanup = RuntimeError("secondary status release failure")
+        original_release = self.api.release_mem
+
+        def release_then_raise(handle: int) -> None:
+            original_release(handle)
+            raise cleanup
+
+        try:
+            with (
+                patch.object(self.api, "enqueue_1d", side_effect=primary),
+                patch.object(self.api, "release_mem", side_effect=release_then_raise) as release,
+            ):
+                with self.assertRaises(RuntimeError) as raised:
+                    self.backend.mean_pool_forward(vectors)
+            self.assertIs(raised.exception, primary)
+            self.assertIs(raised.exception.__cause__, cleanup)
+            release.assert_called_once()
+            self.assertEqual(set(self.api.allocations), {vectors.handle})
+            self.assertEqual(set(self.backend.memory._buffers), {vectors})
+        finally:
+            vectors.close()
+
+    def test_allocator_alias_is_disarmed_without_releasing_borrowed_input(self) -> None:
+        vectors = self.backend.buffer_from_host([[1.0, 2.0]], shape=(1, 2))
+        original_allocate = self.backend.memory.allocate
+
+        def aliased_allocate(shape, *, dtype="float64", device_id=None):
+            if tuple(shape) == (2,) and dtype == "float64":
+                output = OpenCLBuffer(
+                    self.backend.memory,
+                    vectors.handle,
+                    device_id=vectors.device_id,
+                    shape=(2,),
+                    dtype="float64",
+                    nbytes=16,
+                )
+                self.backend.memory._buffers.add(output)
+                return output
+            return original_allocate(shape, dtype=dtype, device_id=device_id)
+
+        try:
+            def status_alias_allocate(shape, *, dtype="float64", device_id=None):
+                if tuple(shape) == (1,) and dtype == "int32":
+                    status = OpenCLBuffer(
+                        self.backend.memory,
+                        vectors.handle,
+                        device_id=vectors.device_id,
+                        shape=(1,),
+                        dtype="int32",
+                        nbytes=4,
+                    )
+                    self.backend.memory._buffers.add(status)
+                    return status
+                return original_allocate(shape, dtype=dtype, device_id=device_id)
+
+            with patch.object(
+                self.backend.memory, "allocate", side_effect=status_alias_allocate
+            ):
+                with self.assertRaisesRegex(BackendError, "status unexpectedly aliases"):
+                    self.backend.mean_pool_forward(vectors)
+            self.assertFalse(vectors.closed)
+            self.assertIn(vectors.handle, self.api.allocations)
+            self.assertEqual(set(self.backend.memory._buffers), {vectors})
+
+            with patch.object(self.backend.memory, "allocate", side_effect=aliased_allocate):
+                with self.assertRaisesRegex(BackendError, "unexpectedly aliases"):
+                    self.backend.mean_pool_forward(vectors)
+            self.assertFalse(vectors.closed)
+            self.assertIn(vectors.handle, self.api.allocations)
+            self.assertEqual(set(self.backend.memory._buffers), {vectors})
+        finally:
+            vectors.close()
+
+    def test_representation_output_is_pooled_resident_and_released_by_consumer(self) -> None:
+        gpu_model = AutoregressiveModel(
+            5,
+            4,
+            char_embedding_dim=2,
+            syllable_embedding_dim=3,
+            feature_dim=2,
+            seed=217,
+            backend=self.backend,
+        )
+        cpu_model = AutoregressiveModel(
+            5,
+            4,
+            char_embedding_dim=2,
+            syllable_embedding_dim=3,
+            feature_dim=2,
+            seed=217,
+            backend=self.cpu,
+        )
+        chars, syllables = [1, 3, 2], [2, 0, 1]
+        features = [[0.25, -1.0], [2.5, 0.0], [-0.5, 3.0]]
+        weights = gpu_model.representation.char_embedding.weights
+        original_weights = bytes(self.api.allocations[weights.handle])
+        try:
+            expected = cpu_model._pool_representation_backend(
+                chars.copy(), syllables.copy(), features
+            )
+            reads_before = len(self.api.read_sizes)
+            writes_before = len(self.api.write_sizes)
+            actual = gpu_model._pool_representation_backend(
+                chars.copy(), syllables.copy(), features
+            )
+            self.assertIsInstance(actual, OpenCLBuffer)
+            self.assertEqual(actual.shape, (gpu_model.representation.output_dim,))
+            self.assertEqual(
+                self.api.read_sizes[reads_before:], [4, 4, 4, 4]
+            )
+            writes = self.api.write_sizes[writes_before:]
+            self.assertEqual(writes, [12, 80, 12, 96, 48])
+            self.assertNotIn(3 * gpu_model.representation.output_dim * 8, writes)
+            self.assertNotIn(gpu_model.representation.output_dim * 8, writes)
+            self.assertIsNone(gpu_model.representation.last_output)
+            self.assertFalse(weights.closed)
+            self.assertEqual(bytes(self.api.allocations[weights.handle]), original_weights)
+            self.assertTrue(gpu_model.representation.char_embedding.output.closed)
+            self.assertTrue(gpu_model.representation.syllable_embedding.output.closed)
+            try:
+                actual_values = self.backend.buffer_to_host(actual)
+                for actual_value, expected_value in zip(actual_values, expected):
+                    self.assertTrue(
+                        math.isclose(
+                            actual_value,
+                            expected_value,
+                            rel_tol=1e-12,
+                            abs_tol=1e-12,
+                        )
+                    )
+            finally:
+                actual.close()
+        finally:
+            gpu_model.close()
+            cpu_model.close()
 
 
 if __name__ == "__main__":
