@@ -11,7 +11,7 @@ Código auditado: `78501f4d8c7b618d5860db4b602d9698d3fa21d6`, merge do PR #79, t
 | Gate | Status | Evidência e limite |
 | --- | --- | --- |
 | Python 3.10 runtime | **FAIL** | Python 3.10.22 real; instalação e imports passaram; suíte CI: 3 falhas, 790 aprovados, 61 skips, 5 deselections, 792 subtestes. |
-| Python 3.14 | **UNVERIFIED nesta execução local** | CI de #79 passou; a matriz B010 precisa ser conferida na HEAD publicada. |
+| Python 3.14 | **PASS** | CI do PR #81 na HEAD `f0aa2f6ba677952ad55dad710bbb965066fc94a9`: job `tests (3.14)` aprovado. Não houve execução local nesse runtime. |
 | CPU-only | **PASS** | Instalação e imports no contêiner 3.10, com assert de que os módulos dos backends CUDA/OpenCL não foram carregados. O resultado não substitui a suíte completa, que falhou. |
 | CUDA hardware | **BLOCKED_ENVIRONMENT** | `nvidia-smi` e `nvcc` ausentes no PATH e nenhum `/dev/nvidia*`; zero testes físicos executados. RX 550/OpenCL não é CUDA. |
 | Equivalência numérica CPU/CUDA | **UNVERIFIED** | Sem execução física no SHA auditado. Evidência histórica da T4 é descrita abaixo. |
@@ -58,3 +58,5 @@ Executar a fixture corrigida em commit identificado, registrar SHA, modelo, comp
 ## Limitações e responsabilidades
 
 A CI atual cobre CPU em runners GitHub, não prova CUDA. A identidade das baselines depende de targets e vocabulários; não há execução GPU que comprove sua integração observacional em M2.3. O fingerprint, schemas e contratos legados não foram alterados pela B010. A Issue #27 e sua telemetria operacional mantêm critérios próprios; a #25 continua dependente dos gates das duas issues. Até o P10 passar e o G10 ser executado ou formalmente reconciliado, não recomendar encerramento da #26.
+
+Na [CI do PR #81](https://github.com/Brazwed/Kinera/actions/runs/42281758946), HEAD `f0aa2f6ba677952ad55dad710bbb965066fc94a9`, o job Python 3.10.22 reproduziu as mesmas três falhas e a mesma contagem local; Python 3.14 passou. A atualização documental posterior não altera código nem workflow; o estado dos jobs dessa HEAD posterior deve ser consultado no PR.
