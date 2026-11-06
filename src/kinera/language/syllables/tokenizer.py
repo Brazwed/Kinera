@@ -127,10 +127,12 @@ def evaluate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         if boundary_total > 0
         else None
     )
-    if offset_prec is not None and offset_rec is not None and (offset_prec + offset_rec) > 0:
-        offset_f1 = (2.0 * offset_prec * offset_rec) / (offset_prec + offset_rec)
-    else:
-        offset_f1 = None
+    offset_support = boundary_total + predicted_boundary_total
+    offset_f1 = (
+        (2.0 * boundary_correct) / offset_support
+        if offset_support > 0
+        else None
+    )
 
     return {
         "total": len(records),

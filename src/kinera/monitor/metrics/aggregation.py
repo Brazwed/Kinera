@@ -16,6 +16,17 @@ def mean_std(values: list[float]) -> dict[str, float]:
     return {"mean": mean, "std": math.sqrt(variance)}
 
 
+def _finite_metric_value(value: Any) -> float | None:
+    """Converte métricas reais representáveis em float, rejeitando valores inválidos."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        converted = float(value)
+    except (OverflowError, ValueError):
+        return None
+    return converted if math.isfinite(converted) else None
+
+
 @dataclass(frozen=True)
 class MetricAggregateSummary:
     """Resumo estatístico populacional com auditoria explícita de valores ausentes e inválidos.
@@ -75,11 +86,13 @@ def aggregate_metric_values(
     for seed, val in observations:
         if val is None:
             n_missing += 1
-        elif isinstance(val, bool) or not isinstance(val, (int, float)) or not math.isfinite(val):
-            n_invalid += 1
         else:
-            valid_values.append(float(val))
-            seeds_used.append(seed)
+            finite_value = _finite_metric_value(val)
+            if finite_value is None:
+                n_invalid += 1
+            else:
+                valid_values.append(finite_value)
+                seeds_used.append(seed)
 
     n_values = len(valid_values)
     if n_values > 0:
@@ -191,15 +204,13 @@ def summarize_paired_deltas(
             continue
 
         # 2. invalid_pairs: nenhum é None, mas pelo menos um é inválido
-        base_invalid = isinstance(v_base, bool) or not isinstance(v_base, (int, float)) or not math.isfinite(v_base)
-        cand_invalid = isinstance(v_cand, bool) or not isinstance(v_cand, (int, float)) or not math.isfinite(v_cand)
-        if base_invalid or cand_invalid:
+        f_base = _finite_metric_value(v_base)
+        f_cand = _finite_metric_value(v_cand)
+        if f_base is None or f_cand is None:
             n_invalid_pairs += 1
             continue
 
         # 3. pairs: ambos são válidos e finitos
-        f_base = float(v_base)
-        f_cand = float(v_cand)
         if orientation == "base - candidate":
             delta = f_base - f_cand
         else:

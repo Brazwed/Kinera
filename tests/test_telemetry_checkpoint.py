@@ -110,6 +110,31 @@ class TelemetryCheckpointTests(unittest.TestCase):
             "target_is_syllable_end": 0,
         }]
 
+    def test_aggregate_conserves_completed_runs_with_missing_validation(self) -> None:
+        reports = {"A": [
+            {"seed": 1, "status": "completed", "final_validation": {"score": 0.75}},
+            {"seed": 2, "status": "completed"},
+            {"seed": 3, "status": "completed", "final_validation": {}},
+            {"seed": 4, "status": "completed", "final_validation": []},
+            {"seed": 5, "status": "failed", "final_validation": {"score": 1.0}},
+        ]}
+
+        aggregates = _build_aggregates(reports, ("score",), ("A",))
+        aggregate = aggregates["A"]
+
+        self.assertEqual(aggregate["mean"]["score"], 0.75)
+        self.assertEqual(aggregate["std"]["score"], 0.0)
+        self.assertEqual(aggregate["n_values"]["score"], 1)
+        self.assertEqual(aggregate["n_missing"]["score"], 2)
+        self.assertEqual(aggregate["n_invalid"]["score"], 1)
+        self.assertEqual(aggregate["seeds"]["score"], [1])
+        self.assertEqual(
+            aggregate["n_values"]["score"]
+            + aggregate["n_missing"]["score"]
+            + aggregate["n_invalid"]["score"],
+            4,
+        )
+
     def test_generic_runner_default_writes_no_telemetry(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             checkpoint = Path(directory) / "run.json"
@@ -457,6 +482,8 @@ class TelemetryCheckpointTests(unittest.TestCase):
         config, reports, aggregates, parameters, input_usage = comparison_fixture(
             run_telemetry=make_run_telemetry("run-7", "attempt-1", "completed")
         )
+        reports["A"][0].pop("final_validation")
+        aggregates = _build_aggregates(reports, METRIC_NAMES, CONTROLLED_VARIANTS)
 
         with tempfile.TemporaryDirectory() as directory:
             checkpoint = Path(directory) / "comparison.json"
@@ -508,6 +535,16 @@ class TelemetryCheckpointTests(unittest.TestCase):
 
         self.assertEqual(resumed["telemetry"], envelope)
         self.assertEqual(persisted["telemetry"], envelope)
+        self.assertIn("paired_deltas", report)
+        self.assertEqual(resumed["paired_deltas"], persisted["paired_deltas"])
+        self.assertEqual(resumed["aggregates"]["A"]["n_values"]["char_loss"], 0)
+        self.assertEqual(resumed["aggregates"]["A"]["n_missing"]["char_loss"], 1)
+        self.assertIsNone(resumed["aggregates"]["A"]["mean"]["char_loss"])
+        pair_ac = next(
+            item for item in resumed["paired_deltas"]
+            if item["base"] == "A" and item["candidate"] == "C"
+        )
+        self.assertEqual(pair_ac["metrics"]["char_loss"]["n_missing_pairs"], 1)
         self.assertNotIn("telemetry", legacy_resumed)
         self.assertNotIn("telemetry", legacy_persisted)
         for variant in CONTROLLED_VARIANTS:

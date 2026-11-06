@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from kinera.monitor.metrics.aggregation import aggregate_metric_values, mean_std
+from kinera.monitor.metrics.aggregation import aggregate_metric_values
 
 from kinera.language.syllables.causal import prepare_partial_variant_examples
 from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary

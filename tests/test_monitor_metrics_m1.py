@@ -582,6 +582,12 @@ class MetricAggregationAndConservationTests(unittest.TestCase):
         self.assertIsNone(summary.mean)
         self.assertIsNone(summary.std)
 
+    def test_unrepresentable_large_integer_is_invalid(self) -> None:
+        summary = aggregate_metric_values([(1, 10**1000)])
+        self.assertEqual(summary.n_values, 0)
+        self.assertEqual(summary.n_invalid, 1)
+        self.assertIsNone(summary.mean)
+
     def test_empty_observations(self) -> None:
         summary = aggregate_metric_values([])
         self.assertEqual(summary.n_values, 0)
@@ -649,6 +655,68 @@ class PairedDeltaTests(unittest.TestCase):
 
 class EvaluatorM12IntegrationTests(unittest.TestCase):
     """Testes de integração do avaliador neural, baselines sem vazamento e campos legados."""
+
+    def test_evaluator_confusion_metrics_match_known_binary_counts(self) -> None:
+        from kinera.language.vocabulary import CharacterVocabulary
+        from kinera.training.evaluator import evaluate_multitask_examples
+
+        class DeterministicModel:
+            backend = "cpu"
+
+            def __init__(self) -> None:
+                self.boundary_predictions = iter([1, 0, 1, 0])
+
+            def multitask_eval_step(self, *inputs, targets, loss_function):
+                del inputs, loss_function
+                return {
+                    "losses": {
+                        "char_loss": 0.1,
+                        "syllable_loss": 0.2,
+                        "boundary_loss": 0.3,
+                        "total_loss": 0.6,
+                    },
+                    "predictions": {
+                        "char": targets["char"],
+                        "syllable": targets["syllable"],
+                        "boundary": next(self.boundary_predictions),
+                    },
+                }
+
+        vocab = CharacterVocabulary(["<START>", "<END>", "<UNK>", "a", "b"])
+        examples = [{
+            "context_ids": [0, 3],
+            "context_syllable_ids": [0, 0],
+            "context_feature_vectors": [[0.0] * 10] * 2,
+            "target_char_id": 4,
+            "target_syllable_id": 1,
+            "target_is_syllable_end": target,
+        } for target in (1, 1, 0, 0)]
+
+        result = evaluate_multitask_examples(
+            DeterministicModel(),
+            examples,
+            vocab,
+            loss_function=object(),  # type: ignore[arg-type]
+        )
+
+        # Counts are TP=1, TN=1, FP=1, FN=1.
+        self.assertEqual(result["boundary_true_negative"], 1)
+        self.assertEqual(result["boundary_target_distribution"], {"0": 2, "1": 2})
+        self.assertEqual(result["boundary_prediction_distribution"], {"0": 2, "1": 2})
+        self.assertEqual(result["boundary_precision"], 0.5)
+        self.assertEqual(result["boundary_recall"], 0.5)
+        self.assertEqual(result["boundary_f1"], 0.5)
+        self.assertEqual(result["boundary_specificity"], 0.5)
+        self.assertEqual(result["boundary_balanced_accuracy"], 0.5)
+        # Legacy evaluator fields retain the same values and denominators.
+        self.assertEqual(result["examples"], 4)
+        self.assertEqual(result["char_loss"], 0.1)
+        self.assertEqual(result["syllable_loss"], 0.2)
+        self.assertEqual(result["boundary_loss"], 0.3)
+        self.assertEqual(result["total_loss"], 0.6)
+        self.assertEqual(result["char_accuracy"], 1.0)
+        self.assertEqual(result["syllable_accuracy_all"], 1.0)
+        self.assertEqual(result["boundary_accuracy"], 0.5)
 
     def test_evaluator_majority_baseline_without_leakage(self) -> None:
         from kinera.language.vocabulary import CharacterVocabulary

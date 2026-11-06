@@ -782,6 +782,101 @@ class ControlledComparisonTests(unittest.TestCase):
             self.assertEqual(n_p + n_mp + n_ip, pair_ac["n_common_seeds"])
             self.assertEqual(n_p, len(m_delta["seeds_used"]))
 
+    def test_paired_deltas_use_completed_common_seeds_and_correct_units(self) -> None:
+        reports = {
+            "A": [
+                {"seed": 7, "status": "completed", "final_validation": {
+                    "char_loss": 2.0,
+                    "boundary_baseline_majority": 0.5,
+                    "boundary_true_negative": 3,
+                }},
+                {"seed": 1, "status": "completed"},
+                {"seed": 42, "status": "failed", "final_validation": {
+                    "char_loss": 9.0,
+                }},
+            ],
+            "C": [
+                {"seed": 7, "status": "completed", "final_validation": {
+                    "char_loss": 1.0,
+                    "boundary_baseline_majority": 0.75,
+                    "boundary_true_negative": 5,
+                }},
+                {"seed": 1, "status": "completed", "final_validation": {}},
+                {"seed": 42, "status": "completed", "final_validation": {
+                    "char_loss": 1.0,
+                }},
+            ],
+        }
+
+        paired = comparison._build_paired_deltas(
+            reports,
+            ("char_loss", "boundary_baseline_majority", "boundary_true_negative"),
+            ("A", "C"),
+        )[0]
+
+        self.assertEqual(paired["n_common_seeds"], 2)
+        self.assertEqual(paired["common_seeds"], [1, 7])
+        loss = paired["metrics"]["char_loss"]
+        self.assertEqual(loss["orientation"], "base - candidate")
+        self.assertEqual(loss["unit"], "loss")
+        self.assertEqual(loss["n_pairs"], 1)
+        self.assertEqual(loss["n_missing_pairs"], 1)
+        self.assertEqual(loss["mean"], 1.0)
+
+        baseline = paired["metrics"]["boundary_baseline_majority"]
+        self.assertEqual(baseline["orientation"], "candidate - base")
+        self.assertEqual(baseline["unit"], "fraction")
+        self.assertAlmostEqual(baseline["mean"], 0.25)
+        true_negative = paired["metrics"]["boundary_true_negative"]
+        self.assertEqual(true_negative["unit"], "count")
+        self.assertEqual(true_negative["mean"], 2.0)
+
+    def test_majority_baseline_distribution_comes_only_from_training_examples(self) -> None:
+        class ModelStub:
+            def close(self) -> None:
+                pass
+
+        train_examples = [
+            {"target_is_syllable_end": 1},
+            {"target_is_syllable_end": 0},
+            {"target_is_syllable_end": 1},
+        ]
+        validation_examples = [
+            {"target_is_syllable_end": 0},
+            {"target_is_syllable_end": 0},
+            {"target_is_syllable_end": 0},
+        ]
+
+        with (
+            patch.object(comparison, "AutoregressiveModel", return_value=ModelStub()),
+            patch.object(comparison, "count_trainable_parameters", return_value=12),
+            patch.object(comparison, "train_multitask_examples", return_value={"epochs": 1}),
+            patch.object(
+                comparison,
+                "evaluate_multitask_examples",
+                return_value={"char_loss": 0.0},
+            ) as evaluate,
+        ):
+            _, _, record = comparison._execute_single_experiment(
+                "A",
+                7,
+                train_examples,
+                validation_examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                epochs=1,
+                learning_rate=0.05,
+                syllable_unknown_id=0,
+            )
+
+        self.assertEqual(record["status"], "completed")
+        self.assertEqual(evaluate.call_count, 2)
+        for call in evaluate.call_args_list:
+            self.assertEqual(
+                call.kwargs["train_boundary_distribution"],
+                {"0": 1, "1": 2},
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

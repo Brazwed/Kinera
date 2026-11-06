@@ -9,6 +9,7 @@ import os
 import resource
 import time
 import traceback
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
@@ -46,6 +47,37 @@ from kinera.experiments.variants import (
     VARIANTS,
     _validate_variant_selection,
 )
+
+
+_INVALID_METRIC_OBSERVATION = object()
+
+
+def _metric_observation_from_run(run: Mapping[str, Any], metric: str) -> Any:
+    """Retorna None para validação/metric ausente e sentinela para payload inválido."""
+    final_validation = run.get("final_validation")
+    if final_validation is None:
+        return None
+    if not isinstance(final_validation, Mapping):
+        return _INVALID_METRIC_OBSERVATION
+    return final_validation.get(metric)
+
+
+def _paired_delta_unit(metric: str) -> str:
+    if metric.endswith("_loss"):
+        return "loss"
+    fraction_tokens = (
+        "accuracy",
+        "precision",
+        "recall",
+        "f1",
+        "specificity",
+        "_rate",
+    )
+    if metric.startswith("boundary_baseline_") or any(
+        token in metric for token in fraction_tokens
+    ):
+        return "fraction"
+    return "count"
 
 
 def _safe_monotonic_delta_seconds(start_ns: int | None, finish_ns: int | None) -> float | None:
@@ -1006,9 +1038,8 @@ def _build_aggregates(
         }
         for name in metric_names:
             observations = [
-                (run["seed"], run["final_validation"].get(name))
+                (run["seed"], _metric_observation_from_run(run, name))
                 for run in completed
-                if "final_validation" in run
             ]
             summary = aggregate_metric_values(observations)
             aggregates[variant]["mean"][name] = summary.mean
@@ -1037,12 +1068,12 @@ def _build_paired_deltas(
     results: list[dict[str, Any]] = []
     for base, cand in active_pairs:
         completed_base = {
-            r["seed"]: r.get("final_validation", {})
+            r["seed"]: r
             for r in reports.get(base, [])
             if r.get("status") == "completed"
         }
         completed_cand = {
-            r["seed"]: r.get("final_validation", {})
+            r["seed"]: r
             for r in reports.get(cand, [])
             if r.get("status") == "completed"
         }
@@ -1052,17 +1083,18 @@ def _build_paired_deltas(
         for name in metric_names:
             if "loss" in name:
                 orientation = "base - candidate"
-                unit = "loss"
             else:
                 orientation = "candidate - base"
-                unit = (
-                    "fraction"
-                    if any(k in name for k in ("accuracy", "precision", "recall", "f1", "specificity"))
-                    else "count"
-                )
+            unit = _paired_delta_unit(name)
 
-            base_obs = {s: completed_base[s].get(name) for s in common_seeds}
-            cand_obs = {s: completed_cand[s].get(name) for s in common_seeds}
+            base_obs = {
+                seed: _metric_observation_from_run(completed_base[seed], name)
+                for seed in common_seeds
+            }
+            cand_obs = {
+                seed: _metric_observation_from_run(completed_cand[seed], name)
+                for seed in common_seeds
+            }
             summary = summarize_paired_deltas(
                 base_obs,
                 cand_obs,
@@ -1106,7 +1138,7 @@ def _sanitize_report_telemetry(
 def _checkpoint_report(
     configuration: dict[str, Any],
     reports: dict[str, list[dict[str, Any]]],
-    aggregates: dict[str, dict[str, dict[str, float]]],
+    aggregates: dict[str, Any],
     parameter_counts: dict[str, int],
     input_usage: dict[str, dict[str, int]],
     metric_names: tuple[str, ...],
