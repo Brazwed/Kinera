@@ -97,6 +97,7 @@ def evaluate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     exact_matches = 0
     boundary_correct = 0
     boundary_total = 0
+    predicted_boundary_total = 0
     scored = 0
     errors = Counter()
 
@@ -114,6 +115,24 @@ def evaluate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         exact_matches += predicted == gold
         boundary_correct += len(gold_boundaries & predicted_boundaries)
         boundary_total += len(gold_boundaries)
+        predicted_boundary_total += len(predicted_boundaries)
+
+    offset_prec = (
+        boundary_correct / predicted_boundary_total
+        if predicted_boundary_total > 0
+        else None
+    )
+    offset_rec = (
+        boundary_correct / boundary_total
+        if boundary_total > 0
+        else None
+    )
+    offset_support = boundary_total + predicted_boundary_total
+    offset_f1 = (
+        (2.0 * boundary_correct) / offset_support
+        if offset_support > 0
+        else None
+    )
 
     return {
         "total": len(records),
@@ -125,6 +144,9 @@ def evaluate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         "boundary_accuracy": safe_ratio(
             boundary_correct, boundary_total, zero_denominator=1.0
         ),
+        "boundary_offset_precision": offset_prec,
+        "boundary_offset_recall": offset_rec,
+        "boundary_offset_f1": offset_f1,
         "errors": dict(errors),
     }
 

@@ -9,12 +9,17 @@ import os
 import resource
 import time
 import traceback
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
 from kinera.backends import get_backend
 from kinera.experiments.config import ExperimentConfig, ExecutionConfig
-from kinera.monitor.metrics.aggregation import mean_std
+from kinera.monitor.metrics.aggregation import (
+    aggregate_metric_values,
+    mean_std,
+    summarize_paired_deltas,
+)
 from kinera.monitor.telemetry.records import (
     TELEMETRY_SCHEMA_VERSION,
     TelemetryAttemptRecord,
@@ -42,6 +47,37 @@ from kinera.experiments.variants import (
     VARIANTS,
     _validate_variant_selection,
 )
+
+
+_INVALID_METRIC_OBSERVATION = object()
+
+
+def _metric_observation_from_run(run: Mapping[str, Any], metric: str) -> Any:
+    """Retorna None para validação/metric ausente e sentinela para payload inválido."""
+    final_validation = run.get("final_validation")
+    if final_validation is None:
+        return None
+    if not isinstance(final_validation, Mapping):
+        return _INVALID_METRIC_OBSERVATION
+    return final_validation.get(metric)
+
+
+def _paired_delta_unit(metric: str) -> str:
+    if metric.endswith("_loss"):
+        return "loss"
+    fraction_tokens = (
+        "accuracy",
+        "precision",
+        "recall",
+        "f1",
+        "specificity",
+        "_rate",
+    )
+    if metric.startswith("boundary_baseline_") or any(
+        token in metric for token in fraction_tokens
+    ):
+        return "fraction"
+    return "count"
 
 
 def _safe_monotonic_delta_seconds(start_ns: int | None, finish_ns: int | None) -> float | None:
@@ -215,6 +251,12 @@ def _execute_single_experiment(
             )
             parameter_count = count_trainable_parameters(model)
 
+        train_boundary_dist: dict[str, int] = {"0": 0, "1": 0}
+        for ex in train_examples:
+            b_val = ex.get("target_is_syllable_end")
+            if b_val is not None:
+                train_boundary_dist[str(int(b_val >= 0.5))] += 1
+
         if collect_telemetry and timing is not None:
             with timing.stage(stage_id="initial_validation", name="initial_validation"):
                 initial = evaluate_multitask_examples(
@@ -222,6 +264,7 @@ def _execute_single_experiment(
                     validation_examples,
                     vocabulary,
                     syllable_unknown_id=syllable_unknown_id,
+                    train_boundary_distribution=train_boundary_dist,
                 )
         else:
             initial = evaluate_multitask_examples(
@@ -229,6 +272,7 @@ def _execute_single_experiment(
                 validation_examples,
                 vocabulary,
                 syllable_unknown_id=syllable_unknown_id,
+                train_boundary_distribution=train_boundary_dist,
             )
 
         if collect_telemetry and timing is not None:
@@ -260,6 +304,7 @@ def _execute_single_experiment(
                     validation_examples,
                     vocabulary,
                     syllable_unknown_id=syllable_unknown_id,
+                    train_boundary_distribution=train_boundary_dist,
                 )
         else:
             final = evaluate_multitask_examples(
@@ -267,6 +312,7 @@ def _execute_single_experiment(
                 validation_examples,
                 vocabulary,
                 syllable_unknown_id=syllable_unknown_id,
+                train_boundary_distribution=train_boundary_dist,
             )
 
         if model is not None:
@@ -506,6 +552,12 @@ def run_controlled_experiments(
         "boundary_precision",
         "boundary_recall",
         "boundary_f1",
+        "boundary_true_negative",
+        "boundary_specificity",
+        "boundary_balanced_accuracy",
+        "boundary_baseline_constant_0",
+        "boundary_baseline_constant_1",
+        "boundary_baseline_majority",
     )
     checkpoint = Path(checkpoint_path) if checkpoint_path is not None else None
     telemetry_section = _serialize_telemetry_envelope(telemetry)
@@ -970,19 +1022,95 @@ def _build_aggregates(
     reports: dict[str, list[dict[str, Any]]],
     metric_names: tuple[str, ...],
     variants: tuple[str, ...],
-) -> dict[str, dict[str, dict[str, float]]]:
-    aggregates: dict[str, dict[str, dict[str, float]]] = {}
+) -> dict[str, Any]:
+    aggregates: dict[str, Any] = {}
     for variant in variants:
         completed = [run for run in reports.get(variant, []) if run.get("status") == "completed"]
         if not completed:
             continue
-        aggregates[variant] = {"mean": {}, "std": {}}
+        aggregates[variant] = {
+            "mean": {},
+            "std": {},
+            "n_values": {},
+            "n_missing": {},
+            "n_invalid": {},
+            "seeds": {},
+        }
         for name in metric_names:
-            values = [float(run["final_validation"][name]) for run in completed]
-            summary = mean_std(values)
-            aggregates[variant]["mean"][name] = summary["mean"]
-            aggregates[variant]["std"][name] = summary["std"]
+            observations = [
+                (run["seed"], _metric_observation_from_run(run, name))
+                for run in completed
+            ]
+            summary = aggregate_metric_values(observations)
+            aggregates[variant]["mean"][name] = summary.mean
+            aggregates[variant]["std"][name] = summary.std
+            aggregates[variant]["n_values"][name] = summary.n_values
+            aggregates[variant]["n_missing"][name] = summary.n_missing
+            aggregates[variant]["n_invalid"][name] = summary.n_invalid
+            aggregates[variant]["seeds"][name] = summary.seeds_used
     return aggregates
+
+
+def _build_paired_deltas(
+    reports: dict[str, list[dict[str, Any]]],
+    metric_names: tuple[str, ...],
+    variants: tuple[str, ...],
+) -> list[dict[str, Any]]:
+    potential_pairs = (("A", "C"), ("A", "D"), ("C", "D"), ("A", "B"))
+    active_pairs = [
+        (base, cand)
+        for base, cand in potential_pairs
+        if base in variants and cand in variants
+    ]
+    if not active_pairs and len(variants) >= 2:
+        active_pairs = [(variants[0], v) for v in variants[1:]]
+
+    results: list[dict[str, Any]] = []
+    for base, cand in active_pairs:
+        completed_base = {
+            r["seed"]: r
+            for r in reports.get(base, [])
+            if r.get("status") == "completed"
+        }
+        completed_cand = {
+            r["seed"]: r
+            for r in reports.get(cand, [])
+            if r.get("status") == "completed"
+        }
+        common_seeds = sorted(set(completed_base.keys()) & set(completed_cand.keys()))
+        metrics_dict: dict[str, Any] = {}
+
+        for name in metric_names:
+            if "loss" in name:
+                orientation = "base - candidate"
+            else:
+                orientation = "candidate - base"
+            unit = _paired_delta_unit(name)
+
+            base_obs = {
+                seed: _metric_observation_from_run(completed_base[seed], name)
+                for seed in common_seeds
+            }
+            cand_obs = {
+                seed: _metric_observation_from_run(completed_cand[seed], name)
+                for seed in common_seeds
+            }
+            summary = summarize_paired_deltas(
+                base_obs,
+                cand_obs,
+                orientation=orientation,
+                unit=unit,
+            )
+            metrics_dict[name] = summary.to_dict()
+
+        results.append({
+            "base": base,
+            "candidate": cand,
+            "n_common_seeds": len(common_seeds),
+            "common_seeds": common_seeds,
+            "metrics": metrics_dict,
+        })
+    return results
 
 
 def _sanitize_report_telemetry(
@@ -1010,13 +1138,12 @@ def _sanitize_report_telemetry(
 def _checkpoint_report(
     configuration: dict[str, Any],
     reports: dict[str, list[dict[str, Any]]],
-    aggregates: dict[str, dict[str, dict[str, float]]],
+    aggregates: dict[str, Any],
     parameter_counts: dict[str, int],
     input_usage: dict[str, dict[str, int]],
     metric_names: tuple[str, ...],
     telemetry: TelemetryEnvelope | dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    del metric_names
     _sanitize_report_telemetry(reports)
     completed_runs = sum(
         run.get("status") == "completed"
@@ -1029,6 +1156,11 @@ def _checkpoint_report(
         for run in reports.get(variant, [])
     )
     total_runs = len(configuration["variants"]) * len(configuration["seeds"])
+    paired_deltas = _build_paired_deltas(
+        reports,
+        metric_names,
+        tuple(configuration["variants"]),
+    )
     report = {
         **configuration,
         "status": "failed" if failed_runs else ("completed" if completed_runs == total_runs else "running"),
@@ -1037,6 +1169,7 @@ def _checkpoint_report(
         "failed_runs": failed_runs,
         "runs": reports,
         "aggregates": aggregates,
+        "paired_deltas": paired_deltas,
         "parameter_counts": parameter_counts,
         "input_usage": input_usage,
     }

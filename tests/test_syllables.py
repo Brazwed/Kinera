@@ -30,6 +30,9 @@ class SyllableSegmenterTests(unittest.TestCase):
             "boundary_correct": 0,
             "boundary_total": 0,
             "boundary_accuracy": 1.0,
+            "boundary_offset_precision": None,
+            "boundary_offset_recall": None,
+            "boundary_offset_f1": None,
             "errors": {},
         })
         report = evaluate_records([{
@@ -40,6 +43,9 @@ class SyllableSegmenterTests(unittest.TestCase):
         self.assertEqual(report["boundary_correct"], 1)
         self.assertEqual(report["boundary_total"], 1)
         self.assertEqual(report["boundary_accuracy"], 1.0)
+        self.assertEqual(report["boundary_offset_precision"], 0.5)
+        self.assertEqual(report["boundary_offset_recall"], 1.0)
+        self.assertAlmostEqual(report["boundary_offset_f1"], 2.0 / 3.0)
 
     def test_digraph_and_diphthong_cases(self) -> None:
         self.assertEqual(segment_word("chuva"), ["chu", "va"])
@@ -67,6 +73,28 @@ class SyllableSegmenterTests(unittest.TestCase):
         self.assertEqual(report["exact_matches"], 2)
         self.assertEqual(report["exact_accuracy"], 1.0)
         self.assertEqual(report["boundary_accuracy"], 1.0)
+
+    def test_offset_f1_is_zero_for_nonmatching_supported_boundaries(self) -> None:
+        report = evaluate_records([{
+            "word_normalized": "casa",
+            "syllables": ["cas", "a"],
+        }])
+
+        self.assertEqual(report["boundary_correct"], 0)
+        self.assertEqual(report["boundary_total"], 1)
+        self.assertEqual(report["boundary_offset_precision"], 0.0)
+        self.assertEqual(report["boundary_offset_recall"], 0.0)
+        self.assertEqual(report["boundary_offset_f1"], 0.0)
+
+    def test_offset_f1_remains_undefined_without_gold_or_predicted_boundaries(self) -> None:
+        report = evaluate_records([{
+            "word_normalized": "a",
+            "syllables": ["a"],
+        }])
+
+        self.assertIsNone(report["boundary_offset_precision"])
+        self.assertIsNone(report["boundary_offset_recall"])
+        self.assertIsNone(report["boundary_offset_f1"])
 
 
 if __name__ == "__main__":

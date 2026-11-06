@@ -734,6 +734,149 @@ class ControlledComparisonTests(unittest.TestCase):
             ]
             self.assertTrue(pending_snapshots)
 
+    def test_aggregates_include_conservation_audit_and_paired_deltas(self) -> None:
+        report = self._run_historical(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            syllable_vocab_size=5,
+            seeds=[7, 42],
+            epochs=1,
+            learning_rate=0.05,
+            max_examples=2,
+            variants=("A", "C"),
+        )
+        # 1. Compatibilidade legada de aggregates
+        self.assertIn("A", report["aggregates"])
+        self.assertIn("C", report["aggregates"])
+        for var in ("A", "C"):
+            agg = report["aggregates"][var]
+            self.assertIn("mean", agg)
+            self.assertIn("std", agg)
+            self.assertIn("n_values", agg)
+            self.assertIn("n_missing", agg)
+            self.assertIn("n_invalid", agg)
+            self.assertIn("seeds", agg)
+
+            # Invariante de conservação para cada métrica:
+            for metric in agg["mean"]:
+                n_v = agg["n_values"][metric]
+                n_m = agg["n_missing"][metric]
+                n_i = agg["n_invalid"][metric]
+                self.assertEqual(n_v + n_m + n_i, 2)
+                self.assertEqual(n_v, len(agg["seeds"][metric]))
+
+        # 2. Presença e invariantes de paired_deltas
+        self.assertIn("paired_deltas", report)
+        deltas = report["paired_deltas"]
+        self.assertTrue(len(deltas) >= 1)
+        pair_ac = next(p for p in deltas if p["base"] == "A" and p["candidate"] == "C")
+        self.assertEqual(pair_ac["n_common_seeds"], 2)
+        self.assertEqual(pair_ac["common_seeds"], [7, 42])
+
+        # Testar invariante por métrica pareada
+        for m_name, m_delta in pair_ac["metrics"].items():
+            n_p = m_delta["n_pairs"]
+            n_mp = m_delta["n_missing_pairs"]
+            n_ip = m_delta["n_invalid_pairs"]
+            self.assertEqual(n_p + n_mp + n_ip, pair_ac["n_common_seeds"])
+            self.assertEqual(n_p, len(m_delta["seeds_used"]))
+
+    def test_paired_deltas_use_completed_common_seeds_and_correct_units(self) -> None:
+        reports = {
+            "A": [
+                {"seed": 7, "status": "completed", "final_validation": {
+                    "char_loss": 2.0,
+                    "boundary_baseline_majority": 0.5,
+                    "boundary_true_negative": 3,
+                }},
+                {"seed": 1, "status": "completed"},
+                {"seed": 42, "status": "failed", "final_validation": {
+                    "char_loss": 9.0,
+                }},
+            ],
+            "C": [
+                {"seed": 7, "status": "completed", "final_validation": {
+                    "char_loss": 1.0,
+                    "boundary_baseline_majority": 0.75,
+                    "boundary_true_negative": 5,
+                }},
+                {"seed": 1, "status": "completed", "final_validation": {}},
+                {"seed": 42, "status": "completed", "final_validation": {
+                    "char_loss": 1.0,
+                }},
+            ],
+        }
+
+        paired = comparison._build_paired_deltas(
+            reports,
+            ("char_loss", "boundary_baseline_majority", "boundary_true_negative"),
+            ("A", "C"),
+        )[0]
+
+        self.assertEqual(paired["n_common_seeds"], 2)
+        self.assertEqual(paired["common_seeds"], [1, 7])
+        loss = paired["metrics"]["char_loss"]
+        self.assertEqual(loss["orientation"], "base - candidate")
+        self.assertEqual(loss["unit"], "loss")
+        self.assertEqual(loss["n_pairs"], 1)
+        self.assertEqual(loss["n_missing_pairs"], 1)
+        self.assertEqual(loss["mean"], 1.0)
+
+        baseline = paired["metrics"]["boundary_baseline_majority"]
+        self.assertEqual(baseline["orientation"], "candidate - base")
+        self.assertEqual(baseline["unit"], "fraction")
+        self.assertAlmostEqual(baseline["mean"], 0.25)
+        true_negative = paired["metrics"]["boundary_true_negative"]
+        self.assertEqual(true_negative["unit"], "count")
+        self.assertEqual(true_negative["mean"], 2.0)
+
+    def test_majority_baseline_distribution_comes_only_from_training_examples(self) -> None:
+        class ModelStub:
+            def close(self) -> None:
+                pass
+
+        train_examples = [
+            {"target_is_syllable_end": 1},
+            {"target_is_syllable_end": 0},
+            {"target_is_syllable_end": 1},
+        ]
+        validation_examples = [
+            {"target_is_syllable_end": 0},
+            {"target_is_syllable_end": 0},
+            {"target_is_syllable_end": 0},
+        ]
+
+        with (
+            patch.object(comparison, "AutoregressiveModel", return_value=ModelStub()),
+            patch.object(comparison, "count_trainable_parameters", return_value=12),
+            patch.object(comparison, "train_multitask_examples", return_value={"epochs": 1}),
+            patch.object(
+                comparison,
+                "evaluate_multitask_examples",
+                return_value={"char_loss": 0.0},
+            ) as evaluate,
+        ):
+            _, _, record = comparison._execute_single_experiment(
+                "A",
+                7,
+                train_examples,
+                validation_examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                epochs=1,
+                learning_rate=0.05,
+                syllable_unknown_id=0,
+            )
+
+        self.assertEqual(record["status"], "completed")
+        self.assertEqual(evaluate.call_count, 2)
+        for call in evaluate.call_args_list:
+            self.assertEqual(
+                call.kwargs["train_boundary_distribution"],
+                {"0": 1, "1": 2},
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

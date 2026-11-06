@@ -40,7 +40,13 @@ Superfície pública:
   - ``offset_segmentation_metrics(...)``: Resumo completo de métricas de segmentação.
 """
 
-from kinera.monitor.metrics.aggregation import mean_std
+from kinera.monitor.metrics.aggregation import (
+    MetricAggregateSummary,
+    PairedDeltaSummary,
+    aggregate_metric_values,
+    mean_std,
+    summarize_paired_deltas,
+)
 from kinera.monitor.metrics.baselines import (
     constant_baseline_from_counts,
     evaluate_binary_baselines,
@@ -78,6 +84,11 @@ __all__ = [
     "mean_std",
     "mean_from_total",
     "safe_ratio",
+    # M1.2 Agregação e deltas pareados
+    "MetricAggregateSummary",
+    "aggregate_metric_values",
+    "PairedDeltaSummary",
+    "summarize_paired_deltas",
     # M1.1 Confusão e classificação
     "BinaryConfusion",
     "precision",

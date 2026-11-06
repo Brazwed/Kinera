@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any, cast
+from typing import Any, Mapping, cast
 
 from kinera.language.datasets.adapter import example_to_inputs
 from kinera.language.vocabulary import CharacterVocabulary
@@ -12,7 +12,15 @@ from kinera.nn.losses import MultiTaskLoss
 from kinera.nn.losses.cross_entropy import cross_entropy
 from kinera.nn.models.hybrid import AutoregressiveModel
 from kinera.training.common import Sample, _restore, _snapshot, _validate_samples
-from kinera.monitor.metrics.core import mean_from_total, safe_ratio
+from kinera.monitor.metrics import (
+    BinaryConfusion,
+    balanced_accuracy,
+    constant_baseline_from_counts,
+    majority_class,
+    mean_from_total,
+    safe_ratio,
+    specificity,
+)
 from kinera.training.metrics import _multitask_targets
 
 
@@ -72,6 +80,7 @@ def evaluate_multitask_examples(
     syllable_unknown_id: int = 0,
     max_examples: int | None = None,
     loss_function: MultiTaskLoss | None = None,
+    train_boundary_distribution: Mapping[int | str, int] | None = None,
 ) -> dict[str, Any]:
     """Avalia as três heads sem executar backward ou step."""
     if not examples:
@@ -94,6 +103,7 @@ def evaluate_multitask_examples(
     boundary_true_positive = 0
     boundary_false_positive = 0
     boundary_false_negative = 0
+    boundary_true_negative = 0
     boundary_target_distribution = {"0": 0, "1": 0}
     for example in selected:
         inputs = example_to_inputs(
@@ -126,10 +136,13 @@ def evaluate_multitask_examples(
         totals["boundary_accuracy"] += boundary_prediction == boundary_target
         if boundary_prediction == 1 and boundary_target == 1:
             boundary_true_positive += 1
-        elif boundary_prediction == 1:
+        elif boundary_prediction == 1 and boundary_target == 0:
             boundary_false_positive += 1
-        elif boundary_target == 1:
+        elif boundary_prediction == 0 and boundary_target == 1:
             boundary_false_negative += 1
+        elif boundary_prediction == 0 and boundary_target == 0:
+            boundary_true_negative += 1
+
     count = len(selected)
     boundary_precision = safe_ratio(
         boundary_true_positive,
@@ -143,6 +156,40 @@ def evaluate_multitask_examples(
         2.0 * boundary_precision * boundary_recall,
         boundary_precision + boundary_recall,
     )
+
+    boundary_confusion = BinaryConfusion(
+        tp=boundary_true_positive,
+        tn=boundary_true_negative,
+        fp=boundary_false_positive,
+        fn=boundary_false_negative,
+    )
+    boundary_spec = specificity(boundary_confusion)
+    boundary_bal_acc = balanced_accuracy(boundary_confusion)
+    boundary_prediction_distribution = {
+        "0": boundary_confusion.predicted_negative,
+        "1": boundary_confusion.predicted_positive,
+    }
+    total_boundary_count = boundary_confusion.total
+    if total_boundary_count > 0:
+        boundary_baseline_c0 = boundary_confusion.support_negative / total_boundary_count
+        boundary_baseline_c1 = boundary_confusion.support_positive / total_boundary_count
+    else:
+        boundary_baseline_c0 = None
+        boundary_baseline_c1 = None
+
+    if train_boundary_distribution is not None:
+        maj_class = majority_class(train_boundary_distribution)
+        if total_boundary_count > 0:
+            boundary_baseline_maj = (
+                boundary_confusion.support_negative / total_boundary_count
+                if maj_class == 0
+                else boundary_confusion.support_positive / total_boundary_count
+            )
+        else:
+            boundary_baseline_maj = None
+    else:
+        boundary_baseline_maj = None
+
     return {
         "examples": count,
         **{name: safe_ratio(value, count) for name, value in totals.items()},
@@ -154,6 +201,13 @@ def evaluate_multitask_examples(
         "boundary_precision": boundary_precision,
         "boundary_recall": boundary_recall,
         "boundary_f1": boundary_f1,
+        "boundary_true_negative": boundary_true_negative,
+        "boundary_specificity": boundary_spec,
+        "boundary_balanced_accuracy": boundary_bal_acc,
+        "boundary_prediction_distribution": boundary_prediction_distribution,
+        "boundary_baseline_constant_0": boundary_baseline_c0,
+        "boundary_baseline_constant_1": boundary_baseline_c1,
+        "boundary_baseline_majority": boundary_baseline_maj,
     }
 
 def generate_text(
