@@ -15,7 +15,7 @@ from kinera.experiments.comparison import (
 from kinera.experiments.config import ExecutionConfig, ExperimentConfig
 from kinera.experiments.multi_seed import prepare_seed_records, run_seed_jobs
 from kinera.experiments.runner_common import aggregate_run_dicts, write_json_checkpoint
-from kinera.language.vocabulary import CharacterVocabulary
+from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from kinera.monitor.telemetry.records import (
     TELEMETRY_SCHEMA_VERSION,
     TelemetryAttemptRecord,
@@ -482,6 +482,19 @@ class TelemetryCheckpointTests(unittest.TestCase):
         config, reports, aggregates, parameters, input_usage = comparison_fixture(
             run_telemetry=make_run_telemetry("run-7", "attempt-1", "completed")
         )
+        syllable_vocabulary = SyllableVocabulary(["<UNK_SYL>", "ka", "ta"])
+        config["experiment_fingerprint"] = comparison_module._build_experiment_fingerprint(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            syllable_vocabulary,
+            syllable_vocab_size=3,
+            syllable_unknown_id=0,
+            epochs=1,
+            learning_rate=0.05,
+            max_examples=1,
+            variants=CONTROLLED_VARIANTS,
+        )
         reports["A"][0].pop("final_validation")
         aggregates = _build_aggregates(reports, METRIC_NAMES, CONTROLLED_VARIANTS)
 
@@ -497,6 +510,7 @@ class TelemetryCheckpointTests(unittest.TestCase):
                 self.examples,
                 self.vocabulary,
                 syllable_vocab_size=3,
+                syllable_vocabulary=syllable_vocabulary,
                 seeds=[7],
                 epochs=1,
                 learning_rate=0.05,
@@ -522,6 +536,7 @@ class TelemetryCheckpointTests(unittest.TestCase):
                     self.examples,
                     self.vocabulary,
                     syllable_vocab_size=3,
+                    syllable_vocabulary=syllable_vocabulary,
                     seeds=[7],
                     epochs=1,
                     learning_rate=0.05,
@@ -568,6 +583,19 @@ class TelemetryCheckpointTests(unittest.TestCase):
             config, reports, aggregates, parameters, input_usage, METRIC_NAMES,
             telemetry=None,
         )
+        syllable_vocabulary = SyllableVocabulary(["<UNK_SYL>", "ka", "ta"])
+        checkpoint["experiment_fingerprint"] = comparison_module._build_experiment_fingerprint(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            syllable_vocabulary,
+            syllable_vocab_size=3,
+            syllable_unknown_id=0,
+            epochs=1,
+            learning_rate=0.05,
+            max_examples=1,
+            variants=CONTROLLED_VARIANTS,
+        )
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "comparison-retry.json"
@@ -585,6 +613,7 @@ class TelemetryCheckpointTests(unittest.TestCase):
                     self.examples,
                     self.vocabulary,
                     syllable_vocab_size=3,
+                    syllable_vocabulary=syllable_vocabulary,
                     seeds=[7],
                     epochs=1,
                     learning_rate=0.05,
@@ -601,6 +630,42 @@ class TelemetryCheckpointTests(unittest.TestCase):
             [a["attempt_id"] for a in result["runs"]["A"][0]["telemetry"]["attempts"]],
             ["attempt-1"],
         )
+
+    def test_legacy_comparison_checkpoint_is_readable_but_cannot_resume(self) -> None:
+        config, reports, aggregates, parameters, input_usage = comparison_fixture()
+        legacy_report = _checkpoint_report(
+            config, reports, aggregates, parameters, input_usage, METRIC_NAMES
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "legacy-comparison.json"
+            _persist_checkpoint(path, legacy_report)
+            before = path.read_bytes()
+            self.assertEqual(json.loads(before)["completed_runs"], 4)
+            with patch.object(
+                comparison_module,
+                "_create_execution_backend",
+                side_effect=AssertionError("backend created before legacy rejection"),
+            ) as backend_factory:
+                with self.assertRaisesRegex(ValueError, "checkpoint legado.*resume não autorizado"):
+                    run_controlled_experiments(
+                        self.examples,
+                        self.examples,
+                        self.vocabulary,
+                        syllable_vocab_size=3,
+                        syllable_vocabulary=SyllableVocabulary(
+                            ["<UNK_SYL>", "ka", "ta"]
+                        ),
+                        seeds=[7],
+                        epochs=1,
+                        learning_rate=0.05,
+                        max_examples=1,
+                        checkpoint_path=path,
+                        resume=True,
+                        variants=CONTROLLED_VARIANTS,
+                        execution_config=ExecutionConfig(),
+                    )
+                backend_factory.assert_not_called()
+            self.assertEqual(path.read_bytes(), before)
 
 
 if __name__ == "__main__":

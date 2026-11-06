@@ -8,7 +8,8 @@ Validates:
 5. Retry and resume: previous attempts are preserved, completed runs skipped, clean round-trip.
 6. CPU-only: no CUDA imports, builds, or device initializations on the collection path.
 7. Parallel CPU execution: workers manage independent lifecycle without shared mutable state.
-8. Backward compatibility: legacy checkpoints without telemetry load and resume cleanly.
+8. Backward compatibility: legacy reports stay readable; checkpoints without an
+   experiment fingerprint cannot resume completed runs.
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ from kinera.experiments.comparison import (
     run_controlled_experiments,
 )
 from kinera.experiments.config import ExecutionConfig
-from kinera.language.vocabulary import CharacterVocabulary
+from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from kinera.monitor.telemetry.records import (
     TELEMETRY_SCHEMA_VERSION,
     TelemetryEnvelope,
@@ -52,6 +53,9 @@ def _parse_iso(value: str) -> datetime:
 class ControlledRunnerTelemetryTests(unittest.TestCase):
     def setUp(self) -> None:
         self.vocabulary = CharacterVocabulary(["<START>", "<END>", "<UNK>", "a", "b", "c"])
+        self.syllable_vocabulary = SyllableVocabulary(
+            ["<UNK_SYL>", "ka", "ta"]
+        )
         self.examples = [
             {
                 "context_ids": [0, 3],
@@ -70,6 +74,11 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
                 "target_is_syllable_end": 0,
             },
         ]
+
+    def _run_comparison(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        if kwargs.get("checkpoint_path") is not None:
+            kwargs.setdefault("syllable_vocabulary", self.syllable_vocabulary)
+        return run_controlled_experiments(*args, **kwargs)
 
     # -------------------------------------------------------------------------
     # 1. Telemetria desativada
@@ -94,7 +103,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
                 res_snapshot_mock,
             ),
         ):
-            report = run_controlled_experiments(
+            report = self._run_comparison(
                 self.examples,
                 self.examples,
                 self.vocabulary,
@@ -128,7 +137,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
     # 2. Telemetria ativada
     # -------------------------------------------------------------------------
     def test_telemetry_enabled_opt_in_generates_valid_envelope_and_run_records(self) -> None:
-        report = run_controlled_experiments(
+        report = self._run_comparison(
             self.examples,
             self.examples,
             self.vocabulary,
@@ -242,7 +251,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
             ),
             self.assertLogs("kinera.monitor.telemetry", level="WARNING") as logs,
         ):
-            report = run_controlled_experiments(
+            report = self._run_comparison(
                 self.examples,
                 self.examples,
                 self.vocabulary,
@@ -278,7 +287,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
                 "train_multitask_examples",
                 side_effect=RuntimeError("scientific training divergence"),
             ):
-                report = run_controlled_experiments(
+                report = self._run_comparison(
                     self.examples,
                     self.examples,
                     self.vocabulary,
@@ -311,7 +320,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
             raise OSError("monotonic clock failed")
 
         with patch.object(TimingSession, "_read_monotonic", side_effect=broken_clock):
-            report = run_controlled_experiments(
+            report = self._run_comparison(
                 self.examples,
                 self.examples,
                 self.vocabulary,
@@ -357,7 +366,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
                 "train_multitask_examples",
                 side_effect=conditionally_failing_trainer,
             ):
-                first_run = run_controlled_experiments(
+                first_run = self._run_comparison(
                     self.examples,
                     self.examples,
                     self.vocabulary,
@@ -388,7 +397,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
                 "train_multitask_examples",
                 side_effect=conditionally_failing_trainer,
             ):
-                resumed_run = run_controlled_experiments(
+                resumed_run = self._run_comparison(
                     self.examples,
                     self.examples,
                     self.vocabulary,
@@ -432,7 +441,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
     def test_cpu_only_guarantee_no_cuda_modules_imported_during_telemetry(self) -> None:
         cuda_keys_before = {k for k in sys.modules if "cuda" in k.lower()}
 
-        report = run_controlled_experiments(
+        report = self._run_comparison(
             self.examples,
             self.examples,
             self.vocabulary,
@@ -455,7 +464,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
     # 7. Execução paralela CPU
     # -------------------------------------------------------------------------
     def test_parallel_execution_isolates_worker_lifecycles_and_measures_stages(self) -> None:
-        report = run_controlled_experiments(
+        report = self._run_comparison(
             self.examples,
             self.examples,
             self.vocabulary,
@@ -489,7 +498,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
     # -------------------------------------------------------------------------
     # 8. Compatibilidade: checkpoints legados e relatórios
     # -------------------------------------------------------------------------
-    def test_compatibility_with_legacy_checkpoints_without_telemetry(self) -> None:
+    def test_legacy_checkpoint_without_fingerprint_is_readable_but_cannot_resume(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             checkpoint = Path(directory) / "legacy_checkpoint.json"
             metric_values = {
@@ -550,57 +559,25 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
             }
             checkpoint.write_text(json.dumps(legacy_data), encoding="utf-8")
 
-            # Resume with telemetry enabled
-            report = run_controlled_experiments(
-                self.examples,
-                self.examples,
-                self.vocabulary,
-                syllable_vocab_size=3,
-                seeds=[7, 42],
-                epochs=1,
-                learning_rate=0.05,
-                max_examples=2,
-                variants=("A",),
-                checkpoint_path=checkpoint,
-                resume=True,
-                collect_telemetry=True,
-                execution_config=ExecutionConfig(workers=1),
-            )
-
-        self.assertEqual(report["status"], "completed")
-        self.assertEqual(report["completed_runs"], 2)
-        runs = {r["seed"]: r for r in report["runs"]["A"]}
-
-        # Seed 7 was pre-existing without telemetry: preserved as-is without synthetic injection
-        self.assertEqual(runs[7]["pid"], 9999)
-        self.assertEqual(runs[7]["max_rss_kb"], 12345)
-        self.assertEqual(runs[7]["duration_seconds"], 0.42)
-        self.assertNotIn("telemetry", runs[7])
-
-        # Seed 42 was executed on resume with telemetry: has new telemetry record
-        self.assertIn("telemetry", runs[42])
-        self.assertEqual(runs[42]["telemetry"]["attempts"][0]["status"], "completed")
-
-        # Top-level sections all intact
-        for expected_key in (
-            "phase",
-            "variants",
-            "seeds",
-            "epochs",
-            "learning_rate",
-            "max_examples",
-            "workers",
-            "status",
-            "total_runs",
-            "completed_runs",
-            "failed_runs",
-            "runs",
-            "aggregates",
-            "parameter_counts",
-            "input_usage",
-            "telemetry",
-        ):
-            self.assertIn(expected_key, report)
+            before = checkpoint.read_bytes()
+            self.assertEqual(json.loads(before)["completed_runs"], 1)
+            with self.assertRaisesRegex(ValueError, "checkpoint legado.*resume não autorizado"):
+                self._run_comparison(
+                    self.examples,
+                    self.examples,
+                    self.vocabulary,
+                    syllable_vocab_size=3,
+                    seeds=[7, 42],
+                    epochs=1,
+                    learning_rate=0.05,
+                    max_examples=2,
+                    variants=("A",),
+                    checkpoint_path=checkpoint,
+                    resume=True,
+                    collect_telemetry=True,
+                    execution_config=ExecutionConfig(workers=1),
+                )
+            self.assertEqual(checkpoint.read_bytes(), before)
 
     # -------------------------------------------------------------------------
     # CLI integration: compare.py
@@ -631,7 +608,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
         """Sessões iniciadas em rápida sucessão têm session_id estritamente únicos."""
         session_ids: set[str] = set()
         for _ in range(5):
-            report = run_controlled_experiments(
+            report = self._run_comparison(
                 self.examples,
                 self.examples,
                 self.vocabulary,
@@ -673,7 +650,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
                 "train_multitask_examples",
                 side_effect=failing_on_attempt_1,
             ):
-                first_run = run_controlled_experiments(
+                first_run = self._run_comparison(
                     self.examples,
                     self.examples,
                     self.vocabulary,
@@ -711,7 +688,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
                 "train_multitask_examples",
                 side_effect=failing_on_attempt_1,
             ):
-                resumed_run = run_controlled_experiments(
+                resumed_run = self._run_comparison(
                     self.examples,
                     self.examples,
                     self.vocabulary,
@@ -756,7 +733,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
             checkpoint_file = Path(directory) / "checkpoint_mixed.json"
 
             # 1. Executa seed 7 com telemetria
-            run_controlled_experiments(
+            self._run_comparison(
                 self.examples,
                 self.examples,
                 self.vocabulary,
@@ -772,7 +749,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
             )
 
             # 2. Retoma expandindo para seeds=[7, 42] com collect_telemetry=False
-            resumed = run_controlled_experiments(
+            resumed = self._run_comparison(
                 self.examples,
                 self.examples,
                 self.vocabulary,
@@ -813,7 +790,7 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
                 "train_multitask_examples",
                 side_effect=RuntimeError("scientific failure"),
             ):
-                report = run_controlled_experiments(
+                report = self._run_comparison(
                     self.examples,
                     self.examples,
                     self.vocabulary,

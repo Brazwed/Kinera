@@ -15,6 +15,7 @@ from typing import Any, cast
 
 from kinera.backends import get_backend
 from kinera.experiments.config import ExperimentConfig, ExecutionConfig
+from kinera.experiments.fingerprint import canonical_sha256
 from kinera.monitor.metrics.aggregation import (
     aggregate_metric_values,
     mean_std,
@@ -34,7 +35,7 @@ from kinera.monitor.telemetry.records import (
 from kinera.monitor.telemetry.environment import collect_environment_snapshot
 from kinera.monitor.telemetry.resources import collect_resource_snapshot
 from kinera.monitor.telemetry.timing import TimingSession, _seconds_from_ns, utc_now
-from kinera.language.vocabulary import CharacterVocabulary
+from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from kinera.nn.models.hybrid import AutoregressiveModel
 from kinera.training.evaluator import evaluate_multitask_examples
 from kinera.training.trainer import train_multitask_examples
@@ -51,6 +52,173 @@ from kinera.experiments.variants import (
 
 
 _INVALID_METRIC_OBSERVATION = object()
+FINGERPRINT_SCHEMA_VERSION = 1
+EXPERIMENT_PROTOCOL_VERSION = 1
+VARIANT_PREPARATION_VERSION = 1
+_FINGERPRINT_EXAMPLE_FIELDS = (
+    "context_ids",
+    "context_syllable_ids",
+    "context_feature_vectors",
+    "target_char_id",
+    "target_syllable_id",
+    "target_is_syllable_end",
+)
+
+
+def _fingerprint_examples(examples: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep only fields consumed by preparation, training, and evaluation."""
+    return [
+        {name: example.get(name) for name in _FINGERPRINT_EXAMPLE_FIELDS}
+        for example in examples
+    ]
+
+
+def _fingerprint_components_digest(
+    components: dict[str, str],
+    *,
+    schema_version: int = FINGERPRINT_SCHEMA_VERSION,
+) -> str:
+    return canonical_sha256({
+        "fingerprint_schema_version": schema_version,
+        "algorithm": "sha256",
+        "components": components,
+    })
+
+
+def _build_experiment_fingerprint(
+    train_examples: list[dict[str, Any]],
+    validation_examples: list[dict[str, Any]],
+    vocabulary: CharacterVocabulary,
+    syllable_vocabulary: SyllableVocabulary,
+    *,
+    syllable_vocab_size: int,
+    syllable_unknown_id: int,
+    epochs: int,
+    learning_rate: float,
+    max_examples: int | None,
+    variants: tuple[str, ...],
+    prepared_variants: dict[
+        str, tuple[list[dict[str, Any]], list[dict[str, Any]]]
+    ] | None = None,
+) -> dict[str, Any]:
+    selected_train = (
+        train_examples if max_examples is None else train_examples[:max_examples]
+    )
+    selected_validation = (
+        validation_examples
+        if max_examples is None
+        else validation_examples[:max_examples]
+    )
+    components = {
+        "training_examples_sha256": canonical_sha256(
+            _fingerprint_examples(selected_train)
+        ),
+        "validation_examples_sha256": canonical_sha256(
+            _fingerprint_examples(selected_validation)
+        ),
+        "character_vocabulary_sha256": canonical_sha256({
+            "mapping": vocabulary.to_dict(),
+            "special_ids": {
+                "start": vocabulary.start_id,
+                "end": vocabulary.end_id,
+                "unknown": vocabulary.unk_id,
+            },
+        }),
+        "syllable_vocabulary_sha256": canonical_sha256({
+            "mapping": syllable_vocabulary.to_dict(),
+            "unknown_id": syllable_vocabulary.unk_id,
+        }),
+        "scientific_configuration_sha256": canonical_sha256({
+            "experiment_protocol_version": EXPERIMENT_PROTOCOL_VERSION,
+            "epochs": epochs,
+            "learning_rate": learning_rate,
+            "max_examples": max_examples,
+            "syllable_vocab_size": syllable_vocab_size,
+            "syllable_unknown_id": syllable_unknown_id,
+            "loss_weights": {"char": 1.0, "syllable": 0.7, "boundary": 0.3},
+            "model": {
+                "class": "AutoregressiveModel",
+                "char_embedding_dim": 8,
+                "syllable_embedding_dim": 8,
+                "feature_dim": 10,
+            },
+        }),
+    }
+    variant_inputs: dict[str, str] = {}
+    for variant in variants:
+        if prepared_variants is None:
+            prepared_train = prepare_variant_examples(
+                selected_train,
+                variant,
+                vocabulary,
+                syllable_unknown_id=syllable_unknown_id,
+            )
+            prepared_validation = prepare_variant_examples(
+                selected_validation,
+                variant,
+                vocabulary,
+                syllable_unknown_id=syllable_unknown_id,
+            )
+        else:
+            prepared_train, prepared_validation = prepared_variants[variant]
+        variant_inputs[variant] = canonical_sha256({
+            "variant": variant,
+            "variant_preparation_version": VARIANT_PREPARATION_VERSION,
+            "training_inputs": _fingerprint_examples(prepared_train),
+            "validation_inputs": _fingerprint_examples(prepared_validation),
+        })
+    return {
+        "fingerprint_schema_version": FINGERPRINT_SCHEMA_VERSION,
+        "algorithm": "sha256",
+        "components": components,
+        "digest": _fingerprint_components_digest(components),
+        "variant_inputs": variant_inputs,
+    }
+
+
+def _validate_experiment_fingerprint(
+    persisted: Any,
+    current: dict[str, Any],
+    persisted_variants: tuple[str, ...],
+) -> None:
+    if not isinstance(persisted, dict):
+        raise ValueError(
+            "checkpoint legado sem fingerprint científico; resume não autorizado"
+        )
+    if (
+        type(persisted.get("fingerprint_schema_version")) is not int
+        or persisted.get("fingerprint_schema_version") != FINGERPRINT_SCHEMA_VERSION
+        or persisted.get("algorithm") != "sha256"
+        or not isinstance(persisted.get("components"), dict)
+        or not isinstance(persisted.get("variant_inputs"), dict)
+    ):
+        raise ValueError("checkpoint fingerprint ausente ou incompatível")
+    components = persisted["components"]
+    if set(components) != set(current["components"]):
+        raise ValueError("checkpoint fingerprint possui componentes desconhecidos")
+    if persisted.get("digest") != _fingerprint_components_digest(components):
+        raise ValueError("checkpoint fingerprint científico inválido")
+    old_variant_inputs = persisted["variant_inputs"]
+    if set(old_variant_inputs) != set(persisted_variants):
+        raise ValueError("checkpoint fingerprint de variantes inválido")
+
+    changed = [
+        name
+        for name, digest in current["components"].items()
+        if components.get(name) != digest
+    ]
+    if changed:
+        raise ValueError(
+            "checkpoint fingerprint incompatível: " + ", ".join(changed)
+        )
+    for variant in persisted_variants:
+        if (
+            old_variant_inputs.get(variant)
+            != current["variant_inputs"].get(variant)
+        ):
+            raise ValueError(
+                f"checkpoint fingerprint incompatível: variante {variant}"
+            )
 
 
 def _metric_observation_from_run(run: Mapping[str, Any], metric: str) -> Any:
@@ -518,6 +686,7 @@ def run_controlled_experiments(
     vocabulary: CharacterVocabulary,
     *,
     syllable_vocab_size: int,
+    syllable_vocabulary: SyllableVocabulary | None = None,
     seeds: list[int],
     epochs: int,
     learning_rate: float,
@@ -531,7 +700,7 @@ def run_controlled_experiments(
     telemetry: TelemetryEnvelope | dict[str, Any] | None = None,
     collect_telemetry: bool | None = None,
 ) -> dict[str, Any]:
-    """Executa as variantes selecionadas, com checkpoint por variante/seed."""
+    """Executa variantes; checkpoints exigem a identidade do vocabulário silábico."""
     variants = _validate_variant_selection(variants)
     if not seeds:
         raise ValueError("seeds não pode ser vazio")
@@ -578,6 +747,43 @@ def run_controlled_experiments(
         "boundary_baseline_majority",
     )
     checkpoint = Path(checkpoint_path) if checkpoint_path is not None else None
+    if checkpoint is not None and syllable_vocabulary is None:
+        raise ValueError(
+            "checkpoint exige syllable_vocabulary para verificar sua identidade"
+        )
+    if syllable_vocabulary is not None:
+        if not isinstance(syllable_vocabulary, SyllableVocabulary):
+            raise TypeError("syllable_vocabulary deve ser SyllableVocabulary")
+        if len(syllable_vocabulary) != syllable_vocab_size:
+            raise ValueError("syllable_vocabulary incompatível com syllable_vocab_size")
+        if syllable_vocabulary.unk_id != syllable_unknown_id:
+            raise ValueError("syllable_vocabulary incompatível com syllable_unknown_id")
+    prepared_variants: dict[
+        str, tuple[list[dict[str, Any]], list[dict[str, Any]]]
+    ] = {}
+    input_usage: dict[str, dict[str, int]] = {}
+    for variant in variants:
+        prepared_train = prepare_variant_examples(
+            train_examples,
+            variant,
+            vocabulary,
+            syllable_unknown_id=syllable_unknown_id,
+        )
+        prepared_validation = prepare_variant_examples(
+            validation_examples,
+            variant,
+            vocabulary,
+            syllable_unknown_id=syllable_unknown_id,
+        )
+        if max_examples is not None:
+            prepared_train = prepared_train[:max_examples]
+            prepared_validation = prepared_validation[:max_examples]
+        input_usage[variant] = _input_usage(
+            prepared_train,
+            prepared_validation,
+            syllable_unknown_id,
+        )
+        prepared_variants[variant] = (prepared_train, prepared_validation)
     telemetry_section = _serialize_telemetry_envelope(telemetry)
     if collect_telemetry and telemetry_section is None:
         now_dt = utc_now()
@@ -633,16 +839,50 @@ def run_controlled_experiments(
             "loss_weights": {"char": 1.0, "syllable": 0.7, "boundary": 0.3},
         }
     )
+    experiment_fingerprint = None
+    if syllable_vocabulary is not None:
+        experiment_fingerprint = _build_experiment_fingerprint(
+            train_examples,
+            validation_examples,
+            vocabulary,
+            syllable_vocabulary,
+            syllable_vocab_size=syllable_vocab_size,
+            syllable_unknown_id=syllable_unknown_id,
+            epochs=epochs,
+            learning_rate=learning_rate,
+            max_examples=max_examples,
+            variants=variants,
+            prepared_variants=prepared_variants,
+        )
     configuration = {
         **experiment_configuration,
         "experiment_config": experiment_configuration.copy(),
         "execution_config": execution_config.to_dict(),
         "workers": workers,
     }
+    if experiment_fingerprint is not None:
+        configuration["experiment_fingerprint"] = experiment_fingerprint
     if resume:
         if checkpoint is None or not checkpoint.exists():
             raise ValueError("resume exige checkpoint_path existente")
         persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
+        if not isinstance(persisted, dict):
+            raise ValueError("checkpoint deve conter um objeto JSON")
+        persisted_variants_value = persisted.get("variants")
+        if (
+            not isinstance(persisted_variants_value, list)
+            or any(not isinstance(item, str) for item in persisted_variants_value)
+            or len(set(persisted_variants_value)) != len(persisted_variants_value)
+        ):
+            raise ValueError("checkpoint variants inválidas")
+        persisted_variants = tuple(persisted_variants_value)
+        if not set(persisted_variants) <= set(variants):
+            raise ValueError("checkpoint incompatível: variantes removidas")
+        _validate_experiment_fingerprint(
+            persisted.get("experiment_fingerprint"),
+            cast(dict[str, Any], experiment_fingerprint),
+            persisted_variants,
+        )
         persisted_telemetry = persisted.get("telemetry")
         if persisted_telemetry is not None:
             restored_telemetry = _serialize_telemetry_envelope(persisted_telemetry)
@@ -664,18 +904,75 @@ def run_controlled_experiments(
         persisted_configuration = {
             key: persisted.get(key)
             for key in configuration
-            if key not in {"seeds", "workers", "experiment_config", "execution_config"}
+            if key not in {
+                "seeds",
+                "variants",
+                "workers",
+                "experiment_config",
+                "execution_config",
+                "experiment_fingerprint",
+            }
         }
+        persisted_seeds_value = persisted.get("seeds")
+        if (
+            not isinstance(persisted_seeds_value, list)
+            or any(
+                isinstance(seed, bool) or not isinstance(seed, int)
+                for seed in persisted_seeds_value
+            )
+            or len(set(persisted_seeds_value)) != len(persisted_seeds_value)
+        ):
+            raise ValueError("checkpoint seeds inválidas")
         persisted_seeds = set(persisted.get("seeds", []))
         current_configuration = {
             key: configuration[key]
             for key in configuration
-            if key not in {"seeds", "workers", "experiment_config", "execution_config"}
+            if key not in {
+                "seeds",
+                "variants",
+                "workers",
+                "experiment_config",
+                "execution_config",
+                "experiment_fingerprint",
+            }
         }
         current_seeds = set(configuration["seeds"])
-        if persisted_configuration != current_configuration or not persisted_seeds <= current_seeds:
+        if (
+            persisted_configuration != current_configuration
+            or not persisted_seeds <= current_seeds
+        ):
             raise ValueError("checkpoint incompatível com a configuração atual")
-        persisted_runs = persisted["runs"]
+        persisted_runs = persisted.get("runs")
+        if not isinstance(persisted_runs, dict) or set(persisted_runs) != set(
+            persisted_variants
+        ):
+            raise ValueError("checkpoint runs incompatíveis com variants")
+        for variant in persisted_variants:
+            variant_runs = persisted_runs[variant]
+            if not isinstance(variant_runs, list):
+                raise ValueError(f"checkpoint runs inválidos para variante {variant}")
+            run_seeds: set[int] = set()
+            for run in variant_runs:
+                if not isinstance(run, dict):
+                    raise ValueError(f"checkpoint run inválido para variante {variant}")
+                seed = run.get("seed")
+                if (
+                    isinstance(seed, bool)
+                    or not isinstance(seed, int)
+                    or seed not in persisted_seeds
+                    or seed in run_seeds
+                ):
+                    raise ValueError(
+                        f"checkpoint seed inválida ou duplicada para variante {variant}"
+                    )
+                if run.get("status") not in {
+                    "pending",
+                    "running",
+                    "completed",
+                    "failed",
+                }:
+                    raise ValueError(f"checkpoint status inválido para variante {variant}")
+                run_seeds.add(seed)
         reports = {variant: persisted_runs.get(variant, []) for variant in variants}
         persisted_aggregates = persisted.get("aggregates", {})
         aggregates = {
@@ -690,16 +987,13 @@ def run_controlled_experiments(
             if variant in persisted_parameter_counts
         }
         persisted_input_usage = persisted.get("input_usage", {})
-        input_usage = {
-            variant: persisted_input_usage[variant]
-            for variant in variants
-            if variant in persisted_input_usage
-        }
+        for variant in variants:
+            if variant in persisted_input_usage:
+                input_usage[variant] = persisted_input_usage[variant]
     else:
         reports = {variant: [] for variant in variants}
         aggregates = {}
         parameter_counts = {}
-        input_usage = {}
     if checkpoint is not None and not resume:
         _persist_checkpoint(
             checkpoint,
@@ -713,30 +1007,6 @@ def run_controlled_experiments(
                 telemetry=telemetry_section,
             ),
         )
-
-    prepared_variants: dict[str, tuple[list[dict[str, Any]], list[dict[str, Any]]]] = {}
-    for variant in variants:
-        prepared_train = prepare_variant_examples(
-            train_examples,
-            variant,
-            vocabulary,
-            syllable_unknown_id=syllable_unknown_id,
-        )
-        prepared_validation = prepare_variant_examples(
-            validation_examples,
-            variant,
-            vocabulary,
-            syllable_unknown_id=syllable_unknown_id,
-        )
-        if max_examples is not None:
-            prepared_train = prepared_train[:max_examples]
-            prepared_validation = prepared_validation[:max_examples]
-        input_usage[variant] = _input_usage(
-            prepared_train,
-            prepared_validation,
-            syllable_unknown_id,
-        )
-        prepared_variants[variant] = (prepared_train, prepared_validation)
 
     if workers > 1:
         return _run_parallel_experiments(
