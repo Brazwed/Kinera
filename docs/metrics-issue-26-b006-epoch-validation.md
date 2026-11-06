@@ -115,8 +115,8 @@ Arquivos alterados nesta tranche:
   `tests/test_telemetry_controlled_runner.py`: regressões determinísticas.
 - `README.md`: contrato resumido para consumidores.
 
-Validação local sobre a base atualizada: 750 testes aprovados, 54 skips e 5
-testes deselecionados conforme a CI, mais 715 subtestes. O ambiente usa Python
+Validação local sobre a base atualizada: 751 testes aprovados, 54 skips e 5
+testes deselecionados conforme a CI, mais 717 subtestes. O ambiente usa Python
 3.15; Python 3.10 não está instalado. `compileall`, `git diff --check` e import
 CPU-only passaram. Nenhum teste CUDA/OpenCL foi executado. O workflow remoto
-associado à PR e seu status são apresentados na entrega de publicação.
+associado à PR é verificado junto à head publicada.
