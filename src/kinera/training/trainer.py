@@ -246,6 +246,7 @@ def train_multitask_examples(
                 vocabulary,
                 syllable_unknown_id=syllable_unknown_id,
                 loss_function=loss_function,
+                include_multiclass_baselines=False,
             )
         history.append({
             key: value for key, value in metrics.items() if key != "examples"

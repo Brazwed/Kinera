@@ -20,9 +20,11 @@ from kinera.monitor.metrics import (
     evaluate_constant_baseline,
     evaluate_corpus_offsets,
     evaluate_majority_baseline,
+    evaluate_multiclass_majority_baseline,
     evaluate_word_offsets,
     f1_score,
     majority_class,
+    multiclass_class_counts,
     mean_std,
     offset_balanced_accuracy,
     offset_f1,
@@ -304,6 +306,92 @@ class BinaryBaselinesTests(unittest.TestCase):
             res["majority"]["confusion"],
             res["constant_0"]["confusion"],
         )
+
+
+class MulticlassMajorityBaselineTests(unittest.TestCase):
+    def test_counts_validate_ids_and_are_ordered(self) -> None:
+        original = [4, 2, 4, 2, 1]
+        self.assertEqual(
+            multiclass_class_counts(original, num_classes=5),
+            {1: 1, 2: 2, 4: 2},
+        )
+        self.assertEqual(original, [4, 2, 4, 2, 1])
+        self.assertEqual(multiclass_class_counts([], num_classes=5), {})
+
+    def test_tie_break_is_smallest_id_and_independent_of_mapping_order(self) -> None:
+        evaluation = {4: 1, 2: 2}
+        first = evaluate_multiclass_majority_baseline(
+            {4: 3, 2: 3}, evaluation, num_classes=5
+        )
+        second = evaluate_multiclass_majority_baseline(
+            dict(reversed([(4, 3), (2, 3)])),
+            dict(reversed(list(evaluation.items()))),
+            num_classes=5,
+        )
+        self.assertEqual(first, second)
+        self.assertEqual(first["majority_class"], 2)
+        self.assertEqual(first["accuracy"], 2 / 3)
+        self.assertEqual(first["correct"], 2)
+        self.assertEqual(first["training_support"], 6)
+        self.assertEqual(first["evaluation_support"], 3)
+        self.assertEqual(first["status"], "available")
+
+    def test_validation_distribution_never_changes_selected_class(self) -> None:
+        train = {1: 4, 3: 2}
+        first = evaluate_multiclass_majority_baseline(
+            train, {1: 1, 3: 5}, num_classes=4
+        )
+        second = evaluate_multiclass_majority_baseline(
+            train, {1: 8, 3: 0}, num_classes=4
+        )
+        self.assertEqual(first["majority_class"], 1)
+        self.assertEqual(second["majority_class"], 1)
+        self.assertEqual(first["accuracy"], 1 / 6)
+        self.assertEqual(second["accuracy"], 1.0)
+
+    def test_empty_training_and_evaluation_support_have_distinct_status(self) -> None:
+        missing = evaluate_multiclass_majority_baseline(
+            None, {1: 1}, num_classes=3
+        )
+        no_training = evaluate_multiclass_majority_baseline(
+            {}, {1: 1}, num_classes=3
+        )
+        no_evaluation = evaluate_multiclass_majority_baseline(
+            {1: 2}, {}, num_classes=3
+        )
+        neither = evaluate_multiclass_majority_baseline(
+            {}, {}, num_classes=3
+        )
+        self.assertEqual(missing["status"], "training_distribution_missing")
+        self.assertIsNone(missing["training_support"])
+        self.assertEqual(no_training["status"], "no_training_targets")
+        self.assertIsNone(no_training["majority_class"])
+        self.assertEqual(no_evaluation["status"], "no_evaluation_targets")
+        self.assertEqual(no_evaluation["majority_class"], 1)
+        self.assertEqual(neither["status"], "no_training_targets")
+
+    def test_malformed_targets_and_counts_are_rejected(self) -> None:
+        for target in (True, "1", -1, 3):
+            with self.subTest(target=target):
+                with self.assertRaises((TypeError, ValueError)):
+                    multiclass_class_counts([target], num_classes=3)  # type: ignore[list-item]
+
+        for distribution in (
+            {True: 1},
+            {-1: 1},
+            {3: 1},
+            {1: True},
+            {1: -1},
+            {1: 1.5},
+        ):
+            with self.subTest(distribution=distribution):
+                with self.assertRaises((TypeError, ValueError)):
+                    evaluate_multiclass_majority_baseline(
+                        distribution, {1: 1}, num_classes=3  # type: ignore[arg-type]
+                    )
+
+        with self.assertRaises((TypeError, ValueError)):
+            multiclass_class_counts([0], num_classes=True)  # type: ignore[arg-type]
 
 
 class OffsetSegmentationMetricsTests(unittest.TestCase):

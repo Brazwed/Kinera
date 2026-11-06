@@ -263,6 +263,254 @@ class MultitaskTrainingWorkflowTests(unittest.TestCase):
             "no_known_targets",
         )
 
+    def test_multiclass_baselines_use_training_counts_and_keep_legacy_metrics(self) -> None:
+        class Head:
+            output_size = 4
+
+        class DeterministicModel:
+            backend = "cpu"
+            heads = type("Heads", (), {"syllable": Head()})()
+
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def multitask_eval_step(
+                self, *inputs: Any, targets: dict[str, int | float], loss_function: Any
+            ) -> dict[str, Any]:
+                del inputs, loss_function
+                self.calls += 1
+                return {
+                    "losses": {
+                        "char_loss": 0.1,
+                        "syllable_loss": 0.2,
+                        "boundary_loss": 0.3,
+                        "total_loss": 0.6,
+                    },
+                    "predictions": {
+                        "char": targets["char"],
+                        "syllable": (
+                            0 if targets["syllable"] == 2 else targets["syllable"]
+                        ),
+                        "boundary": int(targets["boundary"] >= 0.5),
+                    },
+                }
+
+        end_id = self.vocabulary.end_id
+        examples = [
+            {
+                "context_ids": [0],
+                "context_syllable_ids": [0],
+                "context_feature_vectors": [[0.0] * 10],
+                "target_char_id": end_id,
+                # Deliberately non-UNK: legacy known accuracy keeps this target,
+                # while the new known baseline excludes END by definition.
+                "target_syllable_id": 2,
+                "target_is_syllable_end": 0,
+            },
+            {
+                "context_ids": [0],
+                "context_syllable_ids": [0],
+                "context_feature_vectors": [[0.0] * 10],
+                "target_char_id": 3,
+                "target_syllable_id": 2,
+                "target_is_syllable_end": 0,
+            },
+            {
+                "context_ids": [0],
+                "context_syllable_ids": [0],
+                "context_feature_vectors": [[0.0] * 10],
+                "target_char_id": 4,
+                "target_syllable_id": 3,
+                "target_is_syllable_end": 1,
+            },
+            {
+                "context_ids": [0],
+                "context_syllable_ids": [0],
+                "context_feature_vectors": [[0.0] * 10],
+                "target_char_id": 3,
+                "target_syllable_id": 0,
+                "target_is_syllable_end": 0,
+            },
+        ]
+        train_char = {end_id: 4, 3: 4}
+        train_syllable_all = {0: 3, 2: 5, 3: 1}
+        train_syllable_known = {2: 2, 3: 1}
+        observed_model = DeterministicModel()
+        observed = evaluate_multitask_examples(
+            observed_model,  # type: ignore[arg-type]
+            examples,
+            self.vocabulary,
+            loss_function=object(),  # type: ignore[arg-type]
+            train_char_distribution=train_char,
+            train_syllable_distribution=train_syllable_all,
+            train_syllable_known_distribution=train_syllable_known,
+            syllable_vocab_size=4,
+        )
+        legacy_model = DeterministicModel()
+        legacy = evaluate_multitask_examples(
+            legacy_model,  # type: ignore[arg-type]
+            examples,
+            self.vocabulary,
+            loss_function=object(),  # type: ignore[arg-type]
+            include_multiclass_baselines=False,
+        )
+
+        self.assertEqual(observed_model.calls, len(examples))
+        self.assertEqual(legacy_model.calls, len(examples))
+        self.assertEqual(observed["char_accuracy"], legacy["char_accuracy"])
+        self.assertEqual(
+            observed["syllable_accuracy_known"], legacy["syllable_accuracy_known"]
+        )
+        self.assertEqual(observed["boundary_accuracy"], legacy["boundary_accuracy"])
+        for metric_name, descriptor in legacy["metric_results"].items():
+            self.assertEqual(observed["metric_results"][metric_name], descriptor)
+
+        descriptors = observed["metric_results"]
+        self.assertEqual(
+            descriptors["char_baseline_majority"],
+            {
+                "value": 0.25,
+                "availability": "available",
+                "reason": None,
+                "support": {"training_targets": 8, "evaluation_targets": 4},
+            },
+        )
+        self.assertEqual(
+            descriptors["syllable_baseline_majority_all"]["value"], 0.5
+        )
+        self.assertEqual(
+            descriptors["syllable_baseline_majority_all"]["support"],
+            {"training_targets": 9, "evaluation_targets": 4},
+        )
+        self.assertEqual(
+            descriptors["syllable_baseline_majority_known"]["value"], 0.5
+        )
+        self.assertEqual(
+            descriptors["syllable_baseline_majority_known"]["support"],
+            {"known_training_targets": 3, "known_evaluation_targets": 2},
+        )
+        self.assertEqual(
+            observed["baseline_selection"]["classes"],
+            {
+                "char_baseline_majority": end_id,
+                "syllable_baseline_majority_all": 2,
+                "syllable_baseline_majority_known": 2,
+            },
+        )
+        self.assertEqual(observed["baseline_selection"]["syllable_known_scope"], {
+            "excluded_syllable_id": 0,
+            "excluded_character_id": end_id,
+        })
+        json.dumps(observed, allow_nan=False)
+
+    def test_multiclass_baselines_report_missing_and_empty_known_support(self) -> None:
+        class Head:
+            output_size = 3
+
+        class DeterministicModel:
+            backend = "cpu"
+            heads = type("Heads", (), {"syllable": Head()})()
+
+            def multitask_eval_step(
+                self, *inputs: Any, targets: dict[str, int | float], loss_function: Any
+            ) -> dict[str, Any]:
+                del inputs, loss_function
+                return {
+                    "losses": {
+                        "char_loss": 0.0,
+                        "syllable_loss": 0.0,
+                        "boundary_loss": 0.0,
+                        "total_loss": 0.0,
+                    },
+                    "predictions": {
+                        "char": targets["char"],
+                        "syllable": targets["syllable"],
+                        "boundary": 0,
+                    },
+                }
+
+        only_end_or_unknown = [{
+            "context_ids": [0],
+            "context_syllable_ids": [0],
+            "context_feature_vectors": [[0.0] * 10],
+            "target_char_id": self.vocabulary.end_id,
+            "target_syllable_id": 0,
+            "target_is_syllable_end": 1,
+        }]
+        no_training = evaluate_multitask_examples(
+            DeterministicModel(),  # type: ignore[arg-type]
+            only_end_or_unknown,
+            self.vocabulary,
+            loss_function=object(),  # type: ignore[arg-type]
+            train_char_distribution={},
+            train_syllable_distribution={0: 2},
+            train_syllable_known_distribution={},
+            syllable_vocab_size=3,
+        )
+        self.assertEqual(
+            no_training["metric_results"]["syllable_baseline_majority_known"],
+            {
+                "value": None,
+                "availability": "unavailable",
+                "reason": "no_known_training_targets",
+                "support": {"known_training_targets": 0, "known_evaluation_targets": 0},
+            },
+        )
+
+        no_evaluation = evaluate_multitask_examples(
+            DeterministicModel(),  # type: ignore[arg-type]
+            only_end_or_unknown,
+            self.vocabulary,
+            loss_function=object(),  # type: ignore[arg-type]
+            train_char_distribution={3: 2},
+            train_syllable_distribution={0: 2},
+            train_syllable_known_distribution={2: 2},
+            syllable_vocab_size=3,
+        )
+        self.assertEqual(
+            no_evaluation["metric_results"]["syllable_baseline_majority_known"],
+            {
+                "value": None,
+                "availability": "not_applicable",
+                "reason": "no_known_targets",
+                "support": {"known_training_targets": 2, "known_evaluation_targets": 0},
+            },
+        )
+
+        missing = evaluate_multitask_examples(
+            DeterministicModel(),  # type: ignore[arg-type]
+            only_end_or_unknown,
+            self.vocabulary,
+            loss_function=object(),  # type: ignore[arg-type]
+        )
+        self.assertEqual(
+            missing["metric_results"]["char_baseline_majority"]["availability"],
+            "unavailable",
+        )
+        self.assertEqual(
+            missing["metric_results"]["char_baseline_majority"]["reason"],
+            "training_distribution_missing",
+        )
+
+    def test_training_history_does_not_gain_multiclass_baseline_fields(self) -> None:
+        model = self._model()
+        report = train_multitask_examples(
+            model,
+            self.examples,
+            self.vocabulary,
+            epochs=1,
+            learning_rate=0.1,
+        )
+        epoch = report["history"][0]
+        self.assertNotIn("baseline_selection", epoch)
+        self.assertTrue(
+            {
+                "char_baseline_majority",
+                "syllable_baseline_majority_all",
+                "syllable_baseline_majority_known",
+            }.isdisjoint(epoch["metric_results"])
+        )
+
     def test_passive_recorder_is_equivalent_to_baseline_and_observes_each_update(self) -> None:
         def run(observer_enabled: bool) -> tuple[Any, ...]:
             model = self._model()
