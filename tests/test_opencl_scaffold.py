@@ -1857,5 +1857,466 @@ class OpenCLEmbeddingStepTests(unittest.TestCase):
             cpu_layer.close()
 
 
+class OpenCLEmbeddingIntegrationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.api = FakeOpenCLApi(max_allocation=4096)
+        self.backend = OpenCLBackend(runtime=OpenCLRuntime(api=self.api))
+        self.cpu = CPUBackend()
+
+    def tearDown(self) -> None:
+        self.backend.close()
+
+    def _assert_values(self, actual, expected) -> float:
+        if actual and isinstance(actual[0], list):
+            actual_flat = [value for row in actual for value in row]
+        else:
+            actual_flat = list(actual)
+        if expected and isinstance(expected[0], list):
+            expected_flat = [value for row in expected for value in row]
+        else:
+            expected_flat = list(expected)
+        self.assertEqual(len(actual_flat), len(expected_flat))
+        errors = [abs(got - want) for got, want in zip(actual_flat, expected_flat)]
+        for index, (got, want) in enumerate(zip(actual_flat, expected_flat)):
+            with self.subTest(index=index, actual=got, expected=want):
+                self.assertLessEqual(abs(got - want), 1e-12 + 1e-12 * abs(want))
+        return max(errors, default=0.0)
+
+    def test_repeated_forward_backward_step_cycles_and_empty_ids_match_cpu(self) -> None:
+        cpu_layer = Embedding(4, 3, seed=20261106, backend=self.cpu)
+        gpu_layer = Embedding(4, 3, seed=20261106, backend=self.backend)
+        owned_buffers: list[OpenCLBuffer] = []
+        weight_buffer = gpu_layer.weights
+        initial_gradients = gpu_layer.grad_weights
+        self.assertIsInstance(weight_buffer, OpenCLBuffer)
+        owned_buffers.append(weight_buffer)
+        owned_buffers.append(initial_gradients)
+        self.assertEqual(self.backend.buffer_to_host(weight_buffer), cpu_layer.weights)
+        with self.assertRaisesRegex(RuntimeError, "backward anterior"):
+            gpu_layer.step(0.1)
+        with self.assertRaisesRegex(RuntimeError, "backward anterior"):
+            cpu_layer.step(0.1)
+
+        cases = (
+            (
+                [2, 0, 2, 1],
+                [
+                    [1e16, 1.0, -1.0],
+                    [0.5, -0.5, 0.0],
+                    [-1e16, 2.0, 1.0],
+                    [0.0, 0.0, 0.0],
+                ],
+                [
+                    [1.0, 0.0, 2.0],
+                    [-1.0, 2.0, 0.0],
+                    [1.0, -1.0, -1.0],
+                    [0.5, -0.5, 1.0],
+                ],
+                0.0,
+            ),
+            (
+                [3, 3, 1],
+                [[-2.0, 0.0, 1.5], [2.0, -0.0, -1.5], [0.25, -0.5, 1.0]],
+                [[1.0, -2.0, 0.0], [-0.5, 1.0, 2.0], [0.0, 0.75, -1.25]],
+                0.125,
+            ),
+            (
+                [0, 2, 1, 0, 2],
+                [[1.0, 2.0, -3.0], [4.0, -5.0, 6.0], [-7.0, 8.0, 0.0], [0.0, -1.0, 2.0], [-4.0, 5.0, -6.0]],
+                [[-0.25, 0.5, 1.0], [0.0, 1.5, -2.0], [3.0, -4.0, 5.0], [0.75, -0.5, 0.0], [1.0, -1.0, 2.0]],
+                0.03125,
+            ),
+        )
+        maximum_errors = {
+            "forward": 0.0,
+            "backward_1": 0.0,
+            "backward_2": 0.0,
+            "step": 0.0,
+        }
+        previous_state = None
+        try:
+            for cycle, (ids, grad_one, grad_two, rate) in enumerate(cases):
+                if previous_state is not None:
+                    self.assertIs(gpu_layer.weights, weight_buffer)
+                    self._assert_values(
+                        self.backend.buffer_to_host(gpu_layer.weights), cpu_layer.weights
+                    )
+
+                cpu_output = cpu_layer.forward(ids.copy())
+                with patch.object(
+                    self.backend, "buffer_to_host", wraps=self.backend.buffer_to_host
+                ) as materialize:
+                    gpu_output = gpu_layer.forward(ids.copy())
+                    materialize.assert_not_called()
+                if previous_state is not None:
+                    old_ids, old_output, old_gradients = previous_state
+                    self.assertTrue(old_ids.closed)
+                    self.assertTrue(old_output.closed)
+                    self.assertTrue(old_gradients.closed)
+                elif cycle == 0:
+                    self.assertTrue(initial_gradients.closed)
+                self.assertIsInstance(gpu_output, OpenCLBuffer)
+                self.assertIs(gpu_layer.output, gpu_output)
+                owned_buffers.extend(
+                    (gpu_layer.last_ids, gpu_output, gpu_layer.grad_weights)
+                )
+                maximum_errors["forward"] = max(
+                    maximum_errors["forward"],
+                    self._assert_values(
+                        self.backend.buffer_to_host(gpu_output), cpu_output
+                    ),
+                )
+                self.assertEqual(
+                    self.backend.buffer_to_host(gpu_layer.grad_weights),
+                    [[0.0, 0.0, 0.0] for _ in range(4)],
+                )
+
+                cpu_layer.backward(grad_one)
+                with patch.object(
+                    self.backend, "buffer_to_host", wraps=self.backend.buffer_to_host
+                ) as materialize:
+                    gpu_layer.backward(grad_one)
+                    materialize.assert_not_called()
+                self.assertTrue(gpu_layer._has_backward)
+                maximum_errors["backward_1"] = max(
+                    maximum_errors["backward_1"],
+                    self._assert_values(
+                        self.backend.buffer_to_host(gpu_layer.grad_weights),
+                        cpu_layer.grad_weights,
+                    ),
+                )
+
+                resident_gradients = self.backend.buffer_from_host(
+                    grad_two,
+                    shape=(len(ids), 3),
+                    dtype="float64",
+                )
+                owned_buffers.append(resident_gradients)
+                try:
+                    cpu_layer.backward(grad_two)
+                    with patch.object(
+                        self.backend,
+                        "buffer_to_host",
+                        wraps=self.backend.buffer_to_host,
+                    ) as materialize:
+                        gpu_layer.backward(resident_gradients)
+                        materialize.assert_not_called()
+                    self.assertFalse(resident_gradients.closed)
+                    maximum_errors["backward_2"] = max(
+                        maximum_errors["backward_2"],
+                        self._assert_values(
+                            self.backend.buffer_to_host(gpu_layer.grad_weights),
+                            cpu_layer.grad_weights,
+                        ),
+                    )
+                finally:
+                    resident_gradients.close()
+
+                cpu_layer.step(rate)
+                with patch.object(
+                    self.backend, "buffer_to_host", wraps=self.backend.buffer_to_host
+                ) as materialize:
+                    gpu_layer.step(rate)
+                    materialize.assert_not_called()
+                self.assertFalse(gpu_layer._has_backward)
+                self.assertIs(gpu_layer.weights, weight_buffer)
+                maximum_errors["step"] = max(
+                    maximum_errors["step"],
+                    self._assert_values(
+                        self.backend.buffer_to_host(gpu_layer.weights),
+                        cpu_layer.weights,
+                    ),
+                )
+                previous_state = (
+                    gpu_layer.last_ids,
+                    gpu_layer.output,
+                    gpu_layer.grad_weights,
+                )
+
+            kernels_before_empty = len(self.api.created_kernels)
+            cpu_layer.forward([])
+            self.assertEqual(gpu_layer.forward([]), [])
+            self.assertEqual(gpu_layer.last_ids, [])
+            self.assertEqual(gpu_layer.output, [])
+            owned_buffers.append(gpu_layer.grad_weights)
+            self.assertEqual(
+                self.backend.buffer_to_host(gpu_layer.grad_weights),
+                [[0.0, 0.0, 0.0] for _ in range(4)],
+            )
+            cpu_layer.backward([])
+            gpu_layer.backward([])
+            cpu_layer.step(0.0)
+            gpu_layer.step(0.0)
+            self.assertEqual(len(self.api.created_kernels), kernels_before_empty)
+            self.assertEqual(
+                self.backend.buffer_to_host(gpu_layer.weights), cpu_layer.weights
+            )
+            self.assertFalse(gpu_layer._has_backward)
+            print("OPENCL_F1D_FAKE_MAX_ABS_ERRORS", maximum_errors)
+        finally:
+            gpu_layer.close()
+            gpu_layer.close()
+            cpu_layer.close()
+
+        self.assertTrue(all(buffer.closed for buffer in owned_buffers))
+        self.assertEqual(self.api.allocations, {})
+        self.assertFalse(any(not buffer.closed for buffer in self.backend.memory._buffers))
+
+    def test_release_output_buffer_does_not_invalidate_backward_and_discard_clears_state(self) -> None:
+        cpu_layer = Embedding(3, 2, seed=92, backend=self.cpu)
+        gpu_layer = Embedding(3, 2, seed=92, backend=self.backend)
+        weights = gpu_layer.weights
+        try:
+            cpu_layer.forward([2, 1, 2])
+            output = gpu_layer.forward([2, 1, 2])
+            ids = gpu_layer.last_ids
+            grad_weights = gpu_layer.grad_weights
+            output_handle = output.handle
+            ids_handle = ids.handle
+            grad_handle = grad_weights.handle
+            gpu_layer.release_output_buffer()
+            cpu_layer.release_output_buffer()
+            self.assertTrue(output.closed)
+            self.assertIs(gpu_layer.output, output)
+            self.assertFalse(ids.closed)
+
+            gradient_values = [[1.0, -2.0], [0.5, 4.0], [-1.5, 3.0]]
+            cpu_layer.backward(gradient_values)
+            gpu_layer.backward(gradient_values)
+            self.assertEqual(
+                self.backend.buffer_to_host(gpu_layer.grad_weights),
+                cpu_layer.grad_weights,
+                "backward uses IDs and gradients, not the released lookup output",
+            )
+            cpu_layer.step(0.25)
+            gpu_layer.step(0.25)
+            self.assertIs(gpu_layer.weights, weights)
+            self.assertEqual(
+                self.backend.buffer_to_host(gpu_layer.weights), cpu_layer.weights
+            )
+
+            cpu_layer.forward([0])
+            gpu_layer.forward([0])
+            self.assertTrue(ids.closed)
+            self.assertTrue(output.closed)
+            self.assertTrue(grad_weights.closed)
+            new_ids = gpu_layer.last_ids
+            new_output = gpu_layer.output
+            new_gradients = gpu_layer.grad_weights
+            new_ids_handle, new_output_handle, new_grad_handle = (
+                new_ids.handle,
+                new_output.handle,
+                new_gradients.handle,
+            )
+            cpu_layer.backward([[2.0, -3.0]])
+            gpu_layer.backward([[2.0, -3.0]])
+            gpu_layer.discard_forward_state()
+            cpu_layer.discard_forward_state()
+            gpu_layer.discard_forward_state()
+            cpu_layer.discard_forward_state()
+            self.assertIsNone(gpu_layer.last_ids)
+            self.assertIsNone(gpu_layer.output)
+            self.assertTrue(new_ids.closed)
+            self.assertTrue(new_output.closed)
+            self.assertTrue(gpu_layer.grad_weights is new_gradients)
+            self.assertFalse(new_gradients.closed)
+            self.assertFalse(gpu_layer._has_backward)
+            with self.assertRaisesRegex(RuntimeError, "forward anterior"):
+                gpu_layer.backward([])
+            with self.assertRaisesRegex(RuntimeError, "backward anterior"):
+                gpu_layer.step(0.1)
+        finally:
+            gpu_layer.close()
+            gpu_layer.close()
+            cpu_layer.close()
+
+        self.assertTrue(weights.closed)
+        self.assertIsNotNone(new_gradients)
+        self.assertTrue(new_gradients.closed)
+        for handle in (
+            output_handle,
+            ids_handle,
+            grad_handle,
+            new_ids_handle,
+            new_output_handle,
+            new_grad_handle,
+        ):
+            self.assertEqual(self.api.released.count(handle), 1)
+        self.assertEqual(self.api.allocations, {})
+
+    def test_pre_execution_failures_preserve_layer_state_and_post_submit_errors_are_ambiguous(self) -> None:
+        cases = (
+            ("create_buffer", False),
+            ("build_program", False),
+            ("create_kinera_embedding_validate_backward_inputs", False),
+            ("enqueue_kinera_embedding_validate_backward_inputs", False),
+            ("enqueue_kinera_embedding_backward_f64", False),
+            ("release_kinera_embedding_validate_backward_inputs", False),
+            ("release_kinera_embedding_backward_f64", True),
+        )
+        for fail_on, mutated in cases:
+            with self.subTest(fail_on=fail_on):
+                api = FakeOpenCLApi(max_allocation=4096)
+                backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+                layer = Embedding(3, 2, seed=17, backend=backend)
+                try:
+                    layer.forward([2, 0, 2])
+                    ids = layer.last_ids
+                    output = layer.output
+                    grad_weights = layer.grad_weights
+                    original = backend.buffer_to_host(grad_weights)
+                    grad_output_values = [[1.0, -2.0], [0.5, 4.0], [-1.5, 3.0]]
+                    grad_output = backend.buffer_from_host(
+                        grad_output_values, shape=(3, 2), dtype="float64"
+                    )
+                    api.fail_on = fail_on
+                    with self.assertRaisesRegex(RuntimeError, "injected"):
+                        layer.backward(grad_output)
+                    api.fail_on = None
+                    self.assertIs(layer.last_ids, ids)
+                    self.assertIs(layer.output, output)
+                    self.assertIs(layer.grad_weights, grad_weights)
+                    self.assertFalse(ids.closed)
+                    self.assertFalse(grad_output.closed)
+                    self.assertFalse(layer._has_backward)
+                    actual = backend.buffer_to_host(grad_weights)
+                    if mutated:
+                        expected = CPUBackend().embedding_backward(
+                            original, [2, 0, 2], grad_output_values
+                        )
+                        self.assertEqual(actual, expected)
+                    else:
+                        self.assertEqual(actual, original)
+                    grad_output.close()
+                finally:
+                    api.fail_on = None
+                    layer.close()
+                    backend.close()
+
+    def test_integrated_validation_and_resident_preflight_errors_preserve_state(self) -> None:
+        layer = Embedding(3, 2, seed=73, backend=self.backend)
+        foreign_backend = OpenCLBackend(runtime=OpenCLRuntime(api=FakeOpenCLApi()))
+        try:
+            layer.forward([1, 2])
+            ids = layer.last_ids
+            output = layer.output
+            grad_weights = layer.grad_weights
+            original = self.backend.buffer_to_host(grad_weights)
+            wrong_shape = self.backend.buffer_from_host(
+                [[1.0, 2.0]], shape=(1, 2), dtype="float64"
+            )
+            foreign = foreign_backend.buffer_from_host(
+                [[1.0, 2.0], [3.0, 4.0]],
+                shape=(2, 2),
+                dtype="float64",
+            )
+            resident = self.backend.buffer_from_host(
+                [[1.0, 2.0], [3.0, 4.0]],
+                shape=(2, 2),
+                dtype="float64",
+            )
+            try:
+                with self.assertRaisesRegex(ValueError, "shape"):
+                    layer.backward(wrong_shape)
+                with self.assertRaisesRegex(TypeError, "device-backed Embedding forward"):
+                    layer.backward(foreign)
+                self.assertIs(layer.last_ids, ids)
+                self.assertIs(layer.output, output)
+                self.assertIs(layer.grad_weights, grad_weights)
+                self.assertFalse(layer._has_backward)
+
+                self.api.allocations[ids.handle][:4] = struct.pack("<i", 3)
+                with self.assertRaisesRegex(ValueError, "outside"):
+                    layer.backward(resident)
+                self.assertEqual(self.backend.buffer_to_host(grad_weights), original)
+                self.assertIs(layer.last_ids, ids)
+                self.assertIs(layer.output, output)
+                self.assertFalse(layer._has_backward)
+
+                self.api.allocations[ids.handle][:4] = struct.pack("<i", 1)
+                self.api.allocations[resident.handle][:8] = struct.pack(
+                    "<dd", float("nan"), 2.0
+                )
+                with self.assertRaisesRegex(ValueError, "non-finite"):
+                    layer.backward(resident)
+                self.assertEqual(self.backend.buffer_to_host(grad_weights), original)
+                self.assertIs(layer.grad_weights, grad_weights)
+                self.assertFalse(layer._has_backward)
+            finally:
+                resident.close()
+                foreign.close()
+                wrong_shape.close()
+        finally:
+            layer.close()
+            foreign_backend.close()
+
+    def test_step_release_error_can_follow_update_and_keeps_layer_flag_set(self) -> None:
+        api = FakeOpenCLApi(max_allocation=4096)
+        backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+        layer = Embedding(2, 2, seed=11, backend=backend)
+        cpu_layer = Embedding(2, 2, seed=11, backend=self.cpu)
+        try:
+            ids = [1, 0, 1]
+            gradients = [[1.0, -2.0], [0.5, 4.0], [-1.5, 3.0]]
+            cpu_layer.forward(ids.copy())
+            layer.forward(ids.copy())
+            cpu_layer.backward(gradients)
+            layer.backward(gradients)
+            expected = self.cpu.embedding_step(
+                cpu_layer.weights, cpu_layer.grad_weights, 0.125
+            )
+            step_kernel_handle = api._next_kernel
+            api.fail_on = "release_kinera_embedding_step_f64"
+            with self.assertRaisesRegex(RuntimeError, "kernel release failure"):
+                layer.step(0.125)
+            api.fail_on = None
+            self.assertEqual(backend.buffer_to_host(layer.weights), expected)
+            self.assertTrue(layer._has_backward)
+            self.assertEqual(api.released_kernels.count(step_kernel_handle), 1)
+        finally:
+            api.fail_on = None
+            layer.close()
+            cpu_layer.close()
+            backend.close()
+
+    def test_step_enqueue_failure_preserves_parameters_and_backward_state(self) -> None:
+        api = FakeOpenCLApi(max_allocation=4096)
+        backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+        layer = Embedding(2, 2, seed=37, backend=backend)
+        cpu_layer = Embedding(2, 2, seed=37, backend=self.cpu)
+        try:
+            ids = [1, 0, 1]
+            gradients = [[1.0, -2.0], [0.5, 4.0], [-1.5, 3.0]]
+            cpu_layer.forward(ids.copy())
+            layer.forward(ids.copy())
+            cpu_layer.backward(gradients)
+            layer.backward(gradients)
+            weights_buffer = layer.weights
+            weights_before = backend.buffer_to_host(weights_buffer)
+            api.fail_on = "enqueue_kinera_embedding_step_f64"
+            with self.assertRaisesRegex(RuntimeError, "injected enqueue failure"):
+                layer.step(0.125)
+            api.fail_on = None
+
+            self.assertIs(layer.weights, weights_buffer)
+            self.assertEqual(backend.buffer_to_host(layer.weights), weights_before)
+            self.assertTrue(layer._has_backward)
+            self.assertEqual(api.released_kernels[-1], api._next_kernel - 1)
+
+            expected = self.cpu.embedding_step(
+                cpu_layer.weights, cpu_layer.grad_weights, 0.125
+            )
+            cpu_layer.step(0.125)
+            layer.step(0.125)
+            self.assertFalse(layer._has_backward)
+            self.assertIs(layer.weights, weights_buffer)
+            self.assertEqual(backend.buffer_to_host(layer.weights), expected)
+        finally:
+            api.fail_on = None
+            layer.close()
+            cpu_layer.close()
+            backend.close()
+
+
 if __name__ == "__main__":
     unittest.main()
