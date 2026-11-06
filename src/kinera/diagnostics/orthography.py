@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import math
 import time
 from collections import defaultdict
 from typing import Any
 
-from kinera.monitor.metrics.core import safe_ratio
+from kinera.monitor.metrics.core import oriented_delta, summarize_deltas, summarize_values
+from kinera.monitor.metrics.schema import METRICS_SCHEMA_VERSION, metric_result
 
 from kinera.language.orthography.features import character_features
 from kinera.language.vocabulary import CharacterVocabulary
@@ -106,8 +106,14 @@ def run_orthographic_class_analysis(
                 grouped[left["target_class"]].append({
                     "base_loss": left["loss"],
                     "augmented_loss": right["loss"],
-                    "delta_loss": left["loss"] - right["loss"],
-                    "delta_accuracy": int(right["correct"]) - int(left["correct"]),
+                    "delta_loss": oriented_delta(
+                        left["loss"], right["loss"], orientation="base - candidate"
+                    ),
+                    "delta_accuracy": oriented_delta(
+                        int(left["correct"]),
+                        int(right["correct"]),
+                        orientation="candidate - base",
+                    ),
                     "base_prob_correct": left["prob_correct"],
                     "augmented_prob_correct": right["prob_correct"],
                 })
@@ -118,6 +124,7 @@ def run_orthographic_class_analysis(
         runs.append({
             "seed": seed,
             "status": "completed",
+            "metrics_schema_version": METRICS_SCHEMA_VERSION,
             "duration_seconds": time.perf_counter() - started,
             "comparisons": comparisons,
         })
@@ -133,28 +140,48 @@ def run_orthographic_class_analysis(
     }
 
 
-def _summarize(rows: list[dict[str, Any]]) -> dict[str, float | int]:
+def _summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     count = len(rows)
-    if count == 0:
-        return {"count": 0}
+    loss_deltas = summarize_deltas([row["delta_loss"] for row in rows])
+    accuracy_deltas = summarize_values([row["delta_accuracy"] for row in rows])
+    base_probabilities = summarize_values([row["base_prob_correct"] for row in rows])
+    augmented_probabilities = summarize_values(
+        [row["augmented_prob_correct"] for row in rows]
+    )
+    legacy: dict[str, Any] = {"count": count}
+    if count:
+        legacy.update({
+            "mean_delta_loss": loss_deltas["mean"],
+            "delta_accuracy": accuracy_deltas["mean"],
+            "mean_base_prob_correct": base_probabilities["mean"],
+            "mean_augmented_prob_correct": augmented_probabilities["mean"],
+            "improved_loss_fraction": loss_deltas["positive_fraction"],
+            "regressed_loss_fraction": loss_deltas["negative_fraction"],
+        })
+    legacy["metric_results"] = _metric_results(
+        {
+            "mean_delta_loss": loss_deltas["mean"],
+            "delta_accuracy": accuracy_deltas["mean"],
+            "mean_base_prob_correct": base_probabilities["mean"],
+            "mean_augmented_prob_correct": augmented_probabilities["mean"],
+            "improved_loss_fraction": loss_deltas["positive_fraction"],
+            "regressed_loss_fraction": loss_deltas["negative_fraction"],
+        },
+        {"examples": count},
+    )
+    return legacy
+
+
+def _metric_results(
+    values: dict[str, float | int | None], support: dict[str, int]
+) -> dict[str, dict[str, Any]]:
+    available = support["examples"] > 0
     return {
-        "count": count,
-        "mean_delta_loss": safe_ratio(
-            sum(row["delta_loss"] for row in rows), count
-        ),
-        "delta_accuracy": safe_ratio(
-            sum(row["delta_accuracy"] for row in rows), count
-        ),
-        "mean_base_prob_correct": safe_ratio(
-            sum(row["base_prob_correct"] for row in rows), count
-        ),
-        "mean_augmented_prob_correct": safe_ratio(
-            sum(row["augmented_prob_correct"] for row in rows), count
-        ),
-        "improved_loss_fraction": safe_ratio(
-            sum(row["delta_loss"] > 0 for row in rows), count
-        ),
-        "regressed_loss_fraction": safe_ratio(
-            sum(row["delta_loss"] < 0 for row in rows), count
-        ),
+        name: metric_result(
+            value=value if available else None,
+            availability="available" if available else "not_applicable",
+            reason=None if available else "empty_support",
+            support=support,
+        )
+        for name, value in values.items()
     }

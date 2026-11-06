@@ -16,6 +16,8 @@ from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from kinera.experiments.config import ExecutionConfig, ExperimentConfig
 from kinera.experiments.multi_seed import run_seed_jobs
 from kinera.diagnostics.syllables import run_syllable_gain_analysis
+from kinera.monitor.metrics.core import summarize_values
+from kinera.monitor.metrics.schema import METRICS_SCHEMA_VERSION, metric_result
 
 
 def _run_seed(payload: dict[str, Any]) -> dict[str, Any]:
@@ -62,11 +64,30 @@ def _aggregate(runs: list[dict[str, Any]]) -> dict[str, Any]:
         values = [run["run"]["pair_deltas"][pair]["overall"] for run in completed]
         if not values:
             continue
+        metric_names = (
+            "mean_delta_loss",
+            "accuracy_delta",
+            "improved_loss_fraction",
+            "regressed_loss_fraction",
+        )
+        means = {
+            name: summarize_values([item[name] for item in values])["mean"]
+            for name in metric_names
+        }
         result[pair] = {
-            "mean_delta_loss": sum(item["mean_delta_loss"] for item in values) / len(values),
-            "accuracy_delta": sum(item["accuracy_delta"] for item in values) / len(values),
-            "improved_loss_fraction": sum(item["improved_loss_fraction"] for item in values) / len(values),
-            "regressed_loss_fraction": sum(item["regressed_loss_fraction"] for item in values) / len(values),
+            **means,
+            # This summary is across completed seeds. It does not replace the
+            # example-level support published inside each run.
+            "metrics_schema_version": METRICS_SCHEMA_VERSION,
+            "metric_results": {
+                name: metric_result(
+                    value=mean,
+                    availability="available",
+                    reason=None,
+                    support={"seeds": len(values)},
+                )
+                for name, mean in means.items()
+            },
         }
     return result
 
