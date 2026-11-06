@@ -7,6 +7,7 @@ from collections import Counter
 from typing import Any
 
 from kinera.monitor.metrics.core import safe_ratio
+from kinera.monitor.metrics.schema import METRICS_SCHEMA_VERSION, metric_result
 
 VOWELS = set("aeiouáéíóúâêôãõàü")
 DIPHTHONGS = {
@@ -134,20 +135,70 @@ def evaluate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         else None
     )
 
+    exact_accuracy = safe_ratio(exact_matches, scored)
+    boundary_accuracy = safe_ratio(
+        boundary_correct, boundary_total, zero_denominator=1.0
+    )
+    metric_results = {
+        "exact_accuracy": metric_result(
+            exact_matches / scored if scored else None,
+            availability="available" if scored else "not_applicable",
+            reason=None if scored else "no_scored_records",
+            support={"scored_records": scored},
+        ),
+        "boundary_accuracy": metric_result(
+            boundary_correct / boundary_total if boundary_total else None,
+            availability="available" if boundary_total else "not_applicable",
+            reason=None if boundary_total else "no_gold_boundaries",
+            support={"gold_boundaries": boundary_total},
+        ),
+        "boundary_offset_precision": metric_result(
+            offset_prec,
+            availability="available" if offset_prec is not None else "not_applicable",
+            reason=None if offset_prec is not None else "no_predicted_boundaries",
+            support={
+                "predicted_boundaries": predicted_boundary_total,
+                "matched_boundaries": boundary_correct,
+            },
+        ),
+        "boundary_offset_recall": metric_result(
+            offset_rec,
+            availability="available" if offset_rec is not None else "not_applicable",
+            reason=None if offset_rec is not None else "no_gold_boundaries",
+            support={
+                "gold_boundaries": boundary_total,
+                "matched_boundaries": boundary_correct,
+            },
+        ),
+        "boundary_offset_f1": metric_result(
+            offset_f1,
+            availability="available" if offset_f1 is not None else "not_applicable",
+            reason=(
+                None
+                if offset_f1 is not None
+                else "no_gold_or_predicted_boundaries"
+            ),
+            support={
+                "gold_boundaries": boundary_total,
+                "predicted_boundaries": predicted_boundary_total,
+                "matched_boundaries": boundary_correct,
+            },
+        ),
+    }
     return {
         "total": len(records),
         "scored": scored,
         "exact_matches": exact_matches,
-        "exact_accuracy": safe_ratio(exact_matches, scored),
+        "exact_accuracy": exact_accuracy,
         "boundary_correct": boundary_correct,
         "boundary_total": boundary_total,
-        "boundary_accuracy": safe_ratio(
-            boundary_correct, boundary_total, zero_denominator=1.0
-        ),
+        "boundary_accuracy": boundary_accuracy,
         "boundary_offset_precision": offset_prec,
         "boundary_offset_recall": offset_rec,
         "boundary_offset_f1": offset_f1,
         "errors": dict(errors),
+        "metrics_schema_version": METRICS_SCHEMA_VERSION,
+        "metric_results": metric_results,
     }
 
 
