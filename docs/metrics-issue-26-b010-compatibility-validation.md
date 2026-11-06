@@ -87,11 +87,13 @@ Foi adicionada uma fixture CUDA opt-in pequena para comparar cadência desativad
 
 | Gate | Estado nesta continuação | Evidência/limite |
 | --- | --- | --- |
-| P10 em Python 3.10 | **PENDENTE DE CI** | As três expectativas e o oráculo incompatível foram corrigidos em testes; runtime 3.10 indisponível localmente. A aprovação requer job verde da nova HEAD do PR. |
-| P10 em Python 3.14 | **PENDENTE DE CI** | Mesmo comando e cinco exclusões mantidos; aprovação requer job verde da nova HEAD do PR. |
-| Suíte CPU local | **PASS PARCIAL** | Python 3.15: suíte configurada com cinco exclusões: 798 passed, 62 skipped, 5 deselected, 1 warning e 1.104 subtests, em 41,69 s. Quatro módulos direcionados: 121 passed, 4 skips CUDA e 292 subtests. Os skips não são evidência P10 para 3.10/3.14 nem evidência CUDA. |
+| P10 em Python 3.10 | **PASS** | CI do PR #81, HEAD `7bfd7c6ba71224b1a9ae7c1b3e9dfd1c085a60e5`: instalação e suíte concluídas; 798 passed, 62 skipped, 5 deselected e 1.105 subtests, em 36,50 s. |
+| P10 em Python 3.14 | **PASS** | Mesma CI/HEAD e comando; 798 passed, 62 skipped, 5 deselected e 1.105 subtests, em 24,62 s. |
+| Suíte CPU local | **PASS PARCIAL** | Python 3.15: suíte configurada com cinco exclusões: 798 passed, 62 skipped, 5 deselected, 1 warning e 1.104 subtests, em 40,96 s. Quatro módulos direcionados: 121 passed, 4 skips CUDA e 292 subtests. O Python 3.15 local não substitui a evidência dos jobs 3.10/3.14. |
 | G10 preparação estática | **PASS** | Helpers e fixture M2.3/B009 revisados; nenhum código de produção alterado. |
 | G10 CUDA físico | **UNVERIFIED** | Nenhum teste com `KINERA_RUN_CUDA_TESTS=1`; a RX 550/OpenCL não foi usada como substituta de CUDA. |
-| Aceite da Issue #26 | **PARTIALLY_COMPLETE** | Não mudar o parecer até ambos jobs P10 passarem. Mesmo com P10 aprovado, o gate CUDA físico continua sujeito à evidência ou decisão formal de aceite; nenhuma conclusão de equivalência CUDA é inferida desta preparação. |
+| Aceite da Issue #26 | **PARTIALLY_COMPLETE** | P10 passou nos dois runtimes declarados. A execução física CUDA continua UNVERIFIED; esta tranche não demonstra equivalência CUDA nem altera o parecer final de aceite da Issue. |
+
+Os jobs P10 são os links `tests (3.10)` e `tests (3.14)` da [execução da CI no PR #81](https://github.com/Brazwed/Kinera/actions/runs/42292604076). Ambos foram aprovados na HEAD `7bfd7c6ba71224b1a9ae7c1b3e9dfd1c085a60e5` antes desta atualização documental. Esta atualização não altera testes ou código, mas a CI deve confirmar a HEAD documental final após publicação.
 
 O diff desta continuação não altera `src/`, kernels, schemas, fingerprints, losses, treinamento ou protocolos. A B010 permanece em revisão e a Issue #26 permanece aberta.
