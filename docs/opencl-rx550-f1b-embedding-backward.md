@@ -72,7 +72,8 @@ Todas as comparações integrais da tabela contra `CPUBackend.embedding_backward
 - Gates OpenCL/Rusticl anteriores de Embedding.forward e Linear (`forward`, `backward`, `step`, integração): `22 passed`, incluindo 439.897 subtestes.
 - CPU-only import: coberto pelo teste de subprocesso do scaffold; passou sem importar módulos OpenCL.
 - CI local completa sobre o HEAD atual de `main`, conforme os filtros versionados em `.github/workflows/ci.yml`: `719 passed, 48 skipped, 5 deselected`.
-- `py_compile`, empacotamento do kernel, CI GitHub e verificações finais de diff são registrados após a validação completa do PR.
+- `py_compile` e `git diff --check` passaram; o wheel produzido contém `embedding_backward.cl`.
+- GitHub Actions do PR #65: check `tests` concluído com sucesso (Ubuntu, Python 3.14).
 
 Os testes de falhas confirmam que validação, preparação e erros antes do enqueue de acumulação deixam `grad_weights` sem alterações; os temporários de preflight e kernels são liberados em caminhos normais, e a exceção primária é preservada se a limpeza também falhar. A API fake também confirma que o backend só lê o status de 4 bytes e não escreve dados host durante o backward residente.
 
