@@ -230,6 +230,37 @@ class ControlledRunnerTelemetryTests(unittest.TestCase):
         reloaded = json.loads(encoded)
         self.assertEqual(reloaded["status"], "completed")
 
+    def test_epoch_validation_has_a_distinct_telemetry_stage_and_reuses_final(self) -> None:
+        report = self._run_comparison(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            syllable_vocab_size=3,
+            seeds=[7],
+            epochs=2,
+            learning_rate=0.05,
+            max_examples=2,
+            variants=("A",),
+            collect_telemetry=True,
+            execution_config=ExecutionConfig(workers=1),
+            validation_every_n_epochs=1,
+        )
+        run_record = report["runs"]["A"][0]
+        self.assertEqual(
+            [item["epoch"] for item in run_record["validation_history"]], [1, 2]
+        )
+        stages = run_record["telemetry"]["attempts"][0]["segments"][0]["stages"]
+        names = [stage["name"] for stage in stages]
+        self.assertEqual(names.count("epoch_validation"), 1)
+        self.assertEqual(names.count("final_validation"), 1)
+        validation_stage = next(
+            stage for stage in stages if stage["name"] == "epoch_validation"
+        )
+        self.assertEqual(validation_stage["stage_id"], "epoch_validation_1")
+        self.assertEqual(validation_stage["parent_stage_id"], "training")
+        self.assertEqual(names.count("epoch_evaluation"), 2)
+        self.assertEqual(names.count("epoch_sgd"), 2)
+
     # -------------------------------------------------------------------------
     # 3. Ambiente parcial / falhas de snapshots
     # -------------------------------------------------------------------------

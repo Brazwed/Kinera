@@ -179,6 +179,7 @@ def train_multitask_examples(
     max_examples: int | None = None,
     loss_function: MultiTaskLoss | None = None,
     step_observer: Callable[[int, int, int, dict[str, float]], object] | None = None,
+    epoch_end_observer: Callable[[int, AutoregressiveModel], object] | None = None,
     timing_session: TimingSession | None = None,
     stage_id_prefix: str | None = None,
 ) -> dict[str, Any]:
@@ -190,6 +191,8 @@ def train_multitask_examples(
     selected = examples if max_examples is None else examples[:max_examples]
     if not selected:
         raise ValueError("max_examples deve selecionar ao menos um exemplo")
+    if epoch_end_observer is not None and not callable(epoch_end_observer):
+        raise TypeError("epoch_end_observer deve ser chamável ou None")
 
     history: list[dict[str, float]] = []
     global_step = 0
@@ -247,4 +250,6 @@ def train_multitask_examples(
         history.append({
             key: value for key, value in metrics.items() if key != "examples"
         })
+        if epoch_end_observer is not None:
+            epoch_end_observer(epoch, model)
     return {"epochs": epochs, "examples": len(selected), "history": history}

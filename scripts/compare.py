@@ -22,6 +22,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seeds", type=int, nargs="+", default=[7, 42, 123])
     parser.add_argument("--epochs", type=int, default=2)
     parser.add_argument(
+        "--validation-every-n-epochs",
+        type=int,
+        help="avalia validação a cada N épocas (desativado por padrão)",
+    )
+    parser.add_argument(
         "--variants",
         nargs="+",
         choices=SUPPORTED_VARIANTS,
@@ -51,6 +56,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if (
+        args.validation_every_n_epochs is not None
+        and args.validation_every_n_epochs <= 0
+    ):
+        parser.error("--validation-every-n-epochs deve ser positivo")
     try:
         execution_config = ExecutionConfig(
             workers=args.workers,
@@ -82,6 +92,7 @@ def main(argv: list[str] | None = None) -> None:
         resume=args.resume,
         variants=tuple(args.variants),
         execution_config=execution_config,
+        validation_every_n_epochs=args.validation_every_n_epochs,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
 

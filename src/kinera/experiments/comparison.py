@@ -9,6 +9,7 @@ import os
 import resource
 import time
 import traceback
+from contextlib import nullcontext
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
@@ -63,6 +64,31 @@ _FINGERPRINT_EXAMPLE_FIELDS = (
     "target_syllable_id",
     "target_is_syllable_end",
 )
+
+
+def _validate_validation_cadence(value: int | None) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError("validation_every_n_epochs deve ser inteiro ou None")
+    if value <= 0:
+        raise ValueError("validation_every_n_epochs deve ser positivo")
+    return value
+
+
+def _matches_validation_observation_config(
+    persisted_checkpoint: dict[str, Any],
+    expected_cadence: int | None,
+) -> bool:
+    if expected_cadence is None:
+        return "observation_config" not in persisted_checkpoint
+    persisted = persisted_checkpoint.get("observation_config")
+    if not isinstance(persisted, dict) or set(persisted) != {
+        "validation_every_n_epochs"
+    }:
+        return False
+    stored_cadence = persisted.get("validation_every_n_epochs")
+    return type(stored_cadence) is int and stored_cadence == expected_cadence
 
 
 def _fingerprint_examples(examples: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -351,6 +377,7 @@ def _execute_single_experiment(
     learning_rate: float,
     syllable_unknown_id: int,
     *,
+    validation_every_n_epochs: int | None = None,
     backend: Any | None = None,
     collect_telemetry: bool = False,
     prior_telemetry: dict[str, Any] | None = None,
@@ -359,6 +386,9 @@ def _execute_single_experiment(
     submitted_monotonic_ns: int | None = None,
     reraise: bool = False,
 ) -> tuple[str, int, dict[str, Any]]:
+    validation_every_n_epochs = _validate_validation_cadence(
+        validation_every_n_epochs
+    )
     started = time.perf_counter()
     model: AutoregressiveModel | None = None
     cleanup_stage: Any | None = None
@@ -461,6 +491,40 @@ def _execute_single_experiment(
                 train_boundary_distribution=train_boundary_dist,
             )
 
+        validation_history: list[dict[str, Any]] = []
+
+        def observe_epoch(epoch: int, observed_model: AutoregressiveModel) -> None:
+            if (
+                validation_every_n_epochs is None
+                or epoch % validation_every_n_epochs != 0
+                or epoch == epochs
+            ):
+                return
+            validation_context: Any = nullcontext()
+            if collect_telemetry and timing is not None:
+                try:
+                    validation_context = timing.stage(
+                        stage_id=f"epoch_validation_{epoch}",
+                        name="epoch_validation",
+                    )
+                except Exception:
+                    validation_context = nullcontext()
+            with validation_context:
+                metrics = evaluate_multitask_examples(
+                    observed_model,
+                    validation_examples,
+                    vocabulary,
+                    syllable_unknown_id=syllable_unknown_id,
+                    train_boundary_distribution=train_boundary_dist,
+                )
+            validation_history.append(
+                {"epoch": epoch, "split": "validation", **metrics}
+            )
+
+        train_options: dict[str, Any] = {}
+        if validation_every_n_epochs is not None:
+            train_options["epoch_end_observer"] = observe_epoch
+
         if collect_telemetry and timing is not None:
             with timing.stage(stage_id="training", name="training"):
                 training = train_multitask_examples(
@@ -472,6 +536,7 @@ def _execute_single_experiment(
                     syllable_unknown_id=syllable_unknown_id,
                     timing_session=timing,
                     stage_id_prefix="training",
+                    **train_options,
                 )
         else:
             training = train_multitask_examples(
@@ -481,6 +546,7 @@ def _execute_single_experiment(
                 epochs=epochs,
                 learning_rate=learning_rate,
                 syllable_unknown_id=syllable_unknown_id,
+                **train_options,
             )
 
         if collect_telemetry and timing is not None:
@@ -499,6 +565,14 @@ def _execute_single_experiment(
                 vocabulary,
                 syllable_unknown_id=syllable_unknown_id,
                 train_boundary_distribution=train_boundary_dist,
+            )
+
+        if (
+            validation_every_n_epochs is not None
+            and epochs % validation_every_n_epochs == 0
+        ):
+            validation_history.append(
+                {"epoch": epochs, "split": "validation", **final}
             )
 
         if model is not None:
@@ -524,6 +598,8 @@ def _execute_single_experiment(
             "parameter_count": parameter_count,
             "duration_seconds": time.perf_counter() - started,
         }
+        if validation_every_n_epochs is not None:
+            record["validation_history"] = validation_history
         if (
             collect_telemetry
             and timing is not None
@@ -699,8 +775,12 @@ def run_controlled_experiments(
     execution_config: ExecutionConfig | None = None,
     telemetry: TelemetryEnvelope | dict[str, Any] | None = None,
     collect_telemetry: bool | None = None,
+    validation_every_n_epochs: int | None = None,
 ) -> dict[str, Any]:
     """Executa variantes; checkpoints exigem a identidade do vocabulário silábico."""
+    validation_every_n_epochs = _validate_validation_cadence(
+        validation_every_n_epochs
+    )
     variants = _validate_variant_selection(variants)
     if not seeds:
         raise ValueError("seeds não pode ser vazio")
@@ -860,6 +940,10 @@ def run_controlled_experiments(
         "execution_config": execution_config.to_dict(),
         "workers": workers,
     }
+    if validation_every_n_epochs is not None:
+        configuration["observation_config"] = {
+            "validation_every_n_epochs": validation_every_n_epochs
+        }
     if experiment_fingerprint is not None:
         configuration["experiment_fingerprint"] = experiment_fingerprint
     if resume:
@@ -868,6 +952,13 @@ def run_controlled_experiments(
         persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
         if not isinstance(persisted, dict):
             raise ValueError("checkpoint deve conter um objeto JSON")
+        if not _matches_validation_observation_config(
+            persisted,
+            validation_every_n_epochs,
+        ):
+            raise ValueError(
+                "checkpoint incompatível com validation_every_n_epochs"
+            )
         persisted_variants_value = persisted.get("variants")
         if (
             not isinstance(persisted_variants_value, list)
@@ -911,6 +1002,7 @@ def run_controlled_experiments(
                 "experiment_config",
                 "execution_config",
                 "experiment_fingerprint",
+                "observation_config",
             }
         }
         persisted_seeds_value = persisted.get("seeds")
@@ -934,6 +1026,7 @@ def run_controlled_experiments(
                 "experiment_config",
                 "execution_config",
                 "experiment_fingerprint",
+                "observation_config",
             }
         }
         current_seeds = set(configuration["seeds"])
@@ -1029,6 +1122,7 @@ def run_controlled_experiments(
             variants,
             telemetry_section,
             collect_telemetry=collect_telemetry,
+            validation_every_n_epochs=validation_every_n_epochs,
         )
 
     backend = _create_execution_backend(execution_config)
@@ -1054,6 +1148,7 @@ def run_controlled_experiments(
                 epochs,
                 learning_rate,
                 syllable_unknown_id,
+                validation_every_n_epochs=validation_every_n_epochs,
                 backend=backend,
                 collect_telemetry=collect_telemetry,
                 prior_telemetry=previous.get("telemetry") if previous is not None else None,
@@ -1124,6 +1219,7 @@ def _run_parallel_experiments(
     variants: tuple[str, ...],
     telemetry_section: dict[str, Any] | None,
     collect_telemetry: bool = False,
+    validation_every_n_epochs: int | None = None,
 ) -> dict[str, Any]:
     del resume
     for variant in variants:
@@ -1179,6 +1275,7 @@ def _run_parallel_experiments(
                     epochs,
                     learning_rate,
                     syllable_unknown_id,
+                    validation_every_n_epochs=validation_every_n_epochs,
                     backend=None,
                     collect_telemetry=True,
                     prior_telemetry=prior_telemetry,
@@ -1188,6 +1285,11 @@ def _run_parallel_experiments(
                     reraise=False,
                 )
             else:
+                worker_options: dict[str, Any] = {}
+                if validation_every_n_epochs is not None:
+                    worker_options["validation_every_n_epochs"] = (
+                        validation_every_n_epochs
+                    )
                 future = executor.submit(
                     _execute_single_experiment,
                     variant,
@@ -1199,6 +1301,7 @@ def _run_parallel_experiments(
                     epochs,
                     learning_rate,
                     syllable_unknown_id,
+                    **worker_options,
                 )
             futures[future] = (variant, seed)
         if checkpoint is not None:
