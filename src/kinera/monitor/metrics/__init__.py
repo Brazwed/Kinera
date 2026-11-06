@@ -7,10 +7,13 @@ e agregações estatísticas do Kinera, com garantia de:
 - Representação explícita de valores indisponíveis por None (nunca NaN ou Infinity).
 
 Superfície pública:
-- M0 (Legado / Agregação / Aritmética segura):
+- M0/M2.1 (Aritmética e resumos por observação):
   - ``mean_std(values)``: Média e desvio-padrão populacional.
   - ``safe_ratio(...)``: Razão com fallback configurável para divisão por zero.
   - ``mean_from_total(...)``: Divisão direta total / count.
+  - ``oriented_delta(...)``: Diferença escalar com orientação explícita.
+  - ``summarize_values(values)``: Suporte e média de observações ordenadas.
+  - ``summarize_deltas(values)``: Média, contagens de sinal e frações por observação.
 - M1.1 (Matriz de Confusão e Classificação Binária):
   - ``BinaryConfusion``: Estrutura imutável com contadores TP, TN, FP, FN e propriedades.
   - ``precision(confusion)``: Precisão binária.
@@ -63,7 +66,13 @@ from kinera.monitor.metrics.confusion import (
     recall,
     specificity,
 )
-from kinera.monitor.metrics.core import mean_from_total, safe_ratio
+from kinera.monitor.metrics.core import (
+    mean_from_total,
+    oriented_delta,
+    safe_ratio,
+    summarize_deltas,
+    summarize_values,
+)
 from kinera.monitor.metrics.schema import (
     METRICS_SCHEMA_VERSION,
     metric_result,
@@ -87,7 +96,10 @@ __all__ = [
     # M0
     "mean_std",
     "mean_from_total",
+    "oriented_delta",
     "safe_ratio",
+    "summarize_values",
+    "summarize_deltas",
     "METRICS_SCHEMA_VERSION",
     "metric_result",
     # M1.2 Agregação e deltas pareados

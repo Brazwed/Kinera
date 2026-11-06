@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-import math
 import time
 from collections import Counter, defaultdict
 from typing import Any
 
-from kinera.monitor.metrics.core import safe_ratio
+from kinera.monitor.metrics.core import (
+    oriented_delta,
+    safe_ratio,
+    summarize_deltas,
+    summarize_values,
+)
+from kinera.monitor.metrics.schema import METRICS_SCHEMA_VERSION, metric_result
 from kinera.language.datasets.adapter import example_to_inputs
 from kinera.language.vocabulary import CharacterVocabulary
 from kinera.nn.losses.cross_entropy import cross_entropy, softmax
@@ -111,6 +116,7 @@ def run_syllable_gain_analysis(
         runs.append({
             "seed": seed,
             "status": "completed",
+            "metrics_schema_version": METRICS_SCHEMA_VERSION,
             "duration_seconds": time.perf_counter() - started,
             "training": training,
             "coverage": _coverage(rows["C"]),
@@ -209,32 +215,61 @@ def _pair_row(base: dict[str, Any], augmented: dict[str, Any]) -> dict[str, Any]
         "syllable_frequency": base["syllable_frequency"],
         "base_loss": base["loss"],
         "augmented_loss": augmented["loss"],
-        "delta_loss": base["loss"] - augmented["loss"],
+        "delta_loss": oriented_delta(
+            base["loss"], augmented["loss"], orientation="base - candidate"
+        ),
         "base_correct": base["correct"],
         "augmented_correct": augmented["correct"],
-        "delta_accuracy": int(augmented["correct"]) - int(base["correct"]),
+        "delta_accuracy": oriented_delta(
+            int(base["correct"]),
+            int(augmented["correct"]),
+            orientation="candidate - base",
+        ),
         "base_prob_correct": base["prob_correct"],
         "augmented_prob_correct": augmented["prob_correct"],
     }
 
 
 def _summarize_pair(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    if not rows:
-        return {"examples": 0, "mean_delta_loss": 0.0, "accuracy_delta": 0.0}
+    loss_deltas = summarize_deltas([row["delta_loss"] for row in rows])
+    accuracy_deltas = summarize_values([row["delta_accuracy"] for row in rows])
+    count = len(rows)
+    legacy = {
+        "examples": count,
+        # These zero fallbacks are historical output fields. Schema values
+        # below retain the distinction between zero and an empty support.
+        "mean_delta_loss": 0.0 if count == 0 else loss_deltas["mean"],
+        "accuracy_delta": 0.0 if count == 0 else accuracy_deltas["mean"],
+    }
+    if count:
+        legacy.update({
+            "improved_loss_fraction": loss_deltas["positive_fraction"],
+            "regressed_loss_fraction": loss_deltas["negative_fraction"],
+        })
+    legacy["metric_results"] = _metric_results(
+        {
+            "mean_delta_loss": loss_deltas["mean"],
+            "accuracy_delta": accuracy_deltas["mean"],
+            "improved_loss_fraction": loss_deltas["positive_fraction"],
+            "regressed_loss_fraction": loss_deltas["negative_fraction"],
+        },
+        {"examples": count},
+    )
+    return legacy
+
+
+def _metric_results(
+    values: dict[str, float | int | None], support: dict[str, int]
+) -> dict[str, dict[str, Any]]:
+    available = support["examples"] > 0
     return {
-        "examples": len(rows),
-        "mean_delta_loss": safe_ratio(
-            sum(row["delta_loss"] for row in rows), len(rows)
-        ),
-        "accuracy_delta": safe_ratio(
-            sum(row["delta_accuracy"] for row in rows), len(rows)
-        ),
-        "improved_loss_fraction": safe_ratio(
-            sum(row["delta_loss"] > 0 for row in rows), len(rows)
-        ),
-        "regressed_loss_fraction": safe_ratio(
-            sum(row["delta_loss"] < 0 for row in rows), len(rows)
-        ),
+        name: metric_result(
+            value=value if available else None,
+            availability="available" if available else "not_applicable",
+            reason=None if available else "empty_support",
+            support=support,
+        )
+        for name, value in values.items()
     }
 
 
@@ -256,11 +291,20 @@ def _bucket_pair_summaries(rows: dict[str, list[dict[str, Any]]], key: str) -> d
 def _coverage(rows: list[dict[str, Any]]) -> dict[str, Any]:
     groups = Counter(row["syllable_info"] for row in rows)
     total = len(rows)
+    active_fraction = safe_ratio(groups["active"], total)
     return {
         "examples": total,
         "active": groups["active"],
         "unavailable": groups["unavailable"],
-        "active_fraction": safe_ratio(groups["active"], total),
+        "active_fraction": active_fraction,
+        "metric_results": {
+            "active_fraction": metric_result(
+                value=active_fraction if total else None,
+                availability="available" if total else "not_applicable",
+                reason=None if total else "empty_support",
+                support={"examples": total, "active": groups["active"]},
+            )
+        },
     }
 
 
@@ -284,11 +328,14 @@ def _target_char_effects(rows: dict[str, list[dict[str, Any]]]) -> dict[str, dic
             grouped[str(row["target_char"])].append(row)
         effects = []
         for target, group in grouped.items():
+            delta_summary = summarize_values([row["delta_loss"] for row in group])
             effects.append({
                 "target_char": target,
                 "examples": len(group),
-                "mean_delta_loss": safe_ratio(
-                    sum(row["delta_loss"] for row in group), len(group)
+                "mean_delta_loss": delta_summary["mean"],
+                "metric_results": _metric_results(
+                    {"mean_delta_loss": delta_summary["mean"]},
+                    {"examples": len(group)},
                 ),
             })
         result[pair_name] = {

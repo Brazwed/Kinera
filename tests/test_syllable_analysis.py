@@ -47,6 +47,7 @@ class SyllableGainAnalysisTests(unittest.TestCase):
         )
 
         self.assertEqual(report["completed_runs"], 1)
+        self.assertEqual(report["runs"][0]["metrics_schema_version"], 1)
         self.assertIn("active", report["runs"][0]["coverage"])
         self.assertIn("unavailable", report["runs"][0]["coverage"])
         self.assertIn("A_vs_C", report["runs"][0]["pair_deltas"])
@@ -54,6 +55,9 @@ class SyllableGainAnalysisTests(unittest.TestCase):
         self.assertIn("word_position", report["runs"][0]["buckets"])
         self.assertIn("gain", report["runs"][0]["examples"]["A_vs_C"])
         self.assertIn("regression", report["runs"][0]["examples"]["B_vs_D"])
+        active = report["runs"][0]["pair_deltas"]["A_vs_C"]["by_syllable_info"]["active"]
+        self.assertEqual(active["metric_results"]["mean_delta_loss"]["support"], {"examples": 2})
+        self.assertEqual(report["runs"][0]["coverage"]["metric_results"]["active_fraction"]["value"], 1.0)
 
     def test_pair_buckets_use_augmented_causal_metadata(self) -> None:
         report = run_syllable_gain_analysis(

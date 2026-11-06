@@ -817,6 +817,38 @@ benefício para todos os targets.
 
 Relatório: `experiments/phase5_5_orthographic_class_analysis.json`.
 
+#### M2.1 — métricas centralizadas nos diagnósticos
+
+Os resumos silábicos e ortográficos usam `kinera.monitor.metrics` para
+subtrações orientadas, médias por observação e frações estritas de
+melhoria/regressão. A orientação
+legada permanece: `mean_delta_loss = loss_base - loss_aumentada` e
+`delta_accuracy = acertos_aumentados - acertos_base`. Empates de loss não são
+contados como melhoria nem regressão.
+
+Cada execução nova dos diagnósticos publica `metrics_schema_version` e
+descritores v1 em `metric_results`, junto ao resumo geral ou ao grupo a que o
+suporte se refere. Os campos escalares históricos continuam disponíveis. Um
+suporte vazio mantém os fallbacks históricos nos aliases e aparece como
+`value: null`, `availability: not_applicable` e `reason: empty_support` no
+descritor. Um zero observado continua sendo `available` com `value: 0.0`.
+
+Os descritores representam observações por exemplo. O agregado de
+`scripts/legacy/phase5_3.py` representa médias entre seeds e declara suporte em
+`seeds`; ele não é uma média global por exemplo nem uma média simples dos
+grupos. Checkpoints antigos continuam legíveis: registros históricos sem
+`metrics_schema_version` permanecem sem essa marca, mesmo quando a execução
+produz agregados v1 a partir deles. A versão no agregado identifica seu
+descritor, não a origem histórica de cada registro incluído.
+
+Os buckets, classificações ortográficas, formação de pares A/C e B/D,
+frequência e posição silábicas, ranking de exemplos e gradient checking
+continuam nos diagnósticos. Nenhum forward adicional ou treinamento foi
+introduzido. O contrato de identidade científica M1.4 cobre o runner
+comparativo; os runners históricos retomáveis das Fases 5.3 e 5.5 continuam
+sem fingerprint verificável de dados e vocabulário. Essa lacuna permanece
+registrada fora da M2.1.
+
 ### Fase 6 — Validação final
 
 O relatório `experiments/phase6_final_validation.json` registra a validação dos

@@ -39,6 +39,16 @@ class OrthographicAnalysisTests(unittest.TestCase):
         self.assertIn("A_vs_C", report["runs"][0]["comparisons"])
         self.assertIn("vogal", report["runs"][0]["comparisons"]["A_vs_C"])
         self.assertIn("count", report["runs"][0]["comparisons"]["A_vs_C"]["vogal"])
+        summary = report["runs"][0]["comparisons"]["A_vs_C"]["vogal"]
+        self.assertEqual(report["runs"][0]["metrics_schema_version"], 1)
+        self.assertEqual(
+            summary["metric_results"]["mean_delta_loss"]["support"],
+            {"examples": 1},
+        )
+        self.assertEqual(
+            summary["metric_results"]["improved_loss_fraction"]["value"],
+            0.0,
+        )
 
 
 if __name__ == "__main__":
