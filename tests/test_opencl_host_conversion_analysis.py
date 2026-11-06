@@ -30,7 +30,7 @@ EXPECTED_SHA256 = {
     "experiments/results/opencl-rx550-p3c-host-conversions.json":
         "d8d0b5932037320a27f585ebd6c74d7cbfd22ab81c67ac42ee8abbeb93e4adc8",
     "src/kinera/backends/opencl/backend.py":
-        "e20423c0386701f9a7e43b9dbb912df85a352b015c5c5597ed2b4e8e6ce34227",
+        "0557ea395cf58f887f4a8f1e23d2aded50ab782f594d3841f59c83b65c1c3e21",
     "src/kinera/backends/cpu/backend.py":
         "990b9422f425e0136a720bad880dbe5ebc045c275ac762751a0357c8ec9c2ffb",
     "src/kinera/nn/layers/linear.py":
@@ -58,6 +58,12 @@ EXPECTED_SHA256 = {
 # current OpenCL backend to the reviewed F1a source fingerprint above.
 P3C_OPENCL_BACKEND_SHA256 = (
     "cae03486353643ea4ee3d4cab68d085a8c89544359fa29024e280852f6772ff7"
+)
+
+# The pre-F1b implementation fingerprint remains part of the audit trail;
+# EXPECTED_SHA256 above now locks the OpenCL backend source tested by F1b.
+F1A_OPENCL_BACKEND_SHA256 = (
+    "e20423c0386701f9a7e43b9dbb912df85a352b015c5c5597ed2b4e8e6ce34227"
 )
 
 # The report records the memory-manager source used for the P3c measurement.
@@ -238,6 +244,11 @@ class ResultArtifactTests(unittest.TestCase):
             EXPECTED_SHA256["src/kinera/backends/opencl/backend.py"],
             P3C_OPENCL_BACKEND_SHA256,
         )
+        self.assertNotEqual(
+            EXPECTED_SHA256["src/kinera/backends/opencl/backend.py"],
+            F1A_OPENCL_BACKEND_SHA256,
+        )
+        self.assertNotEqual(F1A_OPENCL_BACKEND_SHA256, P3C_OPENCL_BACKEND_SHA256)
         self.assertNotEqual(
             _sha256(ROOT / "src/kinera/backends/opencl/memory.py"),
             P3C_MEMORY_BASELINE_SHA256,
