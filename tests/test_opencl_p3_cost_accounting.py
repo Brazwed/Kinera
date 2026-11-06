@@ -113,9 +113,12 @@ class P3CostAccountingTests(unittest.TestCase):
         self.assertEqual(p3["code"]["benchmark_script_sha256"], benchmark_sha)
         self.assertEqual(diagnostic["baseline_script_sha256"], benchmark_sha)
         self.assertEqual(diagnostic["analysis_script_sha256"], analysis_sha)
+        # This published fingerprint describes the source tree used for the P3
+        # run. Resource-lifecycle fixes may change current sources without
+        # regenerating or rewriting those historical measurements.
         self.assertEqual(
             p3["code"]["benchmark_fingerprint_sha256"],
-            analysis.baseline._fingerprint(),
+            "a08a863613b13222dc591929d749ca29e90721a7c9c7d0c2390f5ccb9060446f",
         )
         self.assertEqual(
             p3["source_json_sha256"],

@@ -4,6 +4,7 @@ import ctypes
 import subprocess
 import sys
 import unittest
+from unittest.mock import patch
 
 from kinera.backends import Backend, BackendError, BackendUnavailableError
 from kinera.backends.opencl.api import (
@@ -13,6 +14,7 @@ from kinera.backends.opencl.api import (
     OpenCLApiError,
 )
 from kinera.backends.opencl.backend import OpenCLBackend
+from kinera.backends.opencl import memory as opencl_memory
 from kinera.backends.opencl.runtime import OpenCLRuntime
 
 
@@ -232,6 +234,161 @@ class OpenCLScaffoldTests(unittest.TestCase):
             integers.close()
             backend.close()
         self.assertEqual(len(api.allocations), 0)
+
+    def test_copy_to_device_ctypes_failure_releases_buffer_and_preserves_error(self) -> None:
+        api = FakeOpenCLApi()
+        backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+        staging_error = MemoryError("injected ctypes array construction failure")
+
+        class FailingArrayType:
+            def __mul__(self, length):
+                return self
+
+            def __call__(self, *values):
+                raise staging_error
+
+        class CtypesProxy:
+            def __init__(self):
+                self.c_double_reads = 0
+                self.c_int32 = ctypes.c_int32
+                self.sizeof = ctypes.sizeof
+                self.addressof = ctypes.addressof
+
+            @property
+            def c_double(self):
+                self.c_double_reads += 1
+                # copy_to_device captures the array type before allocate();
+                # allocate then asks sizeof() for the real scalar type.
+                if self.c_double_reads == 1:
+                    return FailingArrayType()
+                return ctypes.c_double
+
+        ctypes_proxy = CtypesProxy()
+        try:
+            with patch.object(opencl_memory, "ctypes", ctypes_proxy):
+                with self.assertRaises(MemoryError) as raised:
+                    backend.buffer_from_host([1.25], shape=(1,), dtype="float64")
+
+            self.assertIs(raised.exception, staging_error)
+            self.assertEqual(ctypes_proxy.c_double_reads, 2)
+            self.assertEqual(api.released, [100])
+            self.assertEqual(api.allocations, {})
+            self.assertEqual(len(backend.memory._buffers), 0)
+        finally:
+            backend.close()
+
+    def test_copy_to_device_write_failure_releases_once_and_preserves_error(self) -> None:
+        api = FakeOpenCLApi()
+        backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+        write_error = RuntimeError("injected blocking H2D failure")
+        try:
+            with patch.object(api, "write_buffer", side_effect=write_error):
+                with self.assertRaises(RuntimeError) as raised:
+                    backend.buffer_from_host([1.25], shape=(1,), dtype="float64")
+
+            self.assertIs(raised.exception, write_error)
+            self.assertEqual(api.released, [100])
+            self.assertEqual(api.allocations, {})
+            self.assertEqual(len(backend.memory._buffers), 0)
+        finally:
+            backend.close()
+
+    def test_copy_to_device_preserves_transfer_error_when_release_fails(self) -> None:
+        api = FakeOpenCLApi()
+        backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+        write_error = RuntimeError("injected blocking H2D failure")
+        release_error = RuntimeError("injected release_mem failure")
+        release_attempts: list[int] = []
+        original_release_mem = api.release_mem
+
+        def fail_once(handle: int) -> None:
+            release_attempts.append(handle)
+            if len(release_attempts) == 1:
+                raise release_error
+            original_release_mem(handle)
+
+        try:
+            with (
+                patch.object(api, "write_buffer", side_effect=write_error),
+                patch.object(api, "release_mem", side_effect=fail_once) as release_mem,
+            ):
+                with self.assertRaises(RuntimeError) as raised:
+                    backend.buffer_from_host([1.25], shape=(1,), dtype="float64")
+
+                self.assertIs(raised.exception, write_error)
+                self.assertIs(raised.exception.__cause__, release_error)
+                self.assertEqual(release_mem.call_count, 1)
+                self.assertEqual(api.allocations, {100: bytearray(8)})
+                retained_buffer = next(iter(backend.memory._buffers))
+                self.assertFalse(retained_buffer.closed)
+
+                # The manager keeps the failed cleanup owned and retries it
+                # when it is explicitly closed after the API recovers.
+                backend.close()
+                self.assertEqual(release_mem.call_count, 2)
+                self.assertTrue(retained_buffer.closed)
+                self.assertEqual(api.released, [100])
+                self.assertEqual(api.allocations, {})
+
+            self.assertEqual(release_attempts, [100, 100])
+        finally:
+            backend.close()
+
+    def test_copy_zeros_write_failure_still_releases_once(self) -> None:
+        api = FakeOpenCLApi()
+        backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+        write_error = RuntimeError("injected zero-buffer H2D failure")
+        try:
+            with patch.object(api, "write_buffer", side_effect=write_error):
+                with self.assertRaises(RuntimeError) as raised:
+                    backend.buffer_zeros(shape=(1,), dtype="float64")
+
+            self.assertIs(raised.exception, write_error)
+            self.assertEqual(api.released, [100])
+            self.assertEqual(api.allocations, {})
+            self.assertEqual(len(backend.memory._buffers), 0)
+        finally:
+            backend.close()
+
+    def test_successful_copy_transfers_ownership_without_early_release(self) -> None:
+        api = FakeOpenCLApi()
+        backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+        try:
+            buffer = backend.buffer_from_host(
+                [1.25, -2.5], shape=(2,), dtype="float64"
+            )
+            handle = buffer.handle
+            self.assertFalse(buffer.closed)
+            self.assertIn(handle, api.allocations)
+            self.assertEqual(api.released, [])
+            self.assertEqual(backend.buffer_to_host(buffer), [1.25, -2.5])
+            self.assertEqual(api.released, [])
+
+            buffer.close()
+            buffer.close()
+            self.assertTrue(buffer.closed)
+            self.assertEqual(api.released, [handle])
+            self.assertEqual(api.allocations, {})
+        finally:
+            backend.close()
+
+    def test_failed_read_keeps_the_callers_buffer_open(self) -> None:
+        api = FakeOpenCLApi()
+        backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+        buffer = backend.buffer_from_host([1.25], shape=(1,), dtype="float64")
+        read_error = RuntimeError("injected blocking D2H failure")
+        try:
+            with patch.object(api, "read_buffer", side_effect=read_error):
+                with self.assertRaises(RuntimeError) as raised:
+                    backend.buffer_to_host(buffer)
+
+            self.assertIs(raised.exception, read_error)
+            self.assertFalse(buffer.closed)
+            self.assertIn(buffer.handle, api.allocations)
+            self.assertEqual(api.released, [])
+        finally:
+            buffer.close()
+            backend.close()
 
     def test_backward_rejects_host_buffers_bad_dtype_shape_and_foreign_owner(self) -> None:
         first_api = FakeOpenCLApi()
