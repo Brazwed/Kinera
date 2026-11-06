@@ -293,6 +293,47 @@ class OpenCLScaffoldTests(unittest.TestCase):
         finally:
             backend.close()
 
+    def test_copy_to_device_preserves_transfer_error_when_release_fails(self) -> None:
+        api = FakeOpenCLApi()
+        backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+        write_error = RuntimeError("injected blocking H2D failure")
+        release_error = RuntimeError("injected release_mem failure")
+        release_attempts: list[int] = []
+        original_release_mem = api.release_mem
+
+        def fail_once(handle: int) -> None:
+            release_attempts.append(handle)
+            if len(release_attempts) == 1:
+                raise release_error
+            original_release_mem(handle)
+
+        try:
+            with (
+                patch.object(api, "write_buffer", side_effect=write_error),
+                patch.object(api, "release_mem", side_effect=fail_once) as release_mem,
+            ):
+                with self.assertRaises(RuntimeError) as raised:
+                    backend.buffer_from_host([1.25], shape=(1,), dtype="float64")
+
+                self.assertIs(raised.exception, write_error)
+                self.assertIs(raised.exception.__cause__, release_error)
+                self.assertEqual(release_mem.call_count, 1)
+                self.assertEqual(api.allocations, {100: bytearray(8)})
+                retained_buffer = next(iter(backend.memory._buffers))
+                self.assertFalse(retained_buffer.closed)
+
+                # The manager keeps the failed cleanup owned and retries it
+                # when it is explicitly closed after the API recovers.
+                backend.close()
+                self.assertEqual(release_mem.call_count, 2)
+                self.assertTrue(retained_buffer.closed)
+                self.assertEqual(api.released, [100])
+                self.assertEqual(api.allocations, {})
+
+            self.assertEqual(release_attempts, [100, 100])
+        finally:
+            backend.close()
+
     def test_copy_zeros_write_failure_still_releases_once(self) -> None:
         api = FakeOpenCLApi()
         backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
