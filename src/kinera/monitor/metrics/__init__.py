@@ -28,6 +28,10 @@ Superfície pública:
   - ``majority_class(...)``: Identificação de classe majoritária com desempate determinístico para 0.
   - ``evaluate_majority_baseline(...)``: Avaliação do baseline majoritário do treino.
   - ``evaluate_binary_baselines(...)``: Conjunto completo de baselines determinísticos.
+- M1.5 (Baselines Determinísticos Multiclasses):
+  - ``multiclass_class_counts(...)``: Contagem validada de IDs inteiros por classe.
+  - ``evaluate_multiclass_majority_baseline(...)``: Escolha majoritária train-only,
+    com desempate pelo menor ID e avaliação sobre contagens de outro split.
 - M1.1 (Segmentação Silábica por Offsets):
   - ``WordSegmentationResult``: Resultado por palavra individual.
   - ``OffsetSegmentationConfusion``: Matriz de confusão de offsets em nível de corpus.
@@ -55,6 +59,8 @@ from kinera.monitor.metrics.baselines import (
     evaluate_binary_baselines,
     evaluate_constant_baseline,
     evaluate_majority_baseline,
+    evaluate_multiclass_majority_baseline,
+    multiclass_class_counts,
     majority_class,
 )
 from kinera.monitor.metrics.confusion import (
@@ -121,6 +127,8 @@ __all__ = [
     "majority_class",
     "evaluate_majority_baseline",
     "evaluate_binary_baselines",
+    "multiclass_class_counts",
+    "evaluate_multiclass_majority_baseline",
     # M1.1 Segmentação por offsets
     "WordSegmentationResult",
     "OffsetSegmentationConfusion",

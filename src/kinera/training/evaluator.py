@@ -15,6 +15,7 @@ from kinera.training.common import Sample, _restore, _snapshot, _validate_sample
 from kinera.monitor.metrics import (
     BinaryConfusion,
     balanced_accuracy,
+    evaluate_multiclass_majority_baseline,
     f1_score,
     metric_result,
     majority_class,
@@ -26,6 +27,13 @@ from kinera.monitor.metrics import (
     METRICS_SCHEMA_VERSION,
 )
 from kinera.training.metrics import _multitask_targets
+
+
+MULTICLASS_BASELINE_METRIC_NAMES = (
+    "char_baseline_majority",
+    "syllable_baseline_majority_all",
+    "syllable_baseline_majority_known",
+)
 
 
 def evaluate(neuron: Neuron, samples: list[Sample]) -> float:
@@ -102,8 +110,56 @@ def evaluate_multitask_examples(
     max_examples: int | None = None,
     loss_function: MultiTaskLoss | None = None,
     train_boundary_distribution: Mapping[int | str, int] | None = None,
+    train_char_distribution: Mapping[int, int] | None = None,
+    train_syllable_distribution: Mapping[int, int] | None = None,
+    train_syllable_known_distribution: Mapping[int, int] | None = None,
+    syllable_vocab_size: int | None = None,
+    include_multiclass_baselines: bool = True,
 ) -> dict[str, Any]:
     """Avalia as três heads sem executar backward ou step."""
+    if not isinstance(include_multiclass_baselines, bool):
+        raise TypeError("include_multiclass_baselines deve ser booleano")
+    if syllable_vocab_size is not None and (
+        isinstance(syllable_vocab_size, bool)
+        or not isinstance(syllable_vocab_size, int)
+        or syllable_vocab_size <= 0
+    ):
+        raise ValueError("syllable_vocab_size deve ser inteiro positivo")
+    if isinstance(syllable_unknown_id, bool) or not isinstance(syllable_unknown_id, int):
+        raise TypeError("syllable_unknown_id deve ser inteiro")
+    syllable_class_count = syllable_vocab_size
+    if syllable_class_count is None:
+        syllable_head = getattr(getattr(model, "heads", None), "syllable", None)
+        candidate_size = getattr(syllable_head, "output_size", None)
+        if (
+            isinstance(candidate_size, int)
+            and not isinstance(candidate_size, bool)
+            and candidate_size > 0
+        ):
+            syllable_class_count = candidate_size
+    if syllable_unknown_id < 0 or (
+        syllable_class_count is not None
+        and syllable_unknown_id >= syllable_class_count
+    ):
+        raise ValueError("syllable_unknown_id fora do vocabulário silábico")
+    if include_multiclass_baselines and syllable_class_count is None and (
+        train_syllable_distribution is not None
+        or train_syllable_known_distribution is not None
+    ):
+        raise ValueError(
+            "syllable_vocab_size é necessário para validar baselines silábicos"
+        )
+    if not include_multiclass_baselines and any(
+        distribution is not None
+        for distribution in (
+            train_char_distribution,
+            train_syllable_distribution,
+            train_syllable_known_distribution,
+        )
+    ):
+        raise ValueError(
+            "distribuições de treino não podem ser fornecidas quando baselines estão desativados"
+        )
     if not examples:
         raise ValueError("examples não pode ser vazio")
     selected = examples if max_examples is None else examples[:max_examples]
@@ -130,6 +186,7 @@ def evaluate_multitask_examples(
     char_prediction_distribution: Counter[int] = Counter()
     syllable_target_distribution: Counter[int] = Counter()
     syllable_prediction_distribution: Counter[int] = Counter()
+    syllable_known_target_distribution: Counter[int] = Counter()
     syllable_target_status_distribution = {"known": 0, "unknown": 0, "end": 0}
     for example in selected:
         inputs = example_to_inputs(
@@ -138,6 +195,13 @@ def evaluate_multitask_examples(
             syllable_unknown_id=syllable_unknown_id,
         )
         targets = _multitask_targets(example)
+        if not 0 <= targets["char"] < len(vocabulary):
+            raise ValueError("target_char_id fora do vocabulário de caracteres")
+        if targets["syllable"] < 0 or (
+            syllable_class_count is not None
+            and targets["syllable"] >= syllable_class_count
+        ):
+            raise ValueError("target_syllable_id fora do vocabulário silábico")
         result = model.multitask_eval_step(
             *inputs,
             targets=targets,
@@ -155,6 +219,11 @@ def evaluate_multitask_examples(
             syllable_target_status_distribution["unknown"] += 1
         else:
             syllable_target_status_distribution["known"] += 1
+        if include_multiclass_baselines and (
+            targets["char"] != vocabulary.end_id
+            and targets["syllable"] != syllable_unknown_id
+        ):
+            syllable_known_target_distribution[targets["syllable"]] += 1
         totals["char_loss"] += losses["char_loss"]
         totals["syllable_loss"] += losses["syllable_loss"]
         totals["boundary_loss"] += losses["boundary_loss"]
@@ -398,7 +467,119 @@ def evaluate_multitask_examples(
             support={"examples": count},
         )
 
-    return {
+    baseline_selection: dict[str, Any] | None = None
+    if include_multiclass_baselines:
+        char_baseline = evaluate_multiclass_majority_baseline(
+            train_char_distribution,
+            char_target_distribution,
+            num_classes=len(vocabulary),
+        )
+        if syllable_class_count is None:
+            syllable_all_baseline = {
+                "majority_class": None,
+                "accuracy": None,
+                "status": "training_distribution_missing",
+                "training_support": None,
+                "evaluation_support": sum(syllable_target_distribution.values()),
+            }
+            syllable_known_baseline = {
+                "majority_class": None,
+                "accuracy": None,
+                "status": "training_distribution_missing",
+                "training_support": None,
+                "evaluation_support": sum(
+                    syllable_known_target_distribution.values()
+                ),
+            }
+        else:
+            syllable_all_baseline = evaluate_multiclass_majority_baseline(
+                train_syllable_distribution,
+                syllable_target_distribution,
+                num_classes=syllable_class_count,
+            )
+            syllable_known_baseline = evaluate_multiclass_majority_baseline(
+                train_syllable_known_distribution,
+                syllable_known_target_distribution,
+                num_classes=syllable_class_count,
+            )
+
+        baseline_specs = (
+            (
+                "char_baseline_majority",
+                char_baseline,
+                "training_targets",
+                "evaluation_targets",
+                "training_distribution_missing",
+                "no_training_targets",
+                "no_evaluation_targets",
+            ),
+            (
+                "syllable_baseline_majority_all",
+                syllable_all_baseline,
+                "training_targets",
+                "evaluation_targets",
+                "training_distribution_missing",
+                "no_training_targets",
+                "no_evaluation_targets",
+            ),
+            (
+                "syllable_baseline_majority_known",
+                syllable_known_baseline,
+                "known_training_targets",
+                "known_evaluation_targets",
+                "training_distribution_missing",
+                "no_known_training_targets",
+                "no_known_targets",
+            ),
+        )
+        selected_classes: dict[str, int | None] = {}
+        for (
+            name,
+            summary,
+            training_support_name,
+            evaluation_support_name,
+            missing_reason,
+            no_training_reason,
+            no_evaluation_reason,
+        ) in baseline_specs:
+            status = summary["status"]
+            if status == "available":
+                availability = "available"
+                reason = None
+            elif status == "training_distribution_missing":
+                availability = "unavailable"
+                reason = missing_reason
+            elif status == "no_training_targets":
+                availability = "unavailable"
+                reason = no_training_reason
+            elif status == "no_evaluation_targets":
+                availability = "not_applicable"
+                reason = no_evaluation_reason
+            else:
+                raise ValueError(f"status de baseline multiclasses inválido: {status!r}")
+
+            support: dict[str, int] = {}
+            if summary["training_support"] is not None:
+                support[training_support_name] = summary["training_support"]
+            support[evaluation_support_name] = summary["evaluation_support"]
+            metric_results[name] = metric_result(
+                summary["accuracy"],
+                availability=availability,
+                reason=reason,
+                support=support,
+            )
+            selected_classes[name] = summary["majority_class"]
+
+        baseline_selection = {
+            "policy": "majority_from_training_targets; ties choose smallest class ID",
+            "classes": selected_classes,
+            "syllable_known_scope": {
+                "excluded_syllable_id": syllable_unknown_id,
+                "excluded_character_id": vocabulary.end_id,
+            },
+        }
+
+    report = {
         "examples": count,
         **{name: safe_ratio(value, count) for name, value in totals.items()},
         "syllable_accuracy_all": safe_ratio(totals["syllable_accuracy"], count),
@@ -425,6 +606,9 @@ def evaluate_multitask_examples(
         "metrics_schema_version": METRICS_SCHEMA_VERSION,
         "metric_results": metric_results,
     }
+    if baseline_selection is not None:
+        report["baseline_selection"] = baseline_selection
+    return report
 
 def generate_text(
     model: AutoregressiveModel,

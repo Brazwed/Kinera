@@ -1,4 +1,4 @@
-"""Baselines determinísticos de previsão para classificação binária.
+"""Baselines determinísticos para classificação binária e multiclasses.
 
 Este módulo implementa heurísticas puras de referência:
 - Baseline constante 0: prediz sempre 0 sobre os alvos avaliados.
@@ -6,6 +6,8 @@ Este módulo implementa heurísticas puras de referência:
 - Baseline de classe majoritária: seleciona a classe mais frequente no conjunto de
   treino (com desempate determinístico para 0) e avalia essa constante sobre o conjunto
   de avaliação.
+- Baseline majoritário multiclasses: seleciona a classe mais frequente por contagens
+  de treino e desempata pelo menor ID, avaliando-a sobre contagens de outro split.
 
 Esses baselines contextualizam as métricas observadas no modelo, evitando que pontuações
 decorrentes de desbalanceamento sejam erroneamente atribuídas a aprendizado representacional.
@@ -20,6 +22,7 @@ from kinera.monitor.metrics.confusion import (
     _validate_count,
     binary_classification_metrics,
 )
+from kinera.monitor.metrics.core import safe_ratio
 
 
 def _validate_binary_target(value: Any, name: str = "target") -> int:
@@ -166,3 +169,127 @@ def evaluate_binary_baselines(
     if train_data is not None:
         res["majority"] = evaluate_majority_baseline(train_data, eval_targets)
     return res
+
+
+def _validate_num_classes(num_classes: int) -> int:
+    if isinstance(num_classes, bool) or not isinstance(num_classes, int):
+        raise TypeError("num_classes deve ser inteiro")
+    if num_classes <= 0:
+        raise ValueError("num_classes deve ser positivo")
+    return num_classes
+
+
+def _validated_multiclass_counts(
+    counts: Mapping[int, int],
+    *,
+    num_classes: int,
+    name: str,
+) -> dict[int, int]:
+    if not isinstance(counts, Mapping):
+        raise TypeError(f"{name} deve ser um mapeamento de IDs para contagens")
+    normalized: dict[int, int] = {}
+    for class_id, count in counts.items():
+        if isinstance(class_id, bool) or not isinstance(class_id, int):
+            raise TypeError(f"{name} deve conter IDs inteiros")
+        if not 0 <= class_id < num_classes:
+            raise ValueError(f"{name} contém ID fora do vocabulário: {class_id}")
+        _validate_count(count, f"{name}[{class_id}]")
+        normalized[class_id] = count
+    return normalized
+
+
+def multiclass_class_counts(
+    targets: Sequence[int],
+    *,
+    num_classes: int,
+) -> dict[int, int]:
+    """Conta targets multiclasses válidos sem coerção ou mutação da entrada.
+
+    IDs são inteiros entre zero e ``num_classes - 1``. Booleans, IDs negativos,
+    strings e IDs fora do vocabulário são rejeitados. Uma sequência vazia produz
+    um mapeamento vazio, permitindo representar suporte de treino inexistente.
+    """
+    class_count = _validate_num_classes(num_classes)
+    if isinstance(targets, (str, bytes)) or not isinstance(targets, Sequence):
+        raise TypeError("targets deve ser uma sequência de IDs inteiros")
+    counts: dict[int, int] = {}
+    for index, class_id in enumerate(targets):
+        if isinstance(class_id, bool) or not isinstance(class_id, int):
+            raise TypeError(f"targets[{index}] deve ser inteiro")
+        if not 0 <= class_id < class_count:
+            raise ValueError(f"targets[{index}] fora do vocabulário: {class_id}")
+        counts[class_id] = counts.get(class_id, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def evaluate_multiclass_majority_baseline(
+    train_distribution: Mapping[int, int] | None,
+    evaluation_distribution: Mapping[int, int],
+    *,
+    num_classes: int,
+) -> dict[str, Any]:
+    """Avalia uma classe majoritária de treino usando distribuições já contadas.
+
+    O desempate escolhe o menor ID. ``None`` em ``train_distribution`` significa
+    que a distribuição não foi fornecida; um mapeamento vazio significa que ela
+    foi fornecida, mas não contém targets elegíveis. O status distingue esses
+    casos de uma avaliação sem suporte.
+    """
+    class_count = _validate_num_classes(num_classes)
+    evaluation_counts = _validated_multiclass_counts(
+        evaluation_distribution,
+        num_classes=class_count,
+        name="evaluation_distribution",
+    )
+    evaluation_support = sum(evaluation_counts.values())
+    if train_distribution is None:
+        return {
+            "majority_class": None,
+            "correct": None,
+            "accuracy": None,
+            "status": "training_distribution_missing",
+            "training_support": None,
+            "evaluation_support": evaluation_support,
+        }
+
+    training_counts = _validated_multiclass_counts(
+        train_distribution,
+        num_classes=class_count,
+        name="train_distribution",
+    )
+    training_support = sum(training_counts.values())
+    if training_support == 0:
+        return {
+            "majority_class": None,
+            "correct": None,
+            "accuracy": None,
+            "status": "no_training_targets",
+            "training_support": 0,
+            "evaluation_support": evaluation_support,
+        }
+
+    highest_count = max(training_counts.values())
+    majority = min(
+        class_id
+        for class_id, count in training_counts.items()
+        if count == highest_count
+    )
+    if evaluation_support == 0:
+        return {
+            "majority_class": majority,
+            "correct": None,
+            "accuracy": None,
+            "status": "no_evaluation_targets",
+            "training_support": training_support,
+            "evaluation_support": 0,
+        }
+
+    correct = evaluation_counts.get(majority, 0)
+    return {
+        "majority_class": majority,
+        "correct": correct,
+        "accuracy": safe_ratio(correct, evaluation_support),
+        "status": "available",
+        "training_support": training_support,
+        "evaluation_support": evaluation_support,
+    }

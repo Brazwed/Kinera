@@ -26,6 +26,7 @@ from kinera.monitor.metrics.aggregation import (
     mean_std,
     summarize_paired_deltas,
 )
+from kinera.monitor.metrics.baselines import multiclass_class_counts
 from kinera.monitor.metrics.schema import METRICS_SCHEMA_VERSION
 from kinera.monitor.telemetry.records import (
     TELEMETRY_SCHEMA_VERSION,
@@ -42,7 +43,10 @@ from kinera.monitor.telemetry.resources import collect_resource_snapshot
 from kinera.monitor.telemetry.timing import TimingSession, _seconds_from_ns, utc_now
 from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from kinera.nn.models.hybrid import AutoregressiveModel
-from kinera.training.evaluator import evaluate_multitask_examples
+from kinera.training.evaluator import (
+    MULTICLASS_BASELINE_METRIC_NAMES,
+    evaluate_multitask_examples,
+)
 from kinera.training.trainer import train_multitask_examples
 from kinera.experiments.variants import (
     BASELINE_VARIANTS,
@@ -260,6 +264,12 @@ def _metric_observation_from_run(run: Mapping[str, Any], metric: str) -> Any:
         metric_results = final_validation.get("metric_results")
         if not isinstance(metric_results, Mapping):
             return _INVALID_METRIC_OBSERVATION
+        if metric not in metric_results:
+            # Additive M1.5 descriptors are absent, not invalid, in v1
+            # checkpoints written before these metrics existed.
+            if metric in MULTICLASS_BASELINE_METRIC_NAMES:
+                return None
+            return _INVALID_METRIC_OBSERVATION
         descriptor = metric_results.get(metric)
         if not isinstance(descriptor, Mapping) or "value" not in descriptor:
             return _INVALID_METRIC_OBSERVATION
@@ -344,6 +354,57 @@ def prepare_variant_examples(
     return prepared
 
 
+def _training_multiclass_distributions(
+    train_examples: list[dict[str, Any]],
+    vocabulary: CharacterVocabulary,
+    *,
+    syllable_vocab_size: int,
+    syllable_unknown_id: int,
+) -> tuple[dict[int, int], dict[int, int], dict[int, int]]:
+    """Count training targets after selection and variant preparation."""
+    if isinstance(syllable_vocab_size, bool) or not isinstance(
+        syllable_vocab_size, int
+    ):
+        raise TypeError("syllable_vocab_size deve ser inteiro")
+    if syllable_vocab_size <= 0:
+        raise ValueError("syllable_vocab_size deve ser positivo")
+    if isinstance(syllable_unknown_id, bool) or not isinstance(
+        syllable_unknown_id, int
+    ):
+        raise TypeError("syllable_unknown_id deve ser inteiro")
+    if not 0 <= syllable_unknown_id < syllable_vocab_size:
+        raise ValueError("syllable_unknown_id fora do vocabulário silábico")
+    char_targets = [example.get("target_char_id") for example in train_examples]
+    syllable_targets = [
+        example.get("target_syllable_id") for example in train_examples
+    ]
+    char_distribution = multiclass_class_counts(
+        char_targets,
+        num_classes=len(vocabulary),
+    )
+    syllable_distribution = multiclass_class_counts(
+        syllable_targets,
+        num_classes=syllable_vocab_size,
+    )
+    known_syllable_targets = [
+        syllable_target
+        for example, syllable_target in zip(train_examples, syllable_targets)
+        if (
+            example.get("target_char_id") != vocabulary.end_id
+            and syllable_target != syllable_unknown_id
+        )
+    ]
+    known_syllable_distribution = multiclass_class_counts(
+        known_syllable_targets,
+        num_classes=syllable_vocab_size,
+    )
+    return (
+        char_distribution,
+        syllable_distribution,
+        known_syllable_distribution,
+    )
+
+
 def count_trainable_parameters(model: AutoregressiveModel) -> int:
     """Conta parâmetros pelas dimensões, sem ler ou materializar seus valores."""
     embeddings = (
@@ -377,6 +438,9 @@ def _execute_single_experiment(
     syllable_unknown_id: int,
     *,
     validation_every_n_epochs: int | None = None,
+    train_char_distribution: Mapping[int, int] | None = None,
+    train_syllable_distribution: Mapping[int, int] | None = None,
+    train_syllable_known_distribution: Mapping[int, int] | None = None,
     backend: Any | None = None,
     collect_telemetry: bool = False,
     prior_telemetry: dict[str, Any] | None = None,
@@ -471,6 +535,12 @@ def _execute_single_experiment(
             b_val = ex.get("target_is_syllable_end")
             if b_val is not None:
                 train_boundary_dist[str(int(b_val >= 0.5))] += 1
+        train_baseline_options = {
+            "train_char_distribution": train_char_distribution,
+            "train_syllable_distribution": train_syllable_distribution,
+            "train_syllable_known_distribution": train_syllable_known_distribution,
+            "syllable_vocab_size": syllable_vocab_size,
+        }
 
         if collect_telemetry and timing is not None:
             with timing.stage(stage_id="initial_validation", name="initial_validation"):
@@ -480,6 +550,7 @@ def _execute_single_experiment(
                     vocabulary,
                     syllable_unknown_id=syllable_unknown_id,
                     train_boundary_distribution=train_boundary_dist,
+                    **train_baseline_options,
                 )
         else:
             initial = evaluate_multitask_examples(
@@ -488,6 +559,7 @@ def _execute_single_experiment(
                 vocabulary,
                 syllable_unknown_id=syllable_unknown_id,
                 train_boundary_distribution=train_boundary_dist,
+                **train_baseline_options,
             )
 
         validation_history: list[dict[str, Any]] = []
@@ -515,6 +587,7 @@ def _execute_single_experiment(
                     vocabulary,
                     syllable_unknown_id=syllable_unknown_id,
                     train_boundary_distribution=train_boundary_dist,
+                    **train_baseline_options,
                 )
             validation_history.append(
                 {"epoch": epoch, "split": "validation", **metrics}
@@ -556,6 +629,7 @@ def _execute_single_experiment(
                     vocabulary,
                     syllable_unknown_id=syllable_unknown_id,
                     train_boundary_distribution=train_boundary_dist,
+                    **train_baseline_options,
                 )
         else:
             final = evaluate_multitask_examples(
@@ -564,6 +638,7 @@ def _execute_single_experiment(
                 vocabulary,
                 syllable_unknown_id=syllable_unknown_id,
                 train_boundary_distribution=train_boundary_dist,
+                **train_baseline_options,
             )
 
         if (
@@ -824,6 +899,7 @@ def run_controlled_experiments(
         "boundary_baseline_constant_0",
         "boundary_baseline_constant_1",
         "boundary_baseline_majority",
+        *MULTICLASS_BASELINE_METRIC_NAMES,
     )
     checkpoint = Path(checkpoint_path) if checkpoint_path is not None else None
     if checkpoint is not None and syllable_vocabulary is None:
@@ -863,6 +939,17 @@ def run_controlled_experiments(
             syllable_unknown_id,
         )
         prepared_variants[variant] = (prepared_train, prepared_validation)
+    baseline_source_train = prepared_variants[variants[0]][0]
+    (
+        train_char_distribution,
+        train_syllable_distribution,
+        train_syllable_known_distribution,
+    ) = _training_multiclass_distributions(
+        baseline_source_train,
+        vocabulary,
+        syllable_vocab_size=syllable_vocab_size,
+        syllable_unknown_id=syllable_unknown_id,
+    )
     telemetry_section = _serialize_telemetry_envelope(telemetry)
     if collect_telemetry and telemetry_section is None:
         now_dt = utc_now()
@@ -1122,6 +1209,9 @@ def run_controlled_experiments(
             telemetry_section,
             collect_telemetry=collect_telemetry,
             validation_every_n_epochs=validation_every_n_epochs,
+            train_char_distribution=train_char_distribution,
+            train_syllable_distribution=train_syllable_distribution,
+            train_syllable_known_distribution=train_syllable_known_distribution,
         )
 
     backend = _create_execution_backend(execution_config)
@@ -1148,6 +1238,9 @@ def run_controlled_experiments(
                 learning_rate,
                 syllable_unknown_id,
                 validation_every_n_epochs=validation_every_n_epochs,
+                train_char_distribution=train_char_distribution,
+                train_syllable_distribution=train_syllable_distribution,
+                train_syllable_known_distribution=train_syllable_known_distribution,
                 backend=backend,
                 collect_telemetry=collect_telemetry,
                 prior_telemetry=previous.get("telemetry") if previous is not None else None,
@@ -1219,6 +1312,9 @@ def _run_parallel_experiments(
     telemetry_section: dict[str, Any] | None,
     collect_telemetry: bool = False,
     validation_every_n_epochs: int | None = None,
+    train_char_distribution: Mapping[int, int] | None = None,
+    train_syllable_distribution: Mapping[int, int] | None = None,
+    train_syllable_known_distribution: Mapping[int, int] | None = None,
 ) -> dict[str, Any]:
     del resume
     for variant in variants:
@@ -1275,6 +1371,9 @@ def _run_parallel_experiments(
                     learning_rate,
                     syllable_unknown_id,
                     validation_every_n_epochs=validation_every_n_epochs,
+                    train_char_distribution=train_char_distribution,
+                    train_syllable_distribution=train_syllable_distribution,
+                    train_syllable_known_distribution=train_syllable_known_distribution,
                     backend=None,
                     collect_telemetry=True,
                     prior_telemetry=prior_telemetry,
@@ -1285,6 +1384,13 @@ def _run_parallel_experiments(
                 )
             else:
                 worker_options: dict[str, Any] = {}
+                worker_options["train_char_distribution"] = train_char_distribution
+                worker_options["train_syllable_distribution"] = (
+                    train_syllable_distribution
+                )
+                worker_options["train_syllable_known_distribution"] = (
+                    train_syllable_known_distribution
+                )
                 if validation_every_n_epochs is not None:
                     worker_options["validation_every_n_epochs"] = (
                         validation_every_n_epochs
@@ -1546,9 +1652,14 @@ def _checkpoint_report(
         for run in reports.get(variant, [])
     )
     total_runs = len(configuration["variants"]) * len(configuration["seeds"])
+    paired_metric_names = tuple(
+        name
+        for name in metric_names
+        if name not in MULTICLASS_BASELINE_METRIC_NAMES
+    )
     paired_deltas = _build_paired_deltas(
         reports,
-        metric_names,
+        paired_metric_names,
         tuple(configuration["variants"]),
     )
     metrics_section = {

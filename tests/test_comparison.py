@@ -238,6 +238,19 @@ class ControlledComparisonTests(unittest.TestCase):
         run = report["runs"]["A"][0]
         self.assertEqual(run["status"], "completed")
         self.assertEqual([item["epoch"] for item in run["validation_history"]], [1, 2])
+        expected_classes = {
+            "char_baseline_majority": 4,
+            "syllable_baseline_majority_all": 4,
+            "syllable_baseline_majority_known": 4,
+        }
+        self.assertEqual(
+            run["initial_validation"]["baseline_selection"]["classes"],
+            expected_classes,
+        )
+        self.assertEqual(
+            run["validation_history"][0]["baseline_selection"]["classes"],
+            expected_classes,
+        )
 
     def test_validation_cadence_resume_is_strict_and_preserves_history(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1230,10 +1243,10 @@ class ControlledComparisonTests(unittest.TestCase):
             def __exit__(self, exc_type, exc, tb):
                 return False
 
-            def submit(self, function, variant, seed, *args):
+            def submit(self, function, variant, seed, *args, **kwargs):
                 if seed == 7:
                     return FakeFuture(error=RuntimeError("worker seven failed"))
-                return FakeFuture(result=function(variant, seed, *args))
+                return FakeFuture(result=function(variant, seed, *args, **kwargs))
 
         with patch.object(comparison.concurrent.futures, "ProcessPoolExecutor", FakeExecutor), patch.object(
             comparison.concurrent.futures, "as_completed", side_effect=lambda futures: futures
@@ -1478,6 +1491,136 @@ class ControlledComparisonTests(unittest.TestCase):
             self.assertEqual(
                 call.kwargs["train_boundary_distribution"],
                 {"0": 1, "1": 2},
+            )
+
+    def test_multiclass_baselines_use_selected_train_prefix_across_variants(self) -> None:
+        def example(char_id: int, syllable_id: int) -> dict[str, Any]:
+            return {
+                "context_ids": [0, 3],
+                "context_syllable_ids": [0, 0],
+                "context_feature_vectors": [[0.0] * 10, [0.0] * 10],
+                "target_char_id": char_id,
+                "target_syllable_id": syllable_id,
+                "target_is_syllable_end": 1,
+            }
+
+        train_examples = [
+            example(3, 2),
+            example(4, 1),
+            example(4, 2),
+            example(4, 2),
+        ]
+        validation_examples = [example(4, 2)]
+        report = run_controlled_experiments(
+            train_examples,
+            validation_examples,
+            self.vocabulary,
+            syllable_vocab_size=5,
+            syllable_vocabulary=self.syllable_vocabulary,
+            syllable_unknown_id=0,
+            seeds=[7],
+            epochs=1,
+            learning_rate=0.01,
+            max_examples=2,
+            variants=("A", "B"),
+        )
+
+        for variant in ("A", "B"):
+            run = report["runs"][variant][0]
+            initial = run["initial_validation"]
+            final = run["final_validation"]
+            classes = initial["baseline_selection"]["classes"]
+            self.assertEqual(classes["char_baseline_majority"], 3)
+            self.assertEqual(classes["syllable_baseline_majority_all"], 1)
+            self.assertEqual(classes["syllable_baseline_majority_known"], 1)
+            self.assertEqual(final["baseline_selection"]["classes"], classes)
+            self.assertEqual(
+                initial["metric_results"]["char_baseline_majority"]["value"],
+                0.0,
+            )
+            self.assertEqual(
+                initial["metric_results"]["syllable_baseline_majority_all"]["value"],
+                0.0,
+            )
+            self.assertEqual(
+                initial["metric_results"]["syllable_baseline_majority_known"]["value"],
+                0.0,
+            )
+            self.assertTrue(
+                {
+                    "char_baseline_majority",
+                    "syllable_baseline_majority_all",
+                    "syllable_baseline_majority_known",
+                }.isdisjoint(run["training"]["history"][0]["metric_results"])
+            )
+            self.assertEqual(
+                report["aggregates"][variant]["n_values"][
+                    "char_baseline_majority"
+                ],
+                1,
+            )
+
+        self.assertTrue(
+            {
+                "char_baseline_majority",
+                "syllable_baseline_majority_all",
+                "syllable_baseline_majority_known",
+            }.isdisjoint(report["paired_deltas"][0]["metrics"])
+        )
+
+    def test_resume_keeps_historical_baselines_missing_and_aggregates_new_seed(self) -> None:
+        baseline_names = (
+            "char_baseline_majority",
+            "syllable_baseline_majority_all",
+            "syllable_baseline_majority_known",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "multiclass-baseline-resume.json"
+            common = {
+                "syllable_vocab_size": 5,
+                "seeds": [7],
+                "epochs": 1,
+                "learning_rate": 0.01,
+                "max_examples": 1,
+                "variants": ("A",),
+                "checkpoint_path": checkpoint,
+            }
+            self._run_historical(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                **common,
+            )
+            persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
+            old_run = persisted["runs"]["A"][0]
+            for section_name in ("initial_validation", "final_validation"):
+                section = old_run[section_name]
+                for name in baseline_names:
+                    section["metric_results"].pop(name)
+                section.pop("baseline_selection")
+            checkpoint.write_text(
+                json.dumps(persisted, allow_nan=False), encoding="utf-8"
+            )
+
+            resumed = self._run_historical(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                **{**common, "seeds": [7, 8]},
+                resume=True,
+            )
+
+        runs = resumed["runs"]["A"]
+        historical = next(run for run in runs if run["seed"] == 7)
+        added = next(run for run in runs if run["seed"] == 8)
+        for name in baseline_names:
+            self.assertNotIn(name, historical["final_validation"]["metric_results"])
+            self.assertIn(name, added["final_validation"]["metric_results"])
+            self.assertEqual(
+                resumed["aggregates"]["A"]["n_values"][name], 1
+            )
+            self.assertEqual(
+                resumed["aggregates"]["A"]["n_missing"][name], 1
             )
 
 
