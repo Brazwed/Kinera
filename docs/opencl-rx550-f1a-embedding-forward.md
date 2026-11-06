@@ -26,7 +26,8 @@ existente de recriar os gradientes e substituir o estado do forward é mantido.
 - Durante o trabalho, `main` avançou com o PR #62 para
   `c72502db84f7e638dc58bbf2626f57e61636fbaa`; a branch F1a foi rebaseada sobre
   esse commit antes da validação final.
-- Commit da implementação e dos testes F1a: `bcd134f0425a4b8187677b6ea2045b314416f3b7`.
+- Commit remoto publicado e referência reproduzível do código testado: `b11c804aeec78dcd857d00adf8966b430f7d02c1`.
+- SHA local usado durante a validação antes da consolidação/publicação: `bcd134f0425a4b8187677b6ea2045b314416f3b7` (não publicado no branch remoto).
 - Sistema: Fedora Linux 45 Workstation.
 - Python: 3.15.0.
 - Dispositivo: AMD Radeon RX 550 / 550 Series, PCI `0000:03:00.0`.
