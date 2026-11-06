@@ -88,7 +88,7 @@ PYTHONPATH=src:tests python -m unittest -q test_opencl_mean_pool_forward
 - `py_compile`, verificação de fingerprints P3c e `git diff --check`: PASS.
 - Não foram executados benchmarks, pilotos históricos ou treinamento.
 
-O resultado da CI do GitHub será acompanhado no PR draft. A JSON e os relatórios históricos P3c permanecem inalterados; o teste de integridade atualiza somente o fingerprint do backend para F2.2 e mantém o SHA F2.1 no histórico.
+A CI do GitHub concluiu com sucesso no commit `59848d17518e073c639b887fa39bc88d10728241` ([execução 42275586262](https://github.com/Brazwed/Kinera/actions/runs/42275586262)). A investigação independente da divisão FP64 segue na [Issue #78](https://github.com/Brazwed/Kinera/issues/78). O JSON e os relatórios históricos P3c permanecem inalterados; o teste de integridade atualiza somente o fingerprint do backend para F2.2 e mantém o SHA F2.1 no histórico.
 
 ## Limites
 
