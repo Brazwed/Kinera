@@ -1,4 +1,4 @@
-"""Optional OpenCL backend with gated Linear operations."""
+"""Optional OpenCL backend with gated Linear and Embedding operations."""
 
 from __future__ import annotations
 
@@ -439,7 +439,193 @@ class OpenCLBackend:
         ids: list[int] | BackendBuffer,
         grad_output: BackendArray,
     ) -> OpenCLBuffer:
-        self._unavailable("Embedding.backward")
+        """Accumulate Embedding gradients in place, preserving ID order."""
+        self._ensure_open()
+        grad_weights_buffer = self._require_buffer(
+            grad_weights, "grad_weights", rank=2, operation="Embedding.backward"
+        )
+        self.memory._validate_buffer(grad_weights_buffer)
+        if grad_weights_buffer.device_id != self.device_id:
+            raise BackendError(
+                "Embedding.backward grad_weights must reside on the selected OpenCL GPU"
+            )
+        vocab_size, embedding_dim = grad_weights_buffer.shape
+        if vocab_size <= 0 or embedding_dim <= 0:
+            raise ValueError("Embedding.backward dimensions must be positive")
+        expected_grad_weights_nbytes = (
+            vocab_size * embedding_dim * ctypes.sizeof(ctypes.c_double)
+        )
+        if grad_weights_buffer.nbytes != expected_grad_weights_nbytes:
+            raise ValueError(
+                "Embedding.backward grad_weights buffer size does not match its shape"
+            )
+
+        # Empty Embedding forwards are represented as Python lists by the layer.
+        # Preserve the CPU/CUDA no-op contract without creating zero-sized buffers.
+        if isinstance(ids, list) and not ids:
+            if grad_output != []:
+                raise ValueError("empty IDs require empty grad_output")
+            self.runtime.require_device(self.device_id)
+            return grad_weights_buffer
+        if isinstance(ids, list):
+            raise TypeError(
+                "OpenCL Embedding.backward requires IDs in an int32 OpenCLBuffer; "
+                "call buffer_from_host explicitly after layer validation"
+            )
+        if not isinstance(ids, OpenCLBuffer):
+            raise TypeError("OpenCL Embedding.backward requires IDs as an OpenCLBuffer")
+        ids._assert_open()
+        if ids.dtype != "int32":
+            raise ValueError("Embedding IDs must use dtype int32")
+        if len(ids.shape) != 1:
+            raise ValueError("Embedding IDs must have rank 1")
+        self.memory._validate_buffer(ids)
+        if ids.device_id != self.device_id:
+            raise BackendError(
+                "Embedding.backward IDs must reside on the selected OpenCL GPU"
+            )
+        ids_count = ids.shape[0]
+        if ids_count <= 0:
+            raise ValueError("resident Embedding IDs buffer must not be empty")
+        expected_ids_nbytes = ids_count * ctypes.sizeof(ctypes.c_int32)
+        if ids.nbytes != expected_ids_nbytes:
+            raise ValueError("Embedding IDs buffer size does not match its shape")
+
+        grad_output_buffer = self._require_buffer(
+            grad_output, "grad_output", rank=2, operation="Embedding.backward"
+        )
+        self.memory._validate_buffer(grad_output_buffer)
+        if grad_output_buffer.device_id != self.device_id:
+            raise BackendError(
+                "Embedding.backward grad_output must reside on the selected OpenCL GPU"
+            )
+        if grad_output_buffer.shape != (ids_count, embedding_dim):
+            raise ValueError(
+                "grad_output must have shape (len(ids), embedding_dim)"
+            )
+        expected_grad_output_nbytes = (
+            ids_count * embedding_dim * ctypes.sizeof(ctypes.c_double)
+        )
+        if grad_output_buffer.nbytes != expected_grad_output_nbytes:
+            raise ValueError(
+                "Embedding.backward grad_output buffer size does not match its shape"
+            )
+
+        buffers = (grad_weights_buffer, ids, grad_output_buffer)
+        if any(buffer._manager is not self.memory for buffer in buffers):
+            raise BackendError(
+                "Embedding.backward buffers must belong to this OpenCL backend"
+            )
+        if any(buffer.device_id != self.device_id for buffer in buffers):
+            raise BackendError(
+                "Embedding.backward buffers must reside on the selected OpenCL GPU"
+            )
+        handles = [buffer.handle for buffer in buffers]
+        if len(set(handles)) != len(handles):
+            raise BackendError("Embedding.backward buffers must not alias")
+        if any(
+            dimension > _OPENCL_INT_MAX
+            for dimension in (vocab_size, embedding_dim, ids_count)
+        ):
+            raise ValueError(
+                "Embedding.backward dimensions must fit in a signed 32-bit integer"
+            )
+        total_gradient_elements = vocab_size * embedding_dim
+        if total_gradient_elements > ctypes.c_size_t(-1).value:
+            raise ValueError("Embedding.backward dispatch exceeds the host size_t range")
+        grad_output_elements = ids_count * embedding_dim
+        if grad_output_elements > _OPENCL_INT_MAX - 1:
+            raise ValueError(
+                "Embedding.backward grad_output is too large for validation status encoding"
+            )
+
+        self.runtime.require_device(self.device_id, require_fp64=True)
+        program = self._get_program("embedding_backward.cl")
+
+        # Device-side preflight validates both resident IDs and every incoming
+        # gradient before the in-place accumulation kernel can be enqueued. Only
+        # its single int32 status value is copied back to the host.
+        status: OpenCLBuffer | None = None
+        validation_kernel: int | None = None
+        try:
+            status = self.memory.allocate(
+                (1,), dtype="int32", device_id=self.device_id
+            )
+            validation_kernel = self.runtime.api.create_kernel(
+                program, "kinera_embedding_validate_backward_inputs"
+            )
+            for index, buffer in enumerate((ids, grad_output_buffer, status)):
+                self.runtime.api.set_kernel_buffer(
+                    validation_kernel, index, buffer.handle
+                )
+            self.runtime.api.set_kernel_int(validation_kernel, 3, ids_count)
+            self.runtime.api.set_kernel_int(validation_kernel, 4, vocab_size)
+            self.runtime.api.set_kernel_int(validation_kernel, 5, embedding_dim)
+            self.runtime.api.enqueue_1d(self.memory.queue, validation_kernel, 1)
+            status_host = (ctypes.c_int32 * 1)()
+            self.runtime.api.read_buffer(
+                self.memory.queue,
+                status.handle,
+                ctypes.addressof(status_host),
+                ctypes.sizeof(status_host),
+            )
+            validation_status = int(status_host[0])
+        except BaseException as error:
+            cleanup_error = self._release_embedding_temporaries(
+                validation_kernel, status
+            )
+            if cleanup_error is not None:
+                raise error from cleanup_error
+            raise
+
+        kernel_to_release, validation_kernel = validation_kernel, None
+        status_to_release, status = status, None
+        cleanup_error = self._release_embedding_temporaries(
+            kernel_to_release, status_to_release
+        )
+        if cleanup_error is not None:
+            raise cleanup_error
+        if validation_status > 0:
+            raise ValueError(
+                f"Embedding ID at position {validation_status - 1} is outside "
+                f"[0, {vocab_size})"
+            )
+        if validation_status < 0:
+            raise ValueError(
+                "Embedding grad_output contains a non-finite value at position "
+                f"{(-validation_status - 1) // embedding_dim}, dimension "
+                f"{(-validation_status - 1) % embedding_dim}"
+            )
+
+        accumulation_kernel: int | None = None
+        try:
+            accumulation_kernel = self.runtime.api.create_kernel(
+                program, "kinera_embedding_backward_f64"
+            )
+            for index, buffer in enumerate(
+                (grad_weights_buffer, ids, grad_output_buffer)
+            ):
+                self.runtime.api.set_kernel_buffer(
+                    accumulation_kernel, index, buffer.handle
+                )
+            self.runtime.api.set_kernel_int(accumulation_kernel, 3, vocab_size)
+            self.runtime.api.set_kernel_int(
+                accumulation_kernel, 4, embedding_dim
+            )
+            self.runtime.api.set_kernel_int(accumulation_kernel, 5, ids_count)
+            self.runtime.api.enqueue_1d(
+                self.memory.queue, accumulation_kernel, total_gradient_elements
+            )
+            kernel_to_release, accumulation_kernel = accumulation_kernel, None
+            self.runtime.api.release_kernel(kernel_to_release)
+        except BaseException as error:
+            cleanup_error = self._release_embedding_temporaries(
+                accumulation_kernel
+            )
+            if cleanup_error is not None:
+                raise error from cleanup_error
+            raise
+        return grad_weights_buffer
 
     def embedding_step(
         self,
@@ -534,6 +720,7 @@ class OpenCLBackend:
             "linear_backward.cl",
             "linear_step.cl",
             "embedding_forward.cl",
+            "embedding_backward.cl",
         }:
             raise ValueError(f"unsupported OpenCL kernel program: {kernel_filename}")
         program = self._programs.get(kernel_filename)

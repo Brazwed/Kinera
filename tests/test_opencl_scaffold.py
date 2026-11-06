@@ -1,9 +1,11 @@
 """CPU-only OpenCL discovery and explicit buffer lifecycle tests."""
 
 import ctypes
+import math
 import struct
 import subprocess
 import sys
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -16,6 +18,8 @@ from kinera.backends.opencl.api import (
 )
 from kinera.backends.opencl.backend import OpenCLBackend
 from kinera.backends.opencl import memory as opencl_memory
+from kinera.backends.cpu.backend import CPUBackend
+from kinera.backends.opencl.buffer import OpenCLBuffer
 from kinera.backends.opencl.runtime import OpenCLRuntime
 from kinera.nn.layers.embedding import Embedding
 
@@ -43,6 +47,7 @@ class FakeOpenCLApi:
         self.kernel_buffers: dict[int, dict[int, int]] = {}
         self.kernel_ints: dict[int, dict[int, int]] = {}
         self.read_sizes: list[int] = []
+        self.write_sizes: list[int] = []
         self.built_sources: list[str] = []
         self._next_handle = 100
         self._next_kernel = 30
@@ -100,6 +105,7 @@ class FakeOpenCLApi:
         return handle
 
     def write_buffer(self, queue, buffer, host_address, nbytes):
+        self.write_sizes.append(nbytes)
         self.allocations[buffer][:] = ctypes.string_at(host_address, nbytes)
 
     def read_buffer(self, queue, buffer, host_address, nbytes):
@@ -138,13 +144,21 @@ class FakeOpenCLApi:
         return handle
 
     def set_kernel_buffer(self, kernel, index, buffer):
-        if self.fail_on == f"set_kernel_buffer_{index}":
+        kernel_name = self.kernel_names.get(kernel, "")
+        if self.fail_on in {
+            f"set_kernel_buffer_{index}",
+            f"set_kernel_buffer_{index}_{kernel_name}",
+        }:
             raise RuntimeError("injected OpenCL argument failure")
         self.kernel_arguments.append((index, buffer))
         self.kernel_buffers[kernel][index] = buffer
 
     def set_kernel_int(self, kernel, index, value):
-        if self.fail_on == f"set_kernel_int_{index}":
+        kernel_name = self.kernel_names.get(kernel, "")
+        if self.fail_on in {
+            f"set_kernel_int_{index}",
+            f"set_kernel_int_{index}_{kernel_name}",
+        }:
             raise RuntimeError("injected OpenCL scalar argument failure")
         self.kernel_ints[kernel][index] = value
 
@@ -184,10 +198,56 @@ class FakeOpenCLApi:
                 output[target : target + embedding_dim * 8] = weights[
                     source : source + embedding_dim * 8
                 ]
+        elif kernel_name == "kinera_embedding_validate_backward_inputs":
+            ids = self.allocations[buffers[0]]
+            grad_output = self.allocations[buffers[1]]
+            ids_count, vocab_size, embedding_dim = (
+                values[3],
+                values[4],
+                values[5],
+            )
+            status = 0
+            for position in range(ids_count):
+                token_id = struct.unpack_from("<i", ids, position * 4)[0]
+                if token_id < 0 or token_id >= vocab_size:
+                    status = position + 1
+                    break
+                for dimension in range(embedding_dim):
+                    index = position * embedding_dim + dimension
+                    value = struct.unpack_from("<d", grad_output, index * 8)[0]
+                    if not math.isfinite(value):
+                        status = -(index + 1)
+                        break
+                if status:
+                    break
+            self.allocations[buffers[2]][:4] = struct.pack("<i", status)
+        elif kernel_name == "kinera_embedding_backward_f64":
+            grad_weights = self.allocations[buffers[0]]
+            ids = self.allocations[buffers[1]]
+            grad_output = self.allocations[buffers[2]]
+            vocab_size, embedding_dim, ids_count = (
+                values[3],
+                values[4],
+                values[5],
+            )
+            for row in range(vocab_size):
+                for dimension in range(embedding_dim):
+                    element = row * embedding_dim + dimension
+                    accumulated = struct.unpack_from("<d", grad_weights, element * 8)[0]
+                    for position in range(ids_count):
+                        token_id = struct.unpack_from("<i", ids, position * 4)[0]
+                        if token_id == row:
+                            index = position * embedding_dim + dimension
+                            value = struct.unpack_from("<d", grad_output, index * 8)[0]
+                            accumulated = accumulated + value
+                    struct.pack_into("<d", grad_weights, element * 8, accumulated)
 
     def release_kernel(self, handle):
         self.released_kernels.append(handle)
-        if self.fail_on == "release_kernel":
+        if self.fail_on in {
+            "release_kernel",
+            f"release_{self.kernel_names.get(handle, '')}",
+        }:
             raise RuntimeError("injected OpenCL kernel release failure")
 
     def release_program(self, handle):
@@ -1018,11 +1078,469 @@ class OpenCLEmbeddingForwardTests(unittest.TestCase):
         finally:
             layer.close()
 
-    def test_backward_and_step_remain_unavailable(self) -> None:
-        with self.assertRaisesRegex(BackendUnavailableError, "Embedding.backward"):
-            self.backend.embedding_backward(self.weights, [], [])
+    def test_empty_backward_is_available_and_step_remains_unavailable(self) -> None:
+        gradients = self.backend.buffer_zeros(shape=(3, 3), dtype="float64")
+        try:
+            self.assertIs(
+                self.backend.embedding_backward(gradients, [], []), gradients
+            )
+        finally:
+            gradients.close()
         with self.assertRaisesRegex(BackendUnavailableError, "Embedding.step"):
             self.backend.embedding_step(self.weights, self.weights, 0.1)
+
+
+class OpenCLEmbeddingBackwardTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.api = FakeOpenCLApi(max_allocation=4096)
+        self.backend = OpenCLBackend(runtime=OpenCLRuntime(api=self.api))
+        self.cpu = CPUBackend()
+        self.grad_weights = self.backend.buffer_from_host(
+            [[1e16, 2.0], [4.0, -3.0], [7.0, 8.0]],
+            shape=(3, 2),
+            dtype="float64",
+        )
+
+    def tearDown(self) -> None:
+        self.backend.close()
+
+    def _device_inputs(self, ids, grad_output):
+        ids_buffer = self.backend.buffer_from_host(
+            ids, shape=(len(ids),), dtype="int32"
+        )
+        grad_buffer = self.backend.buffer_from_host(
+            grad_output, shape=(len(grad_output), 2), dtype="float64"
+        ) if grad_output else None
+        return ids_buffer, grad_buffer
+
+    def _values(self, buffer):
+        return self.backend.buffer_to_host(buffer)
+
+    def test_ordered_repeated_ids_accumulate_and_calls_are_consecutive(self) -> None:
+        ids_values = [0, 0, 0, 2]
+        gradients = [[1.0, 1.0], [1.0, -2.0], [-1e16, 3.0], [5.0, -6.0]]
+        ids, grad_output = self._device_inputs(ids_values, gradients)
+        original = self._values(self.grad_weights)
+        expected = self.cpu.embedding_backward(original, ids_values, gradients)
+        writes_before = list(self.api.write_sizes)
+        reads_before = list(self.api.read_sizes)
+        releases_before = list(self.api.released)
+        kernel_releases_before = list(self.api.released_kernels)
+        try:
+            result = self.backend.embedding_backward(
+                self.grad_weights, ids, grad_output
+            )
+            self.assertIs(result, self.grad_weights)
+            self.assertEqual(self.api.read_sizes[len(reads_before) :], [4])
+            status_releases = self.api.released[len(releases_before) :]
+            kernel_releases = self.api.released_kernels[len(kernel_releases_before) :]
+            self.assertEqual(len(status_releases), 1)
+            self.assertEqual(len(set(status_releases)), 1)
+            self.assertEqual(len(kernel_releases), 2)
+            self.assertEqual(len(set(kernel_releases)), 2)
+            self.assertEqual(self._values(result), expected)
+            self.assertEqual(self._values(result)[1], original[1])
+            self.assertEqual(self._values(result)[0][0], 0.0)
+            self.assertEqual(self.api.write_sizes, writes_before)
+            self.assertEqual(self.api.created_kernels[-2:], [
+                "kinera_embedding_validate_backward_inputs",
+                "kinera_embedding_backward_f64",
+            ])
+
+            next_ids_values = [0, 2]
+            next_gradients = [[0.5, -1.0], [-4.0, 2.0]]
+            next_ids, next_grad_output = self._device_inputs(
+                next_ids_values, next_gradients
+            )
+            releases_before = list(self.api.released)
+            kernel_releases_before = list(self.api.released_kernels)
+            try:
+                expected = self.cpu.embedding_backward(
+                    expected, next_ids_values, next_gradients
+                )
+                self.assertIs(
+                    self.backend.embedding_backward(
+                        result, next_ids, next_grad_output
+                    ),
+                    result,
+                )
+                self.assertEqual(self._values(result), expected)
+                self.assertEqual(
+                    len(self.api.released) - len(releases_before), 1
+                )
+                self.assertEqual(
+                    len(self.api.released_kernels) - len(kernel_releases_before), 2
+                )
+            finally:
+                next_grad_output.close()
+                next_ids.close()
+        finally:
+            grad_output.close()
+            ids.close()
+
+    def test_empty_ids_are_noop_without_allocations_or_kernels(self) -> None:
+        before = self._values(self.grad_weights)
+        allocations = set(self.api.allocations)
+        kernels = list(self.api.created_kernels)
+        enqueues = list(self.api.enqueues)
+        result = self.backend.embedding_backward(self.grad_weights, [], [])
+        self.assertIs(result, self.grad_weights)
+        self.assertEqual(self._values(result), before)
+        self.assertEqual(set(self.api.allocations), allocations)
+        self.assertEqual(self.api.created_kernels, kernels)
+        self.assertEqual(self.api.enqueues, enqueues)
+
+    def test_resident_invalid_ids_and_nonfinite_gradients_fail_before_mutation(self) -> None:
+        cases = (
+            ([-1], [[1.0, 2.0]], "outside"),
+            ([3], [[1.0, 2.0]], "outside"),
+            ([0], [[float("nan"), 2.0]], "non-finite"),
+            ([0], [[float("inf"), 2.0]], "non-finite"),
+            ([0], [[float("-inf"), 2.0]], "non-finite"),
+        )
+        original = self._values(self.grad_weights)
+        for ids_values, gradients, message in cases:
+            with self.subTest(ids=ids_values, gradients=gradients):
+                ids, grad_output = self._device_inputs(
+                    ids_values,
+                    [[0.0, 0.0] for _ in ids_values],
+                )
+                # Inject non-finite values after a valid upload to exercise
+                # device-resident validation without weakening production checks.
+                if not math.isfinite(gradients[0][0]):
+                    raw = struct.pack("<d", gradients[0][0]) + struct.pack(
+                        "<d", gradients[0][1]
+                    )
+                    self.api.allocations[grad_output.handle][:] = raw
+                try:
+                    with self.assertRaisesRegex(ValueError, message):
+                        read_start = len(self.api.read_sizes)
+                        self.backend.embedding_backward(
+                            self.grad_weights, ids, grad_output
+                        )
+                    self.assertEqual(self.api.read_sizes[read_start:], [4])
+                    self.assertEqual(self._values(self.grad_weights), original)
+                    self.assertEqual(
+                        self.api.created_kernels[-1],
+                        "kinera_embedding_validate_backward_inputs",
+                    )
+                    self.assertEqual(
+                        self.api.enqueues[-1], 1,
+                        "only the scalar preflight may execute on invalid input",
+                    )
+                finally:
+                    grad_output.close()
+                    ids.close()
+
+    def test_contract_rejects_wrong_shapes_dtypes_closed_foreign_and_alias_buffers(self) -> None:
+        ids, grad_output = self._device_inputs([0, 1], [[1.0, 2.0], [3.0, 4.0]])
+        wrong_ids_shape = self.backend.buffer_from_host(
+            [[0, 1]], shape=(1, 2), dtype="int32"
+        )
+        wrong_ids_dtype = self.backend.buffer_from_host(
+            [0, 1], shape=(2,), dtype="float64"
+        )
+        wrong_grad_shape = self.backend.buffer_from_host(
+            [[1.0], [2.0]], shape=(2, 1), dtype="float64"
+        )
+        wrong_grad_dtype = self.backend.buffer_from_host(
+            [[1, 2], [3, 4]], shape=(2, 2), dtype="int32"
+        )
+        closed = self.backend.buffer_from_host([0], shape=(1,), dtype="int32")
+        closed.close()
+        closed_gradients = self.backend.buffer_from_host(
+            [[1.0, 2.0], [3.0, 4.0]], shape=(2, 2), dtype="float64"
+        )
+        closed_gradients.close()
+        closed_weights = self.backend.buffer_from_host(
+            [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+            shape=(3, 2),
+            dtype="float64",
+        )
+        closed_weights.close()
+        foreign_backend = OpenCLBackend(runtime=OpenCLRuntime(api=FakeOpenCLApi()))
+        foreign_ids = foreign_backend.buffer_from_host([0, 1], shape=(2,), dtype="int32")
+        foreign_gradients = foreign_backend.buffer_from_host(
+            [[1.0, 2.0], [3.0, 4.0]], shape=(2, 2), dtype="float64"
+        )
+        aliasable = self.backend.buffer_from_host(
+            [[0.0, 0.0], [0.0, 0.0]], shape=(2, 2), dtype="float64"
+        )
+        try:
+            with self.assertRaisesRegex(ValueError, "rank 1"):
+                self.backend.embedding_backward(self.grad_weights, wrong_ids_shape, grad_output)
+            with self.assertRaisesRegex(ValueError, "dtype int32"):
+                self.backend.embedding_backward(self.grad_weights, wrong_ids_dtype, grad_output)
+            with self.assertRaisesRegex(ValueError, "shape"):
+                self.backend.embedding_backward(self.grad_weights, ids, wrong_grad_shape)
+            with self.assertRaisesRegex(ValueError, "dtype float64"):
+                self.backend.embedding_backward(self.grad_weights, ids, wrong_grad_dtype)
+            with self.assertRaisesRegex(BackendError, "released/closed"):
+                self.backend.embedding_backward(self.grad_weights, closed, grad_output)
+            with self.assertRaisesRegex(BackendError, "released/closed"):
+                self.backend.embedding_backward(
+                    self.grad_weights, ids, closed_gradients
+                )
+            with self.assertRaisesRegex(BackendError, "released/closed"):
+                self.backend.embedding_backward(closed_weights, ids, grad_output)
+            with self.assertRaisesRegex(BackendError, "different memory manager"):
+                self.backend.embedding_backward(self.grad_weights, foreign_ids, grad_output)
+            with self.assertRaisesRegex(BackendError, "different memory manager"):
+                self.backend.embedding_backward(self.grad_weights, ids, foreign_gradients)
+            with self.assertRaisesRegex(BackendError, "must not alias"):
+                self.backend.embedding_backward(aliasable, ids, aliasable)
+            self.assertEqual(self.api.created_kernels, [])
+        finally:
+            closed_weights.close()
+            closed_gradients.close()
+            aliasable.close()
+            foreign_gradients.close()
+            foreign_ids.close()
+            foreign_backend.close()
+            closed.close()
+            wrong_grad_dtype.close()
+            wrong_grad_shape.close()
+            wrong_ids_dtype.close()
+            wrong_ids_shape.close()
+            grad_output.close()
+            ids.close()
+
+    def test_empty_ids_reject_nonempty_gradients_and_validate_weight_buffer(self) -> None:
+        with self.assertRaisesRegex(ValueError, "empty grad_output"):
+            self.backend.embedding_backward(self.grad_weights, [], [[1.0]])
+        with self.assertRaisesRegex(TypeError, "grad_weights as an OpenCLBuffer"):
+            self.backend.embedding_backward([], [], [])
+
+    def test_device_selection_and_declared_buffer_sizes_are_validated(self) -> None:
+        ids, gradients = self._device_inputs([0], [[1.0, 2.0]])
+        other_device_backend = OpenCLBackend(
+            runtime=self.backend.runtime,
+            memory_manager=self.backend.memory,
+            device_id=1,
+        )
+        try:
+            with self.assertRaisesRegex(BackendError, "selected OpenCL GPU"):
+                other_device_backend.embedding_backward(
+                    self.grad_weights, ids, gradients
+                )
+
+            original_size = ids._nbytes
+            ids._nbytes += 4
+            try:
+                with self.assertRaisesRegex(ValueError, "IDs buffer size"):
+                    self.backend.embedding_backward(self.grad_weights, ids, gradients)
+            finally:
+                ids._nbytes = original_size
+
+            original_size = gradients._nbytes
+            gradients._nbytes += 8
+            try:
+                with self.assertRaisesRegex(ValueError, "grad_output buffer size"):
+                    self.backend.embedding_backward(self.grad_weights, ids, gradients)
+            finally:
+                gradients._nbytes = original_size
+
+            original_size = self.grad_weights._nbytes
+            self.grad_weights._nbytes += 8
+            try:
+                with self.assertRaisesRegex(ValueError, "grad_weights buffer size"):
+                    self.backend.embedding_backward(self.grad_weights, ids, gradients)
+            finally:
+                self.grad_weights._nbytes = original_size
+            self.assertEqual(self.api.created_kernels, [])
+        finally:
+            gradients.close()
+            ids.close()
+
+    def test_validation_failures_do_not_mutate_and_release_temporary_once(self) -> None:
+        failures = (
+            ("build_program", "build failure"),
+            ("create_buffer", "allocation failure"),
+            ("create_kinera_embedding_validate_backward_inputs", "creation failure"),
+            ("set_kernel_buffer_0", "argument failure"),
+            ("set_kernel_int_5", "scalar argument failure"),
+            ("enqueue_kinera_embedding_validate_backward_inputs", "enqueue failure"),
+            ("read_buffer", "status read failure"),
+            ("release_kinera_embedding_validate_backward_inputs", "release failure"),
+            ("create_kinera_embedding_backward_f64", "creation failure"),
+            ("set_kernel_buffer_2_kinera_embedding_backward_f64", "argument failure"),
+            ("set_kernel_int_5_kinera_embedding_backward_f64", "scalar argument failure"),
+            ("enqueue_kinera_embedding_backward_f64", "enqueue failure"),
+        )
+        original = self._values(self.grad_weights)
+        for fail_on, message in failures:
+            with self.subTest(fail_on=fail_on):
+                api = FakeOpenCLApi(max_allocation=4096)
+                backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+                weights = backend.buffer_from_host(
+                    original, shape=(3, 2), dtype="float64"
+                )
+                ids = backend.buffer_from_host([0, 0], shape=(2,), dtype="int32")
+                gradients = backend.buffer_from_host(
+                    [[2.0, 3.0], [-1.0, 4.0]],
+                    shape=(2, 2),
+                    dtype="float64",
+                )
+                api.fail_on = fail_on
+                reads_before = list(api.read_sizes)
+                try:
+                    with self.assertRaisesRegex(RuntimeError, message):
+                        backend.embedding_backward(weights, ids, gradients)
+                    expected_status_reads = {
+                        "build_program": [],
+                        "create_buffer": [],
+                        "create_kinera_embedding_validate_backward_inputs": [],
+                        "set_kernel_buffer_0": [],
+                        "set_kernel_int_5": [],
+                        "enqueue_kinera_embedding_validate_backward_inputs": [],
+                        "read_buffer": [],
+                        "release_kinera_embedding_validate_backward_inputs": [4],
+                        "create_kinera_embedding_backward_f64": [4],
+                        "set_kernel_buffer_2_kinera_embedding_backward_f64": [4],
+                        "set_kernel_int_5_kinera_embedding_backward_f64": [4],
+                        "enqueue_kinera_embedding_backward_f64": [4],
+                    }[fail_on]
+                    self.assertEqual(api.read_sizes[len(reads_before):], expected_status_reads)
+                    api.fail_on = None
+                    self.assertEqual(backend.buffer_to_host(weights), original)
+                    self.assertEqual(set(api.allocations), {weights.handle, ids.handle, gradients.handle})
+                    status_releases = [handle for handle in api.released if handle not in {weights.handle, ids.handle, gradients.handle}]
+                    self.assertEqual(len(status_releases), len(set(status_releases)))
+                    if fail_on == "release_kinera_embedding_validate_backward_inputs":
+                        self.assertEqual(api.released_kernels, [30])
+                    elif fail_on == "enqueue_kinera_embedding_backward_f64":
+                        self.assertEqual(api.released_kernels, [30, 31])
+                finally:
+                    backend.close()
+
+    def test_primary_validation_error_survives_cleanup_error(self) -> None:
+        ids, gradients = self._device_inputs([0], [[1.0, 2.0]])
+        original_enqueue = self.api.enqueue_1d
+        original_release = self.api.release_mem
+        enqueue_error = RuntimeError("primary enqueue failure")
+        release_error = RuntimeError("secondary status release failure")
+        attempts = []
+
+        def fail_enqueue(*args, **kwargs):
+            raise enqueue_error
+
+        def fail_status_release(handle):
+            if handle == 103:
+                attempts.append(handle)
+                raise release_error
+            original_release(handle)
+
+        try:
+            with (
+                patch.object(self.api, "enqueue_1d", side_effect=fail_enqueue),
+                patch.object(self.api, "release_mem", side_effect=fail_status_release),
+            ):
+                with self.assertRaises(RuntimeError) as raised:
+                    self.backend.embedding_backward(self.grad_weights, ids, gradients)
+            self.assertIs(raised.exception, enqueue_error)
+            self.assertIs(raised.exception.__cause__, release_error)
+            self.assertEqual(attempts, [103])
+            self.assertEqual(self.api.released_kernels, [30])
+        finally:
+            gradients.close()
+            ids.close()
+
+    def test_layer_accepts_only_owned_opencl_resident_pair_and_closes_host_upload(self) -> None:
+        layer = Embedding(3, 2, seed=17, backend=self.backend)
+        host_grad_output = [[1.0, 2.0], [3.0, -4.0], [-5.0, 6.0]]
+        try:
+            layer.forward([2, 0, 2])
+            current_gradients = layer.grad_weights
+            writes_before = len(self.api.write_sizes)
+            allocations_before = set(self.api.allocations)
+            layer.backward(host_grad_output)
+            self.assertIs(layer.grad_weights, current_gradients)
+            self.assertTrue(layer._has_backward)
+            self.assertEqual(len(self.api.write_sizes), writes_before + 1)
+            self.assertEqual(
+                self.backend.buffer_to_host(layer.grad_weights),
+                self.cpu.embedding_backward(
+                    [[0.0, 0.0] for _ in range(3)],
+                    [2, 0, 2],
+                    host_grad_output,
+                ),
+            )
+            self.assertEqual(
+                set(self.api.allocations), allocations_before,
+                "temporary host grad_output must be closed after backward",
+            )
+
+            resident = self.backend.buffer_from_host(
+                host_grad_output, shape=(3, 2), dtype="float64"
+            )
+            writes_before = len(self.api.write_sizes)
+            reads_before = len(self.api.read_sizes)
+            try:
+                layer.backward(resident)
+                self.assertFalse(resident.closed, "caller retains resident input ownership")
+                self.assertEqual(len(self.api.write_sizes), writes_before)
+                self.assertEqual(self.api.read_sizes[reads_before:], [4])
+            finally:
+                resident.close()
+        finally:
+            layer.close()
+
+    def test_layer_empty_forward_backward_and_failed_preflight_state(self) -> None:
+        layer = Embedding(3, 2, seed=19, backend=self.backend)
+        try:
+            layer.forward([])
+            gradients = layer.grad_weights
+            kernels = list(self.api.created_kernels)
+            enqueues = list(self.api.enqueues)
+            layer.backward([])
+            self.assertIs(layer.grad_weights, gradients)
+            self.assertTrue(layer._has_backward)
+            self.assertEqual(self.api.created_kernels, kernels)
+            self.assertEqual(self.api.enqueues, enqueues)
+
+            layer.forward([1])
+            ids = layer.last_ids
+            grad_weights = layer.grad_weights
+            resident = self.backend.buffer_from_host(
+                [[1.0, 2.0]], shape=(1, 2), dtype="float64"
+            )
+            # Simulate corruption in an already resident ID buffer, bypassing
+            # only the test upload path; production preflight remains unchanged.
+            self.api.allocations[ids.handle][:4] = struct.pack("<i", 3)
+            before = self.backend.buffer_to_host(grad_weights)
+            try:
+                with self.assertRaisesRegex(ValueError, "outside"):
+                    layer.backward(resident)
+                self.assertIs(layer.grad_weights, grad_weights)
+                self.assertFalse(layer._has_backward)
+                self.assertFalse(ids.closed)
+                self.assertEqual(self.backend.buffer_to_host(grad_weights), before)
+            finally:
+                resident.close()
+        finally:
+            layer.close()
+
+    def test_layer_does_not_enable_arbitrary_opencl_named_backend(self) -> None:
+        layer = Embedding(3, 2, seed=23, backend=self.backend)
+        resident_gradients = None
+        concrete_backend = layer.backend
+        try:
+            layer.forward([0])
+            resident_gradients = self.backend.buffer_from_host(
+                [[1.0, 2.0]], shape=(1, 2), dtype="float64"
+            )
+            layer.backend = SimpleNamespace(
+                name="opencl", memory=self.backend.memory
+            )
+            with self.assertRaisesRegex(TypeError, "device-backed Embedding forward"):
+                layer.backward(resident_gradients)
+            self.assertFalse(resident_gradients.closed)
+            self.assertFalse(layer._has_backward)
+        finally:
+            layer.backend = concrete_backend
+            if resident_gradients is not None:
+                resident_gradients.close()
+            layer.close()
 
 
 if __name__ == "__main__":
