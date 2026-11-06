@@ -22,6 +22,7 @@ from kinera.backends.cpu.backend import CPUBackend
 from kinera.backends.opencl.buffer import OpenCLBuffer
 from kinera.backends.opencl.runtime import OpenCLRuntime
 from kinera.nn.layers.embedding import Embedding
+from kinera.nn.layers.hybrid import HybridRepresentation
 
 
 class FakeOpenCLApi:
@@ -189,6 +190,49 @@ class FakeOpenCLApi:
                     invalid_position = position
                     break
             self.allocations[buffers[1]][:4] = struct.pack("<i", invalid_position)
+        elif kernel_name == "kinera_hybrid_representation_validate_finite_f64":
+            context_size = values[4]
+            dimensions = (values[5], values[6], values[7])
+            status = 0
+            for channel, dimension in enumerate(dimensions):
+                for index in range(context_size * dimension):
+                    value = struct.unpack_from(
+                        "<d", self.allocations[buffers[channel]], index * 8
+                    )[0]
+                    if not math.isfinite(value):
+                        status = channel + 1
+                        break
+                if status:
+                    break
+            self.allocations[buffers[3]][:4] = struct.pack("<i", status)
+        elif kernel_name == "kinera_hybrid_representation_forward_f64":
+            char_values = self.allocations[buffers[0]]
+            feature_values = self.allocations[buffers[1]]
+            syllable_values = self.allocations[buffers[2]]
+            output = self.allocations[buffers[3]]
+            context_size, char_dim, feature_dim, syllable_dim = (
+                values[4],
+                values[5],
+                values[6],
+                values[7],
+            )
+            output_dim = char_dim + feature_dim + syllable_dim
+            for row in range(context_size):
+                output_offset = row * output_dim * 8
+                char_start = row * char_dim * 8
+                feature_start = row * feature_dim * 8
+                syllable_start = row * syllable_dim * 8
+                output[output_offset : output_offset + char_dim * 8] = char_values[
+                    char_start : char_start + char_dim * 8
+                ]
+                feature_offset = output_offset + char_dim * 8
+                output[feature_offset : feature_offset + feature_dim * 8] = (
+                    feature_values[feature_start : feature_start + feature_dim * 8]
+                )
+                syllable_offset = feature_offset + feature_dim * 8
+                output[syllable_offset : syllable_offset + syllable_dim * 8] = (
+                    syllable_values[syllable_start : syllable_start + syllable_dim * 8]
+                )
         elif kernel_name == "kinera_embedding_forward_f64":
             weights = self.allocations[buffers[0]]
             ids = self.allocations[buffers[1]]
@@ -2316,6 +2360,420 @@ class OpenCLEmbeddingIntegrationTests(unittest.TestCase):
             layer.close()
             cpu_layer.close()
             backend.close()
+
+
+class OpenCLHybridRepresentationForwardTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.api = FakeOpenCLApi(max_allocation=65536)
+        self.backend = OpenCLBackend(runtime=OpenCLRuntime(api=self.api))
+
+    def tearDown(self) -> None:
+        self.api.fail_on = None
+        self.backend.close()
+
+    def _buffers(self):
+        char = self.backend.buffer_from_host(
+            [[-0.0, 1.25], [-2.5, 0.0]], shape=(2, 2), dtype="float64"
+        )
+        features = self.backend.buffer_from_host(
+            [[-3.0], [4.5]], shape=(2, 1), dtype="float64"
+        )
+        syllable = self.backend.buffer_from_host(
+            [[5.0, -0.0, 7.25], [8.5, -9.0, 10.0]],
+            shape=(2, 3),
+            dtype="float64",
+        )
+        return char, features, syllable
+
+    def test_resident_concat_preserves_channel_order_and_signed_zero(self) -> None:
+        char, features, syllable = self._buffers()
+        output = None
+        try:
+            reads_before = len(self.api.read_sizes)
+            writes_before = len(self.api.write_sizes)
+            output = self.backend.hybrid_representation_forward(
+                char, features, syllable
+            )
+            self.assertEqual(self.api.read_sizes[reads_before:], [4])
+            self.assertEqual(len(self.api.write_sizes), writes_before)
+            self.assertEqual(output.shape, (2, 6))
+            self.assertEqual(output.dtype, "float64")
+            self.assertEqual(output.layout, "C")
+            self.assertIs(output._manager, self.backend.memory)
+            self.assertTrue(output.owns_memory)
+            self.assertIsNot(output, char)
+            self.assertTrue(all(not value.closed for value in (char, features, syllable)))
+
+            expected = [
+                [-0.0, 1.25, -3.0, 5.0, -0.0, 7.25],
+                [-2.5, 0.0, 4.5, 8.5, -9.0, 10.0],
+            ]
+            self.assertEqual(self.backend.buffer_to_host(output), expected)
+            output_bits = bytes(self.api.allocations[output.handle])
+            expected_bits = b"".join(
+                struct.pack("<d", value)
+                for row in range(2)
+                for value in (
+                    *self.backend.buffer_to_host(char)[row],
+                    *self.backend.buffer_to_host(features)[row],
+                    *self.backend.buffer_to_host(syllable)[row],
+                )
+            )
+            self.assertEqual(output_bits, expected_bits)
+            self.assertEqual(math.copysign(1.0, self.backend.buffer_to_host(output)[0][0]), -1.0)
+        finally:
+            if output is not None:
+                output.close()
+            char.close()
+            features.close()
+            syllable.close()
+
+    def test_shape_dtype_owner_closed_alias_and_size_validation(self) -> None:
+        char, features, syllable = self._buffers()
+        foreign_backend = OpenCLBackend(runtime=OpenCLRuntime(api=FakeOpenCLApi()))
+        foreign = foreign_backend.buffer_from_host(
+            [[1.0], [2.0]], shape=(2, 1), dtype="float64"
+        )
+        wrong_dtype = self.backend.buffer_from_host(
+            [[1, 2], [3, 4]], shape=(2, 2), dtype="int32"
+        )
+        wrong_shape = self.backend.buffer_from_host(
+            [[1.0], [2.0], [3.0]], shape=(3, 1), dtype="float64"
+        )
+        try:
+            with self.assertRaisesRegex(ValueError, "dtype float64"):
+                self.backend.hybrid_representation_forward(
+                    wrong_dtype, features, syllable
+                )
+            with self.assertRaisesRegex(ValueError, "rank 2"):
+                self.backend.hybrid_representation_forward(
+                    self.backend.buffer_from_host([1.0, 2.0], shape=(2,)),
+                    features,
+                    syllable,
+                )
+            with self.assertRaisesRegex(ValueError, "equal row counts"):
+                self.backend.hybrid_representation_forward(
+                    char, wrong_shape, syllable
+                )
+            with self.assertRaisesRegex(Exception, "selected OpenCL manager"):
+                self.backend.hybrid_representation_forward(char, foreign, syllable)
+            aliased_output = self.backend.hybrid_representation_forward(
+                char, char, syllable
+            )
+            try:
+                self.assertEqual(aliased_output.shape, (2, 7))
+                self.assertEqual(
+                    self.backend.buffer_to_host(aliased_output),
+                    [
+                        [-0.0, 1.25, -0.0, 1.25, 5.0, -0.0, 7.25],
+                        [-2.5, 0.0, -2.5, 0.0, 8.5, -9.0, 10.0],
+                    ],
+                )
+            finally:
+                aliased_output.close()
+
+            malformed = OpenCLBuffer(
+                self.backend.memory,
+                char.handle,
+                device_id=char.device_id,
+                shape=char.shape,
+                dtype=char.dtype,
+                nbytes=char.nbytes - 8,
+            )
+            with self.assertRaisesRegex(ValueError, "size does not match"):
+                self.backend.hybrid_representation_forward(
+                    malformed, features, syllable
+                )
+            malformed._mark_closed()
+            oversized = OpenCLBuffer(
+                self.backend.memory,
+                char.handle,
+                device_id=char.device_id,
+                shape=(1, 2**31),
+                dtype="float64",
+                nbytes=2**34,
+            )
+            with self.assertRaisesRegex(ValueError, "signed 32-bit"):
+                self.backend.hybrid_representation_forward(
+                    oversized,
+                    self.backend.buffer_from_host([[1.0]], shape=(1, 1)),
+                    self.backend.buffer_from_host([[2.0]], shape=(1, 1)),
+                )
+            oversized._mark_closed()
+            closed = self.backend.buffer_from_host(
+                [[1.0, 2.0], [3.0, 4.0]], shape=(2, 2), dtype="float64"
+            )
+            closed.close()
+            with self.assertRaisesRegex(Exception, "released/closed"):
+                self.backend.hybrid_representation_forward(closed, features, syllable)
+        finally:
+            foreign.close()
+            wrong_dtype.close()
+            wrong_shape.close()
+            char.close()
+            features.close()
+            syllable.close()
+            foreign_backend.close()
+
+    def test_device_allocation_limit_is_checked_before_returning_output(self) -> None:
+        api = FakeOpenCLApi(max_allocation=32)
+        backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+        char = backend.buffer_from_host(
+            [[1.0, 2.0], [3.0, 4.0]], shape=(2, 2)
+        )
+        features = backend.buffer_from_host([[5.0], [6.0]], shape=(2, 1))
+        syllable = backend.buffer_from_host([[7.0], [8.0]], shape=(2, 1))
+        try:
+            with self.assertRaisesRegex(BackendError, "exceeds device limit"):
+                backend.hybrid_representation_forward(char, features, syllable)
+            self.assertEqual(set(backend.memory._buffers), {char, features, syllable})
+            self.assertEqual(set(api.allocations), {char.handle, features.handle, syllable.handle})
+        finally:
+            char.close()
+            features.close()
+            syllable.close()
+            backend.close()
+
+    def test_allocator_output_alias_is_rejected_without_releasing_input(self) -> None:
+        char, features, syllable = self._buffers()
+        original_allocate = self.backend.memory.allocate
+
+        def aliased_allocate(shape, *, dtype="float64", device_id=None):
+            if tuple(shape) == (2, 6):
+                output = OpenCLBuffer(
+                    self.backend.memory,
+                    char.handle,
+                    device_id=self.backend.device_id,
+                    shape=(2, 6),
+                    dtype="float64",
+                    nbytes=96,
+                )
+                self.backend.memory._buffers.add(output)
+                return output
+            return original_allocate(shape, dtype=dtype, device_id=device_id)
+
+        try:
+            with patch.object(
+                self.backend.memory, "allocate", side_effect=aliased_allocate
+            ):
+                with self.assertRaisesRegex(Exception, "unexpectedly aliases"):
+                    self.backend.hybrid_representation_forward(
+                        char, features, syllable
+                    )
+            self.assertFalse(char.closed)
+            self.assertIn(char.handle, self.api.allocations)
+            self.assertEqual(len(self.backend.memory._buffers), 3)
+        finally:
+            char.close()
+            features.close()
+            syllable.close()
+
+    def test_non_finite_resident_values_are_rejected_before_output_allocation(self) -> None:
+        char, features, syllable = self._buffers()
+        try:
+            original_live = set(self.backend.memory._buffers)
+            for channel, buffer in enumerate((char, features, syllable)):
+                for invalid in (float("nan"), float("inf"), -float("inf")):
+                    with self.subTest(channel=channel, invalid=invalid):
+                        original_value = bytes(self.api.allocations[buffer.handle][:8])
+                        self.api.allocations[buffer.handle][:8] = struct.pack(
+                            "<d", invalid
+                        )
+                        allocations_before = set(self.api.allocations)
+                        with self.assertRaisesRegex(ValueError, "non-finite"):
+                            self.backend.hybrid_representation_forward(
+                                char, features, syllable
+                            )
+                        self.assertEqual(set(self.api.allocations), allocations_before)
+                        self.assertEqual(set(self.backend.memory._buffers), original_live)
+                        self.assertTrue(all(not value.closed for value in (char, features, syllable)))
+                        self.api.allocations[buffer.handle][:8] = original_value
+        finally:
+            char.close()
+            features.close()
+            syllable.close()
+
+    def test_preflight_and_fusion_failures_release_temporaries_once(self) -> None:
+        char, features, syllable = self._buffers()
+        try:
+            failure_cases = (
+                ("build_program", "program build failure"),
+                ("create_buffer", "allocation failure"),
+                ("create_kernel", "kernel creation failure"),
+                ("set_kernel_buffer_1_kinera_hybrid_representation_validate_finite_f64", "argument failure"),
+                ("set_kernel_int_5_kinera_hybrid_representation_validate_finite_f64", "scalar argument failure"),
+                ("enqueue_kinera_hybrid_representation_validate_finite_f64", "enqueue failure"),
+                ("read_buffer", "status read failure"),
+                ("release_kinera_hybrid_representation_validate_finite_f64", "kernel release failure"),
+                ("create_kinera_hybrid_representation_forward_f64", "creation failure"),
+                ("set_kernel_buffer_1_kinera_hybrid_representation_forward_f64", "argument failure"),
+                ("enqueue_kinera_hybrid_representation_forward_f64", "enqueue failure"),
+            )
+            for failure, message in failure_cases:
+                with self.subTest(failure=failure):
+                    self.api.fail_on = failure
+                    released_mem_before = len(self.api.released)
+                    released_kernels_before = len(self.api.released_kernels)
+                    with self.assertRaisesRegex(RuntimeError, message):
+                        self.backend.hybrid_representation_forward(
+                            char, features, syllable
+                        )
+                    self.api.fail_on = None
+                    self.assertEqual(len(self.backend.memory._buffers), 3)
+                    new_releases = self.api.released[released_mem_before:]
+                    fusion_stage = failure in {
+                        "create_kinera_hybrid_representation_forward_f64",
+                        "set_kernel_buffer_1_kinera_hybrid_representation_forward_f64",
+                        "enqueue_kinera_hybrid_representation_forward_f64",
+                    }
+                    expected_mem_releases = 2 if fusion_stage else 0 if failure in {
+                        "build_program",
+                        "create_buffer",
+                    } else 1
+                    self.assertEqual(len(new_releases), expected_mem_releases)
+                    self.assertEqual(
+                        len(set(new_releases)), len(new_releases)
+                    )
+                    new_kernel_releases = self.api.released_kernels[
+                        released_kernels_before:
+                    ]
+                    expected_kernel_releases = (
+                        2
+                        if failure
+                        in {
+                            "set_kernel_buffer_1_kinera_hybrid_representation_forward_f64",
+                            "enqueue_kinera_hybrid_representation_forward_f64",
+                        }
+                        else 1
+                        if failure
+                        in {
+                            "set_kernel_buffer_1_kinera_hybrid_representation_validate_finite_f64",
+                            "set_kernel_int_5_kinera_hybrid_representation_validate_finite_f64",
+                            "enqueue_kinera_hybrid_representation_validate_finite_f64",
+                            "read_buffer",
+                            "release_kinera_hybrid_representation_validate_finite_f64",
+                            "create_kinera_hybrid_representation_forward_f64",
+                        }
+                        else 0
+                    )
+                    self.assertEqual(len(new_kernel_releases), expected_kernel_releases)
+
+            primary = RuntimeError("primary enqueue failure")
+            api_release = self.api.release_kernel
+            self.api.fail_on = None
+            with (
+                patch.object(
+                    self.api,
+                    "enqueue_1d",
+                    side_effect=primary,
+                ),
+                patch.object(
+                    self.api,
+                    "release_kernel",
+                    side_effect=RuntimeError("secondary release failure"),
+                ),
+            ):
+                with self.assertRaises(RuntimeError) as raised:
+                    self.backend.hybrid_representation_forward(
+                        char, features, syllable
+                    )
+            self.assertIs(raised.exception, primary)
+            self.assertIsNotNone(raised.exception.__cause__)
+            self.assertEqual(len(self.backend.memory._buffers), 3)
+            self.api.release_kernel = api_release
+
+            release_primary = RuntimeError("preflight enqueue remains primary")
+            cleanup_failure = RuntimeError("status buffer release failure")
+            def release_then_raise(handle):
+                self.api.released.append(handle)
+                del self.api.allocations[handle]
+                raise cleanup_failure
+
+            with (
+                patch.object(self.api, "enqueue_1d", side_effect=release_primary),
+                patch.object(
+                    self.api, "release_mem", side_effect=release_then_raise
+                ) as release_mem,
+            ):
+                with self.assertRaises(RuntimeError) as raised:
+                    self.backend.hybrid_representation_forward(
+                        char, features, syllable
+                    )
+            self.assertIs(raised.exception, release_primary)
+            self.assertIs(raised.exception.__cause__, cleanup_failure)
+            release_mem.assert_called_once()
+            self.assertEqual(len(self.backend.memory._buffers), 3)
+            self.assertEqual(set(self.api.allocations), {char.handle, features.handle, syllable.handle})
+        finally:
+            self.api.fail_on = None
+            char.close()
+            features.close()
+            syllable.close()
+
+    def test_hybrid_layer_retains_fusion_and_releases_intermediates(self) -> None:
+        cpu = CPUBackend()
+        cpu_layer = HybridRepresentation(
+            Embedding(4, 2, seed=5, backend=cpu),
+            Embedding(3, 3, seed=6, backend=cpu),
+            feature_dim=2,
+        )
+        gpu_layer = HybridRepresentation(
+            Embedding(4, 2, seed=5, backend=self.backend),
+            Embedding(3, 3, seed=6, backend=self.backend),
+            feature_dim=2,
+        )
+        try:
+            chars, syllables = [1, 2], [0, 1]
+            features = [[-0.5, 2.0], [3.25, -4.0]]
+            expected = cpu_layer.forward(chars.copy(), syllables.copy(), features)
+            reads_before = len(self.api.read_sizes)
+            actual = gpu_layer.forward(chars.copy(), syllables.copy(), features)
+            self.assertEqual(self.api.read_sizes[reads_before:], [4, 4, 4])
+            self.assertEqual(self.backend.buffer_to_host(actual), expected)
+            self.assertIs(gpu_layer.last_output, actual)
+            self.assertTrue(gpu_layer.char_embedding.output.closed)
+            self.assertTrue(gpu_layer.syllable_embedding.output.closed)
+            self.assertIsInstance(gpu_layer.char_embedding.last_ids, OpenCLBuffer)
+            self.assertIsInstance(gpu_layer.syllable_embedding.last_ids, OpenCLBuffer)
+
+            previous_output = actual
+            previous_context = gpu_layer.last_context_size
+            with self.assertRaisesRegex(ValueError, "dimensão 2"):
+                gpu_layer.forward(chars.copy(), syllables.copy(), [[1.0], [2.0]])
+            self.assertIs(gpu_layer.last_output, previous_output)
+            self.assertFalse(previous_output.closed)
+            self.assertEqual(gpu_layer.last_context_size, previous_context)
+
+            self.api.fail_on = "create_buffer"
+            with self.assertRaisesRegex(RuntimeError, "allocation failure"):
+                gpu_layer.forward(chars.copy(), syllables.copy(), features)
+            self.api.fail_on = None
+            self.assertTrue(previous_output.closed)
+            self.assertIsNone(gpu_layer.last_output)
+            self.assertIsNone(gpu_layer.last_context_size)
+            self.assertIsNone(gpu_layer.char_embedding.last_ids)
+            recovered = gpu_layer.forward(chars.copy(), syllables.copy(), features)
+            self.assertEqual(self.backend.buffer_to_host(recovered), expected)
+
+            self.assertEqual(gpu_layer.forward([], [], []), [])
+            self.assertEqual(gpu_layer.last_output, [])
+            self.assertEqual(gpu_layer.last_context_size, 0)
+            self.assertTrue(previous_output.closed)
+            self.assertEqual(gpu_layer.char_embedding.last_ids, [])
+            self.assertEqual(gpu_layer.syllable_embedding.last_ids, [])
+            self.assertTrue(all(len(data) > 0 for data in self.api.allocations.values()))
+            gpu_layer.release_output()
+            gpu_layer.char_embedding.close()
+            gpu_layer.syllable_embedding.close()
+            gpu_layer.char_embedding.close()
+            gpu_layer.syllable_embedding.close()
+            self.assertEqual(len(self.backend.memory._buffers), 0)
+        finally:
+            gpu_layer.release_output()
+            gpu_layer.char_embedding.close()
+            gpu_layer.syllable_embedding.close()
+            cpu_layer.char_embedding.close()
+            cpu_layer.syllable_embedding.close()
 
 
 if __name__ == "__main__":

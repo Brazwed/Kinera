@@ -1,4 +1,4 @@
-"""Optional OpenCL backend with gated Linear and Embedding operations."""
+"""Optional OpenCL backend with gated Linear, Embedding, and representation ops."""
 
 from __future__ import annotations
 
@@ -725,6 +725,215 @@ class OpenCLBackend:
             raise
         return weights_buffer
 
+    def hybrid_representation_forward(
+        self,
+        char_vectors: BackendArray,
+        feature_vectors: BackendArray,
+        syllable_vectors: BackendArray,
+    ) -> OpenCLBuffer:
+        """Concatenate three resident matrices after a finite-value preflight."""
+        self._ensure_open()
+        matrices = (
+            self._require_buffer(
+                char_vectors,
+                "char_vectors",
+                rank=2,
+                operation="HybridRepresentation.forward",
+            ),
+            self._require_buffer(
+                feature_vectors,
+                "feature_vectors",
+                rank=2,
+                operation="HybridRepresentation.forward",
+            ),
+            self._require_buffer(
+                syllable_vectors,
+                "syllable_vectors",
+                rank=2,
+                operation="HybridRepresentation.forward",
+            ),
+        )
+        if any(
+            any(
+                isinstance(dimension, bool)
+                or not isinstance(dimension, int)
+                or dimension <= 0
+                for dimension in matrix.shape
+            )
+            for matrix in matrices
+        ):
+            raise ValueError(
+                "hybrid representation buffer dimensions must be positive integers"
+            )
+        context_size = matrices[0].shape[0]
+        dimensions = tuple(matrix.shape[1] for matrix in matrices)
+        if context_size <= 0 or any(dimension <= 0 for dimension in dimensions):
+            raise ValueError(
+                "HybridRepresentation.forward requires non-empty resident matrices"
+            )
+        if any(matrix.shape[0] != context_size for matrix in matrices[1:]):
+            raise ValueError("hybrid representation matrices must have equal row counts")
+        if any(matrix.layout != "C" for matrix in matrices):
+            raise ValueError("hybrid representation matrices must use C layout")
+        if any(
+            matrix.nbytes
+            != math.prod(matrix.shape) * ctypes.sizeof(ctypes.c_double)
+            for matrix in matrices
+        ):
+            raise ValueError("hybrid representation buffer size does not match its shape")
+        if any(
+            matrix._manager is not self.memory
+            or matrix.device_id != self.device_id
+            or matrix.device != "opencl"
+            for matrix in matrices
+        ):
+            raise BackendError(
+                "hybrid representation inputs must belong to the selected OpenCL manager"
+            )
+        handles = tuple(matrix.handle for matrix in matrices)
+
+        output_dim = sum(dimensions)
+        integer_limits = (context_size, *dimensions, output_dim)
+        if any(value > _OPENCL_INT_MAX for value in integer_limits):
+            raise ValueError(
+                "hybrid representation dimensions must fit a signed 32-bit integer"
+            )
+        element_count = context_size * output_dim
+        size_t_max = ctypes.c_size_t(-1).value
+        if element_count > size_t_max // ctypes.sizeof(ctypes.c_double):
+            raise ValueError("hybrid representation dispatch exceeds size_t limits")
+        for matrix in matrices:
+            if math.prod(matrix.shape) > _OPENCL_INT_MAX:
+                raise ValueError(
+                    "hybrid representation input size must fit a signed 32-bit integer"
+                )
+
+        device = self.runtime.require_device(self.device_id, require_fp64=True)
+        if any(
+            matrix.nbytes > device.max_mem_alloc_size
+            or matrix.nbytes > device.global_mem_size
+            for matrix in matrices
+        ):
+            raise BackendError(
+                "hybrid representation input exceeds the OpenCL device allocation limit"
+            )
+        program = self._get_program("hybrid_representation_forward.cl")
+
+        # Scan values on the device before allocating or publishing the result.
+        # Only one int32 status crosses back to the host.
+        status: OpenCLBuffer | None = None
+        validation_kernel: int | None = None
+        try:
+            status = self.memory.allocate((1,), dtype="int32", device_id=self.device_id)
+            validation_kernel = self.runtime.api.create_kernel(
+                program, "kinera_hybrid_representation_validate_finite_f64"
+            )
+            for index, matrix in enumerate(matrices):
+                self.runtime.api.set_kernel_buffer(
+                    validation_kernel, index, matrix.handle
+                )
+            self.runtime.api.set_kernel_buffer(validation_kernel, 3, status.handle)
+            self.runtime.api.set_kernel_int(
+                validation_kernel, 4, context_size
+            )
+            for index, dimension in enumerate(dimensions, start=5):
+                self.runtime.api.set_kernel_int(validation_kernel, index, dimension)
+            self.runtime.api.enqueue_1d(self.memory.queue, validation_kernel, 1)
+            status_host = (ctypes.c_int32 * 1)()
+            self.runtime.api.read_buffer(
+                self.memory.queue,
+                status.handle,
+                ctypes.addressof(status_host),
+                ctypes.sizeof(status_host),
+            )
+            invalid_channel = int(status_host[0])
+        except BaseException as error:
+            cleanup_error = self._release_hybrid_forward_temporaries(
+                validation_kernel, status
+            )
+            validation_kernel = None
+            status = None
+            if cleanup_error is not None:
+                raise error from cleanup_error
+            raise
+
+        cleanup_error = self._release_hybrid_forward_temporaries(
+            validation_kernel, status
+        )
+        validation_kernel = None
+        status = None
+        if cleanup_error is not None:
+            raise cleanup_error
+        if invalid_channel:
+            names = ("character", "feature", "syllable")
+            channel = names[invalid_channel - 1] if 1 <= invalid_channel <= 3 else "input"
+            raise ValueError(
+                f"hybrid representation {channel} vectors contain non-finite values"
+            )
+
+        output: OpenCLBuffer | None = None
+        kernel: int | None = None
+        try:
+            output = self.memory.allocate(
+                (context_size, output_dim),
+                dtype="float64",
+                device_id=self.device_id,
+            )
+            if output.handle in handles:
+                # A conforming OpenCL allocator cannot reuse a live cl_mem handle.
+                # Do not release an aliased input if a broken API violates this.
+                self.memory._buffers.discard(output)
+                output._mark_closed()
+                output = None
+                raise BackendError(
+                    "hybrid representation output unexpectedly aliases an input"
+                )
+            kernel = self.runtime.api.create_kernel(
+                program, "kinera_hybrid_representation_forward_f64"
+            )
+            for index, matrix in enumerate(matrices):
+                self.runtime.api.set_kernel_buffer(kernel, index, matrix.handle)
+            self.runtime.api.set_kernel_buffer(kernel, 3, output.handle)
+            for index, dimension in enumerate((context_size, *dimensions), start=4):
+                self.runtime.api.set_kernel_int(kernel, index, dimension)
+            self.runtime.api.enqueue_1d(self.memory.queue, kernel, element_count)
+            kernel_to_release, kernel = kernel, None
+            self.runtime.api.release_kernel(kernel_to_release)
+        except BaseException as error:
+            cleanup_error = self._release_hybrid_forward_temporaries(kernel, output)
+            kernel = None
+            output = None
+            if cleanup_error is not None:
+                raise error from cleanup_error
+            raise
+        assert output is not None
+        return output
+
+    def _release_hybrid_forward_temporaries(
+        self, kernel: int | None, *buffers: OpenCLBuffer | None
+    ) -> BaseException | None:
+        """Attempt each release once, disarming buffers after ambiguous API errors."""
+        first_error: BaseException | None = None
+        if kernel is not None:
+            try:
+                self.runtime.api.release_kernel(kernel)
+            except BaseException as error:
+                first_error = error
+        for buffer in buffers:
+            if buffer is None:
+                continue
+            try:
+                self.memory.release(buffer)
+            except BaseException as error:
+                # The native release may have taken effect before an error was
+                # surfaced. Disarm the Python wrapper so __del__ cannot retry it.
+                if not buffer.closed:
+                    self.memory._buffers.discard(buffer)
+                    buffer._mark_closed()
+                if first_error is None:
+                    first_error = error
+        return first_error
+
     def neuron_forward(
         self,
         weights: list[float],
@@ -812,6 +1021,7 @@ class OpenCLBackend:
             "embedding_forward.cl",
             "embedding_backward.cl",
             "embedding_step.cl",
+            "hybrid_representation_forward.cl",
         }:
             raise ValueError(f"unsupported OpenCL kernel program: {kernel_filename}")
         program = self._programs.get(kernel_filename)
