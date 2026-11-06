@@ -551,6 +551,15 @@ class TelemetryCheckpointTests(unittest.TestCase):
         self.assertEqual(resumed["telemetry"], envelope)
         self.assertEqual(persisted["telemetry"], envelope)
         self.assertEqual(resumed["metrics_schema_version"], 1)
+        self.assertEqual(
+            resumed["metrics"]["metrics_schema_version"],
+            resumed["metrics_schema_version"],
+        )
+        self.assertEqual(resumed["metrics"]["aggregates"], resumed["aggregates"])
+        self.assertEqual(
+            resumed["metrics"]["paired_deltas"], resumed["paired_deltas"]
+        )
+        self.assertEqual(persisted["metrics"], resumed["metrics"])
         self.assertIn("paired_deltas", report)
         self.assertEqual(resumed["paired_deltas"], persisted["paired_deltas"])
         self.assertEqual(resumed["aggregates"]["A"]["n_values"]["char_loss"], 0)
@@ -564,6 +573,7 @@ class TelemetryCheckpointTests(unittest.TestCase):
         self.assertNotIn("telemetry", legacy_resumed)
         self.assertNotIn("telemetry", legacy_persisted)
         self.assertEqual(legacy_resumed["metrics_schema_version"], 1)
+        self.assertEqual(legacy_resumed["metrics"], legacy_persisted["metrics"])
         self.assertNotIn(
             "metrics_schema_version",
             legacy_resumed["runs"]["C"][0]["final_validation"],

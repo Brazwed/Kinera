@@ -849,6 +849,32 @@ comparativo; os runners históricos retomáveis das Fases 5.3 e 5.5 continuam
 sem fingerprint verificável de dados e vocabulário. Essa lacuna permanece
 registrada fora da M2.1.
 
+#### M2.2 — composição dos relatórios de experimentos
+
+Relatórios novos do runner comparativo expõem a seção científica
+`metrics`, com `metrics_schema_version`, agregados por variante e deltas
+pareados. Os registros por execução continuam em `runs[variant]`, onde cada
+`final_validation` mantém seus descritores `metric_results`. Os campos de topo
+`metrics_schema_version`, `aggregates` e `paired_deltas` são aliases legados e
+preservam os mesmos valores; a seção nova não duplica os resultados por run.
+Agregados declaram `n_values`, `n_missing`, `n_invalid` e seeds usadas por
+métrica. Deltas pareados declaram orientação, unidade, suporte e pares usados.
+
+Quando habilitada, a seção operacional independente `telemetry` possui
+`telemetry_schema_version`; medições de cada execução ficam em
+`runs[variant][run].telemetry` e preservam tentativas e segmentos. Durações são
+registradas em segundos e snapshots de memória em bytes, com fontes e campos
+indisponíveis explicitados pelo schema de telemetria. A identidade científica
+`experiment_fingerprint` permanece no nível do experimento, fora das duas
+seções. Métricas continuam disponíveis sem telemetria; coletar telemetria é
+opt-in.
+
+Em checkpoints antigos, informações que não foram persistidas permanecem
+ausentes. O resume compatível reemite a composição atual sem inferir métricas
+por execução ou telemetria históricos. A versão da seção descreve o contrato
+do escritor e dos agregados produzidos; não afirma que cada registro legado
+interno foi originalmente gerado no schema atual.
+
 ### Fase 6 — Validação final
 
 O relatório `experiments/phase6_final_validation.json` registra a validação dos
