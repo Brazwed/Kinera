@@ -191,3 +191,9 @@ A nova coleta confirma que:
 5. `-cl-opt-disable` não alterou os resultados observados; a causa permanece aberta.
 
 **Parecer final desta auditoria: NO-GO para F2.3a com as abordagens e o ambiente avaliados; a conclusão funcional continua NO-GO.** Não se implementa `cross_entropy_forward_buffer`, não se relaxa a tolerância e não se propõe que a compensação resolva o erro de `log`. Qualquer nova alternativa matemática/aritmética exige protocolo e validação próprios antes de reconsiderar F2.3a.
+
+## Validação final no GitHub Actions
+
+A execução [GitHub Actions #42294830734](https://github.com/Brazwed/Kinera/actions/runs/42294830734) validou o HEAD `25e60d3c703062eaa8f75e63bf81c554ff878277`. O job `tests` terminou com resultado **success**: 802 testes aprovados, 61 ignorados, 5 excluídos e 1.101 subtestes aprovados.
+
+Essa CI verifica os testes automatizados e a integridade dos artefatos; ela **não reproduz o diagnóstico físico na RX 550**. A coleta OpenCL reportada neste documento foi executada localmente na RX 550, em três processos independentes e sequenciais, com três opções de compilação. Portanto, o resultado de CI não substitui nem amplia a evidência de hardware, e o parecer funcional para F2.3a permanece **NO-GO**.
