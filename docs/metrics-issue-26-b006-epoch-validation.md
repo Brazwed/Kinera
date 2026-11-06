@@ -62,11 +62,13 @@ aprendizado. O checkpoint registra a agenda habilitada e o resume compara a
 seção antes de qualquer reutilização, criação de backend ou escrita no arquivo.
 Uma divergência falha explicitamente e preserva os bytes do checkpoint.
 
-Ausência de `observation_config` equivale a `None`: checkpoints anteriores ao
-B006 que continuam elegíveis segundo o fail-closed da M1.4 podem ser retomados
-com a opção desativada. Um checkpoint sem essa seção não pode ser retomado com
-cadência ativa. Checkpoints históricos sem fingerprint científico continuam
-sujeitos à rejeição já existente da M1.4; esta tranche não introduz bypass.
+Somente a ausência da chave `observation_config` equivale a `None`: checkpoints
+anteriores ao B006 que continuam elegíveis segundo o fail-closed da M1.4 podem
+ser retomados com a opção desativada. Uma chave explícita com `null`, `{}` ou
+outro formato inválido é rejeitada. Um checkpoint sem essa seção não pode ser
+retomado com cadência ativa. Checkpoints históricos sem fingerprint científico
+continuam sujeitos à rejeição já existente da M1.4; esta tranche não introduz
+bypass.
 
 Seeds e variantes podem continuar sendo expandidas com a mesma cadência e
 identidade científica. Runs concluídos preservam seu histórico ao serem

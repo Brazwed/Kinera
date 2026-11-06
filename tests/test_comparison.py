@@ -367,6 +367,54 @@ class ControlledComparisonTests(unittest.TestCase):
                 )
             self.assertEqual(checkpoint.read_bytes(), before)
 
+    def test_none_cadence_rejects_explicit_null_or_empty_observation_config(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "malformed-disabled-observation.json"
+            common = {
+                "syllable_vocab_size": 5,
+                "seeds": [7],
+                "epochs": 1,
+                "learning_rate": 0.05,
+                "max_examples": 1,
+                "variants": ("A",),
+                "checkpoint_path": checkpoint,
+            }
+            self._run_historical(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                **common,
+            )
+            original = json.loads(checkpoint.read_text(encoding="utf-8"))
+            self.assertNotIn("observation_config", original)
+
+            for malformed_config in (None, {}):
+                with self.subTest(malformed_config=malformed_config):
+                    malformed = json.loads(json.dumps(original))
+                    malformed["observation_config"] = malformed_config
+                    malformed["runs"]["A"][0]["status"] = "failed"
+                    checkpoint.write_text(json.dumps(malformed), encoding="utf-8")
+                    before = checkpoint.read_bytes()
+                    with patch.object(
+                        comparison,
+                        "_execute_single_experiment",
+                        side_effect=AssertionError(
+                            "execution began before observation config validation"
+                        ),
+                    ) as execute:
+                        with self.assertRaisesRegex(
+                            ValueError, "validation_every_n_epochs"
+                        ):
+                            self._run_historical(
+                                self.examples,
+                                self.examples,
+                                self.vocabulary,
+                                resume=True,
+                                **common,
+                            )
+                        execute.assert_not_called()
+                    self.assertEqual(checkpoint.read_bytes(), before)
+
     def test_failed_partial_validation_attempt_does_not_mix_history(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             checkpoint = Path(directory) / "partial-validation.json"

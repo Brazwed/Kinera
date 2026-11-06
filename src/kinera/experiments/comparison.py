@@ -77,11 +77,12 @@ def _validate_validation_cadence(value: int | None) -> int | None:
 
 
 def _matches_validation_observation_config(
-    persisted: Any,
+    persisted_checkpoint: dict[str, Any],
     expected_cadence: int | None,
 ) -> bool:
     if expected_cadence is None:
-        return persisted is None
+        return "observation_config" not in persisted_checkpoint
+    persisted = persisted_checkpoint.get("observation_config")
     if not isinstance(persisted, dict) or set(persisted) != {
         "validation_every_n_epochs"
     }:
@@ -952,7 +953,7 @@ def run_controlled_experiments(
         if not isinstance(persisted, dict):
             raise ValueError("checkpoint deve conter um objeto JSON")
         if not _matches_validation_observation_config(
-            persisted.get("observation_config"),
+            persisted,
             validation_every_n_epochs,
         ):
             raise ValueError(
