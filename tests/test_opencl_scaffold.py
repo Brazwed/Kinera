@@ -7,7 +7,7 @@ import subprocess
 import sys
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 from kinera.backends import Backend, BackendError, BackendUnavailableError
 from kinera.backends.opencl.api import (
@@ -46,6 +46,7 @@ class FakeOpenCLApi:
         self.kernel_names: dict[int, str] = {}
         self.kernel_buffers: dict[int, dict[int, int]] = {}
         self.kernel_ints: dict[int, dict[int, int]] = {}
+        self.kernel_doubles: dict[int, dict[int, float]] = {}
         self.read_sizes: list[int] = []
         self.write_sizes: list[int] = []
         self.built_sources: list[str] = []
@@ -141,6 +142,7 @@ class FakeOpenCLApi:
         self.kernel_names[handle] = name
         self.kernel_buffers[handle] = {}
         self.kernel_ints[handle] = {}
+        self.kernel_doubles[handle] = {}
         return handle
 
     def set_kernel_buffer(self, kernel, index, buffer):
@@ -166,6 +168,7 @@ class FakeOpenCLApi:
         if self.fail_on == f"set_kernel_double_{index}":
             raise RuntimeError("injected OpenCL double argument failure")
         self.kernel_double_arguments.append((index, value))
+        self.kernel_doubles[kernel][index] = value
 
     def enqueue_1d(self, queue, kernel, global_size):
         if self.fail_on == "enqueue_1d":
@@ -241,6 +244,16 @@ class FakeOpenCLApi:
                             value = struct.unpack_from("<d", grad_output, index * 8)[0]
                             accumulated = accumulated + value
                     struct.pack_into("<d", grad_weights, element * 8, accumulated)
+        elif kernel_name == "kinera_embedding_step_f64":
+            weights = self.allocations[buffers[0]]
+            gradients = self.allocations[buffers[1]]
+            vocab_size, embedding_dim = values[2], values[3]
+            learning_rate = self.kernel_doubles[kernel][4]
+            for element in range(vocab_size * embedding_dim):
+                weight = struct.unpack_from("<d", weights, element * 8)[0]
+                gradient = struct.unpack_from("<d", gradients, element * 8)[0]
+                update = learning_rate * gradient
+                struct.pack_into("<d", weights, element * 8, weight - update)
 
     def release_kernel(self, handle):
         self.released_kernels.append(handle)
@@ -1078,16 +1091,18 @@ class OpenCLEmbeddingForwardTests(unittest.TestCase):
         finally:
             layer.close()
 
-    def test_empty_backward_is_available_and_step_remains_unavailable(self) -> None:
+    def test_empty_backward_and_zero_rate_step_are_available(self) -> None:
         gradients = self.backend.buffer_zeros(shape=(3, 3), dtype="float64")
         try:
             self.assertIs(
                 self.backend.embedding_backward(gradients, [], []), gradients
             )
+            self.assertIs(
+                self.backend.embedding_step(self.weights, gradients, 0.0),
+                self.weights,
+            )
         finally:
             gradients.close()
-        with self.assertRaisesRegex(BackendUnavailableError, "Embedding.step"):
-            self.backend.embedding_step(self.weights, self.weights, 0.1)
 
 
 class OpenCLEmbeddingBackwardTests(unittest.TestCase):
@@ -1541,6 +1556,305 @@ class OpenCLEmbeddingBackwardTests(unittest.TestCase):
             if resident_gradients is not None:
                 resident_gradients.close()
             layer.close()
+
+
+class OpenCLEmbeddingStepTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.api = FakeOpenCLApi(max_allocation=4096)
+        self.backend = OpenCLBackend(runtime=OpenCLRuntime(api=self.api))
+        self.cpu = CPUBackend()
+        self.weights_values = [[1.0, 0.5, -2.0], [-0.25, 2.0, 1e16]]
+        self.gradients_values = [
+            [1.0 - 2.0**-27, -0.5, 0.25],
+            [0.75, -1e16, -0.25],
+        ]
+        self.weights = self.backend.buffer_from_host(
+            self.weights_values, shape=(2, 3), dtype="float64"
+        )
+        self.grad_weights = self.backend.buffer_from_host(
+            self.gradients_values, shape=(2, 3), dtype="float64"
+        )
+
+    def tearDown(self) -> None:
+        self.backend.close()
+
+    def _values(self, buffer):
+        return self.backend.buffer_to_host(buffer)
+
+    def test_step_matches_cpu_without_fma_and_keeps_buffer_resident(self) -> None:
+        learning_rate = 1.0 + 2.0**-27
+        expected = self.cpu.embedding_step(
+            self.weights_values, self.gradients_values, learning_rate
+        )
+        writes_before = list(self.api.write_sizes)
+        reads_before = list(self.api.read_sizes)
+        before_releases = list(self.api.released_kernels)
+
+        result = self.backend.embedding_step(
+            self.weights, self.grad_weights, learning_rate
+        )
+
+        self.assertIs(result, self.weights)
+        self.assertEqual(self.api.write_sizes, writes_before)
+        self.assertEqual(self.api.read_sizes, reads_before)
+        self.assertEqual(
+            self.api.released_kernels[len(before_releases) :], [30]
+        )
+        self.assertEqual(self._values(result), expected)
+        self.assertEqual(expected[0][0], 0.0)
+        self.assertEqual(
+            math.fma(-learning_rate, self.gradients_values[0][0], 1.0),
+            2.0**-54,
+        )
+        self.assertFalse(self.grad_weights.closed)
+
+    def test_consecutive_updates_and_zero_rate_have_cpu_semantics(self) -> None:
+        expected = self.weights_values
+        for rate in (0.1, 0.025):
+            expected = self.cpu.embedding_step(
+                expected, self.gradients_values, rate
+            )
+            returned = self.backend.embedding_step(
+                self.weights, self.grad_weights, rate
+            )
+            self.assertIs(returned, self.weights)
+            self.assertEqual(self._values(self.weights), expected)
+
+        actual_before_zero = self._values(self.weights)
+        expected_zero = self.cpu.embedding_step(
+            expected, self.gradients_values, 0.0
+        )
+        kernels_before = list(self.api.created_kernels)
+        enqueues_before = list(self.api.enqueues)
+        reads_before = list(self.api.read_sizes)
+        writes_before = list(self.api.write_sizes)
+        returned = self.backend.embedding_step(self.weights, self.grad_weights, 0.0)
+        self.assertIs(returned, self.weights)
+        self.assertEqual(self.api.created_kernels, kernels_before)
+        self.assertEqual(self.api.enqueues, enqueues_before)
+        self.assertEqual(self.api.read_sizes, reads_before)
+        self.assertEqual(self.api.write_sizes, writes_before)
+        self.assertEqual(self._values(self.weights), actual_before_zero)
+        self.assertEqual(self._values(self.weights), expected_zero)
+
+    def test_learning_rate_validation_happens_before_dispatch(self) -> None:
+        invalid_rates = (
+            (True, TypeError),
+            ("0.1", TypeError),
+            (-0.1, ValueError),
+            (float("nan"), ValueError),
+            (float("inf"), ValueError),
+            (float("-inf"), ValueError),
+            (10**10000, ValueError),
+        )
+        original = self._values(self.weights)
+        for index, (rate, error_type) in enumerate(invalid_rates):
+            with self.subTest(case=index, rate_type=type(rate).__name__):
+                with self.assertRaises(error_type):
+                    self.backend.embedding_step(self.weights, self.grad_weights, rate)
+                self.assertEqual(self.api.created_kernels, [])
+                self.assertEqual(self.api.enqueues, [])
+                self.assertEqual(self._values(self.weights), original)
+
+    def test_contract_rejects_shapes_types_closed_foreign_alias_and_layout(self) -> None:
+        wrong_rank = self.backend.buffer_from_host(
+            [1.0, 2.0], shape=(2,), dtype="float64"
+        )
+        wrong_shape = self.backend.buffer_from_host(
+            [[1.0, 2.0]], shape=(1, 2), dtype="float64"
+        )
+        wrong_dtype = self.backend.buffer_from_host(
+            [[1, 2, 3], [4, 5, 6]], shape=(2, 3), dtype="int32"
+        )
+        closed_weights = self.backend.buffer_from_host(
+            self.weights_values, shape=(2, 3), dtype="float64"
+        )
+        closed_weights.close()
+        closed_gradients = self.backend.buffer_from_host(
+            self.gradients_values, shape=(2, 3), dtype="float64"
+        )
+        closed_gradients.close()
+        foreign_backend = OpenCLBackend(runtime=OpenCLRuntime(api=FakeOpenCLApi()))
+        foreign_gradients = foreign_backend.buffer_from_host(
+            self.gradients_values, shape=(2, 3), dtype="float64"
+        )
+        alias = self.backend.buffer_from_host(
+            self.weights_values, shape=(2, 3), dtype="float64"
+        )
+        try:
+            with self.assertRaisesRegex(ValueError, "rank 2"):
+                self.backend.embedding_step(wrong_rank, self.grad_weights, 0.1)
+            with self.assertRaisesRegex(ValueError, "match weights shape"):
+                self.backend.embedding_step(self.weights, wrong_shape, 0.1)
+            with self.assertRaisesRegex(ValueError, "dtype float64"):
+                self.backend.embedding_step(self.weights, wrong_dtype, 0.1)
+            with self.assertRaisesRegex(BackendError, "released/closed"):
+                self.backend.embedding_step(closed_weights, self.grad_weights, 0.1)
+            with self.assertRaisesRegex(BackendError, "released/closed"):
+                self.backend.embedding_step(self.weights, closed_gradients, 0.1)
+            with self.assertRaisesRegex(BackendError, "different memory manager"):
+                self.backend.embedding_step(self.weights, foreign_gradients, 0.1)
+            with self.assertRaisesRegex(BackendError, "must not alias"):
+                self.backend.embedding_step(alias, alias, 0.1)
+            with patch.object(
+                OpenCLBuffer, "layout", new_callable=PropertyMock, return_value="F"
+            ):
+                with self.assertRaisesRegex(ValueError, "row-major layout"):
+                    self.backend.embedding_step(self.weights, self.grad_weights, 0.1)
+            self.assertEqual(self.api.created_kernels, [])
+        finally:
+            alias.close()
+            foreign_gradients.close()
+            foreign_backend.close()
+            closed_gradients.close()
+            closed_weights.close()
+            wrong_dtype.close()
+            wrong_shape.close()
+            wrong_rank.close()
+
+    def test_device_and_declared_buffer_sizes_are_checked_before_launch(self) -> None:
+        different_device = OpenCLBackend(
+            runtime=self.backend.runtime,
+            memory_manager=self.backend.memory,
+            device_id=1,
+        )
+        with self.assertRaisesRegex(BackendError, "selected OpenCL GPU"):
+            different_device.embedding_step(self.weights, self.grad_weights, 0.1)
+
+        original_size = self.grad_weights._nbytes
+        self.grad_weights._nbytes += 8
+        try:
+            with self.assertRaisesRegex(ValueError, "grad_weights buffer size"):
+                self.backend.embedding_step(self.weights, self.grad_weights, 0.1)
+        finally:
+            self.grad_weights._nbytes = original_size
+        self.assertEqual(self.api.created_kernels, [])
+
+    def test_fp64_device_query_failure_preserves_weights_without_launch(self) -> None:
+        original = self._values(self.weights)
+        with patch.object(
+            self.backend.runtime,
+            "require_device",
+            side_effect=BackendError("injected FP64 capability failure"),
+        ):
+            with self.assertRaisesRegex(BackendError, "FP64 capability failure"):
+                self.backend.embedding_step(self.weights, self.grad_weights, 0.1)
+
+        self.assertEqual(self.api.created_kernels, [])
+        self.assertEqual(self.api.enqueues, [])
+        self.assertEqual(self._values(self.weights), original)
+
+    def test_pre_enqueue_failures_preserve_weights_and_release_created_kernel(self) -> None:
+        failures = (
+            ("build_program", "build failure", []),
+            ("create_kinera_embedding_step_f64", "creation failure", []),
+            ("set_kernel_buffer_0", "argument failure", [30]),
+            ("set_kernel_buffer_1", "argument failure", [30]),
+            ("set_kernel_int_2", "scalar argument failure", [30]),
+            ("set_kernel_int_3", "scalar argument failure", [30]),
+            ("set_kernel_double_4", "double argument failure", [30]),
+            ("enqueue_kinera_embedding_step_f64", "enqueue failure", [30]),
+        )
+        original = self._values(self.weights)
+        for fail_on, message, expected_releases in failures:
+            with self.subTest(fail_on=fail_on):
+                api = FakeOpenCLApi(max_allocation=4096, fail_on=fail_on)
+                backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+                weights = backend.buffer_from_host(
+                    self.weights_values, shape=(2, 3), dtype="float64"
+                )
+                gradients = backend.buffer_from_host(
+                    self.gradients_values, shape=(2, 3), dtype="float64"
+                )
+                try:
+                    with self.assertRaisesRegex(RuntimeError, message):
+                        backend.embedding_step(weights, gradients, 0.1)
+                    self.assertEqual(backend.buffer_to_host(weights), original)
+                    self.assertEqual(api.released_kernels, expected_releases)
+                    self.assertEqual(api.read_sizes, [48])
+                    self.assertEqual(api.write_sizes, [48, 48])
+                    self.assertEqual(
+                        set(api.allocations), {weights.handle, gradients.handle}
+                    )
+                finally:
+                    backend.close()
+
+    def test_release_failure_after_enqueue_is_reported_without_retry(self) -> None:
+        api = FakeOpenCLApi(max_allocation=4096)
+        backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+        weights = backend.buffer_from_host(self.weights_values, shape=(2, 3))
+        gradients = backend.buffer_from_host(self.gradients_values, shape=(2, 3))
+        expected = self.cpu.embedding_step(
+            self.weights_values, self.gradients_values, 0.1
+        )
+        api.fail_on = "release_kinera_embedding_step_f64"
+        try:
+            with self.assertRaisesRegex(RuntimeError, "kernel release failure"):
+                backend.embedding_step(weights, gradients, 0.1)
+            self.assertEqual(backend.buffer_to_host(weights), expected)
+            self.assertEqual(api.released_kernels, [30])
+        finally:
+            backend.close()
+
+    def test_primary_enqueue_error_survives_kernel_release_failure(self) -> None:
+        original = self._values(self.weights)
+        primary = RuntimeError("primary enqueue error")
+        cleanup = RuntimeError("kernel cleanup error")
+        releases = []
+
+        def fail_enqueue(*args, **kwargs):
+            raise primary
+
+        def fail_release(handle):
+            releases.append(handle)
+            raise cleanup
+
+        with (
+            patch.object(self.api, "enqueue_1d", side_effect=fail_enqueue),
+            patch.object(self.api, "release_kernel", side_effect=fail_release),
+        ):
+            with self.assertRaises(RuntimeError) as raised:
+                self.backend.embedding_step(self.weights, self.grad_weights, 0.1)
+        self.assertIs(raised.exception, primary)
+        self.assertIs(raised.exception.__cause__, cleanup)
+        self.assertEqual(releases, [30])
+        self.assertEqual(self._values(self.weights), original)
+
+    def test_layer_step_delegates_in_place_and_clears_backward_flag(self) -> None:
+        layer = Embedding(2, 3, seed=29, backend=self.backend)
+        cpu_layer = Embedding(2, 3, seed=29, backend=self.cpu)
+        new_weights = self.backend.buffer_from_host(
+            self.weights_values, shape=(2, 3), dtype="float64"
+        )
+        new_gradients = self.backend.buffer_from_host(
+            self.gradients_values, shape=(2, 3), dtype="float64"
+        )
+        original_weight_buffer = layer.weights
+        original_gradient_buffer = layer.grad_weights
+        try:
+            layer.weights = new_weights
+            layer.grad_weights = new_gradients
+            original_weight_buffer.close()
+            original_gradient_buffer.close()
+            layer._has_backward = True
+
+            cpu_layer.weights = [row.copy() for row in self.weights_values]
+            cpu_layer.grad_weights = [row.copy() for row in self.gradients_values]
+            cpu_layer._has_backward = True
+
+            weights_buffer = layer.weights
+            expected = self.cpu.embedding_step(
+                self.weights_values, self.gradients_values, 0.125
+            )
+            layer.step(0.125)
+            cpu_layer.step(0.125)
+            self.assertIs(layer.weights, weights_buffer)
+            self.assertFalse(layer._has_backward)
+            self.assertEqual(self._values(layer.weights), expected)
+            self.assertEqual(cpu_layer.weights, expected)
+        finally:
+            layer.close()
+            cpu_layer.close()
 
 
 if __name__ == "__main__":
