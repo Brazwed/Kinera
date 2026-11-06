@@ -442,6 +442,8 @@ class ProfilingOpenCLApi(OpenCLApi):
         else:
             operation = "clEnqueueReadBuffer"
             enqueue = self._cl_enqueue_read_buffer
+        profile_query_ns = 0
+        event_release_ns = 0
         try:
             native_started = time.perf_counter_ns()
             status = enqueue(

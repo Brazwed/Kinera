@@ -26,12 +26,14 @@ from profile_opencl_device import (  # noqa: E402
     OpenCLApiError,
     ProfilingOpenCLApi,
     _profile_durations,
-    _source_fingerprint,
     _stats,
 )
 
 RESULT_PATH = ROOT / "experiments/results/opencl-rx550-p3e-device-profiling.json"
 REPORT_PATH = ROOT / "docs/opencl-rx550-p3e-device-profiling.md"
+MEASUREMENT_SOURCE_FINGERPRINT = (
+    "a50ee80ae65123504e607ccb0fc615c9fd76a38a6a40bdc86fb036972bc4b868"
+)
 
 
 class OpenCLEventProfilingTests(unittest.TestCase):
@@ -159,6 +161,49 @@ class OpenCLEventProfilingTests(unittest.TestCase):
         self.assertIsNone(event.value)
         self.assertTrue(api._capture["events"][0]["event_release_succeeded"])
 
+    def test_blocking_h2d_and_d2h_enqueue_failures_preserve_opencl_errors(self) -> None:
+        for kind, operation in (
+            ("h2d", "clEnqueueWriteBuffer"),
+            ("d2h", "clEnqueueReadBuffer"),
+        ):
+            with self.subTest(kind=kind):
+                api, released = self._api()
+                api._cl_enqueue_write_buffer = lambda *args: -5
+                api._cl_enqueue_read_buffer = lambda *args: -5
+
+                with self.assertRaisesRegex(OpenCLApiError, operation):
+                    api._blocking_transfer(kind, 1, 2, 3, 8)
+
+                self.assertEqual(released, [])
+                self.assertIn(
+                    f"{kind}_blocking_api_inclusive_ns",
+                    api._capture["host_components_ns"],
+                )
+
+    def test_blocking_h2d_and_d2h_query_failures_preserve_error_and_release_once(self) -> None:
+        for kind, enqueue_name, event_id in (
+            ("h2d", "_cl_enqueue_write_buffer", 47),
+            ("d2h", "_cl_enqueue_read_buffer", 48),
+        ):
+            with self.subTest(kind=kind):
+                api, released = self._api()
+
+                def enqueue(*args):
+                    ctypes.cast(args[-1], ctypes.POINTER(ctypes.c_void_p))[0] = event_id
+                    return CL_SUCCESS
+
+                def fail_query(*args):
+                    raise RuntimeError(f"{kind} profiling query raised")
+
+                setattr(api, enqueue_name, enqueue)
+                api._cl_get_event_profiling_info = fail_query
+
+                with self.assertRaisesRegex(RuntimeError, f"{kind} profiling query raised"):
+                    api._blocking_transfer(kind, 1, 2, 3, 8)
+
+                self.assertEqual(released, [event_id])
+                self.assertTrue(api._capture["events"][0]["event_release_succeeded"])
+
     def test_profile_queue_is_enabled_and_verified(self) -> None:
         api = object.__new__(ProfilingOpenCLApi)
         api.queue_properties = None
@@ -254,13 +299,15 @@ class P3eResultIntegrityTests(unittest.TestCase):
         self.assertTrue(numerical_errors)
         self.assertEqual(max(numerical_errors), 0.0)
 
-    def test_artifact_hashes_match_report_and_current_sources(self) -> None:
+    def test_artifact_hashes_match_report_and_measured_source(self) -> None:
         report = REPORT_PATH.read_text(encoding="utf-8")
         result_hash = hashlib.sha256(RESULT_PATH.read_bytes()).hexdigest()
         self.assertIn(result_hash, report)
         self.assertEqual(
-            self.result["code"]["source_fingerprint_sha256"], _source_fingerprint()
+            self.result["code"]["source_fingerprint_sha256"],
+            MEASUREMENT_SOURCE_FINGERPRINT,
         )
+        self.assertIn(MEASUREMENT_SOURCE_FINGERPRINT, report)
 
     def test_samples_release_events_and_preserve_disjoint_host_accounting(self) -> None:
         repetitions = self.result["protocol"]["timed_repetitions_per_operation"]
