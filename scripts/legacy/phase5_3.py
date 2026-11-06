@@ -14,6 +14,12 @@ from typing import Any
 from kinera.language.datasets.loader import load_jsonl
 from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from kinera.experiments.config import ExecutionConfig, ExperimentConfig
+from kinera.experiments.fingerprint import (
+    build_legacy_experiment_fingerprint,
+    build_legacy_scientific_configuration,
+    load_legacy_experiment_inputs,
+    validate_legacy_checkpoint_identity,
+)
 from kinera.experiments.multi_seed import run_seed_jobs
 from kinera.diagnostics.syllables import run_syllable_gain_analysis
 from kinera.monitor.metrics.core import summarize_values
@@ -23,14 +29,13 @@ from kinera.monitor.metrics.schema import METRICS_SCHEMA_VERSION, metric_result
 def _run_seed(payload: dict[str, Any]) -> dict[str, Any]:
     started = time.perf_counter()
     try:
-        vocabulary = CharacterVocabulary.from_dict(
-            json.loads(Path(payload["vocabulary"]).read_text(encoding="utf-8"))
+        train, validation, vocabulary, syllable_vocabulary, _ = (
+            load_legacy_experiment_inputs(
+                payload,
+                phase="5.3_expanded_analysis",
+                require_expected_identity=True,
+            )
         )
-        syllable_vocabulary = SyllableVocabulary.from_dict(
-            json.loads(Path(payload["syllable_vocabulary"]).read_text(encoding="utf-8"))
-        )
-        train = load_jsonl(payload["train"], max_records=payload["max_examples"])
-        validation = load_jsonl(payload["validation"], max_records=payload["max_examples"])
         report = run_syllable_gain_analysis(
             train,
             validation,
@@ -117,23 +122,57 @@ def main() -> None:
         top_examples=args.top_examples,
     )
     execution_config = ExecutionConfig(workers=args.workers)
+    vocabulary = CharacterVocabulary.from_dict(
+        json.loads(args.vocabulary.read_text(encoding="utf-8"))
+    )
+    syllable_vocabulary = SyllableVocabulary.from_dict(
+        json.loads(args.syllable_vocabulary.read_text(encoding="utf-8"))
+    )
+    scientific_configuration = build_legacy_scientific_configuration(
+        experiment_config.to_dict(),
+        vocabulary=vocabulary,
+        syllable_vocabulary=syllable_vocabulary,
+    )
+    train = load_jsonl(args.train, max_records=args.max_examples)
+    validation = load_jsonl(args.validation, max_records=args.max_examples)
+    experiment_identity = build_legacy_experiment_fingerprint(
+        phase="5.3_expanded_analysis",
+        train_examples=train,
+        validation_examples=validation,
+        vocabulary=vocabulary,
+        syllable_vocabulary=syllable_vocabulary,
+        scientific_configuration=scientific_configuration,
+    )
+    identity_payload = {
+        "vocabulary": str(args.vocabulary),
+        "syllable_vocabulary": str(args.syllable_vocabulary),
+        "train": str(args.train),
+        "validation": str(args.validation),
+        "max_examples": args.max_examples,
+        "scientific_configuration": scientific_configuration,
+        "experiment_identity": experiment_identity,
+    }
+    checkpoint_configuration = experiment_config.to_dict()
+    checkpoint_configuration["experiment_identity"] = experiment_identity
+    if args.resume:
+        validate_legacy_checkpoint_identity(
+            str(args.checkpoint),
+            experiment_identity,
+            phase="5.3_expanded_analysis",
+        )
 
     def job_factory(seed: int) -> dict[str, Any]:
         return {
-            "vocabulary": str(args.vocabulary),
-            "syllable_vocabulary": str(args.syllable_vocabulary),
-            "train": str(args.train),
-            "validation": str(args.validation),
+            **identity_payload,
             "seed": seed,
             "epochs": args.epochs,
             "learning_rate": args.learning_rate,
-            "max_examples": args.max_examples,
             "top_examples": args.top_examples,
         }
 
     report = run_seed_jobs(
         seeds=args.seeds,
-        experiment_config=experiment_config.to_dict(),
+        experiment_config=checkpoint_configuration,
         execution_config=execution_config.to_dict(),
         checkpoint_path=args.checkpoint,
         worker=_run_seed,
