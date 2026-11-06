@@ -1,4 +1,4 @@
-"""Optional OpenCL backend with gated Linear, Embedding, and representation ops."""
+"""Optional OpenCL backend with individually gated resident operations."""
 
 from __future__ import annotations
 
@@ -725,6 +725,168 @@ class OpenCLBackend:
             raise
         return weights_buffer
 
+    def mean_pool_forward(self, vectors: BackendArray) -> OpenCLBuffer:
+        """Average each resident feature using the CPU sum policy and row order."""
+        self._ensure_open()
+        matrix = self._require_buffer(
+            vectors, "vectors", rank=2, operation="mean_pool_forward"
+        )
+        self.memory._validate_buffer(matrix)
+        if any(
+            isinstance(dimension, bool)
+            or not isinstance(dimension, int)
+            or dimension <= 0
+            for dimension in matrix.shape
+        ):
+            raise ValueError("mean_pool_forward dimensions must be positive integers")
+        if matrix.layout != "C":
+            raise ValueError("mean_pool_forward input must use C layout")
+
+        context_size, feature_dim = matrix.shape
+        expected_input_nbytes = (
+            context_size * feature_dim * ctypes.sizeof(ctypes.c_double)
+        )
+        if matrix.nbytes != expected_input_nbytes:
+            raise ValueError(
+                "mean_pool_forward input size does not match its shape"
+            )
+        if matrix._manager is not self.memory or matrix.device_id != self.device_id:
+            raise BackendError(
+                "mean_pool_forward input must belong to the selected OpenCL manager"
+            )
+        if context_size > _OPENCL_INT_MAX or feature_dim > _OPENCL_INT_MAX:
+            raise ValueError(
+                "mean_pool_forward dimensions must fit a signed 32-bit integer"
+            )
+        size_t_max = ctypes.c_size_t(-1).value
+        element_count = context_size * feature_dim
+        if element_count > size_t_max // ctypes.sizeof(ctypes.c_double):
+            raise ValueError("mean_pool_forward input exceeds size_t limits")
+        output_nbytes = feature_dim * ctypes.sizeof(ctypes.c_double)
+        if feature_dim > size_t_max // ctypes.sizeof(ctypes.c_double):
+            raise ValueError("mean_pool_forward output exceeds size_t limits")
+
+        device = self.runtime.require_device(self.device_id, require_fp64=True)
+        if (
+            matrix.nbytes > device.max_mem_alloc_size
+            or matrix.nbytes > device.global_mem_size
+            or output_nbytes > device.max_mem_alloc_size
+            or output_nbytes > device.global_mem_size
+        ):
+            raise BackendError(
+                "mean_pool_forward buffer exceeds the OpenCL device allocation limit"
+            )
+        program = self._get_program("mean_pool_forward.cl")
+
+        # Validate the complete resident matrix before allocating or publishing
+        # the result. Only one int32 status value crosses to the host.
+        status: OpenCLBuffer | None = None
+        validation_kernel: int | None = None
+        try:
+            status = self.memory.allocate(
+                (1,), dtype="int32", device_id=self.device_id
+            )
+            if status.handle == matrix.handle:
+                self.memory._buffers.discard(status)
+                status._mark_closed()
+                status = None
+                raise BackendError(
+                    "mean_pool_forward validation status unexpectedly aliases input"
+                )
+            validation_kernel = self.runtime.api.create_kernel(
+                program, "kinera_mean_pool_validate_finite_f64"
+            )
+            self.runtime.api.set_kernel_buffer(
+                validation_kernel, 0, matrix.handle
+            )
+            self.runtime.api.set_kernel_buffer(
+                validation_kernel, 1, status.handle
+            )
+            self.runtime.api.set_kernel_int(validation_kernel, 2, context_size)
+            self.runtime.api.set_kernel_int(validation_kernel, 3, feature_dim)
+            self.runtime.api.enqueue_1d(
+                self.memory.queue, validation_kernel, 1
+            )
+            status_host = (ctypes.c_int32 * 1)()
+            self.runtime.api.read_buffer(
+                self.memory.queue,
+                status.handle,
+                ctypes.addressof(status_host),
+                ctypes.sizeof(status_host),
+            )
+            has_non_finite = int(status_host[0])
+        except BaseException as error:
+            cleanup_error = self._release_mean_pool_temporaries(
+                validation_kernel, status
+            )
+            if cleanup_error is not None:
+                raise error from cleanup_error
+            raise
+
+        kernel_to_release, validation_kernel = validation_kernel, None
+        status_to_release, status = status, None
+        cleanup_error = self._release_mean_pool_temporaries(
+            kernel_to_release, status_to_release
+        )
+        if cleanup_error is not None:
+            raise cleanup_error
+        if has_non_finite:
+            raise ValueError("mean_pool_forward input contains non-finite values")
+
+        output: OpenCLBuffer | None = None
+        kernel: int | None = None
+        try:
+            output = self.memory.allocate(
+                (feature_dim,), dtype="float64", device_id=self.device_id
+            )
+            if output.handle == matrix.handle:
+                self.memory._buffers.discard(output)
+                output._mark_closed()
+                output = None
+                raise BackendError(
+                    "mean_pool_forward output unexpectedly aliases input"
+                )
+            if (
+                output._manager is not self.memory
+                or output.device_id != self.device_id
+                or output.dtype != "float64"
+                or output.shape != (feature_dim,)
+                or output.layout != "C"
+                or output.nbytes != output_nbytes
+            ):
+                raise BackendError(
+                    "mean_pool_forward allocator returned an invalid output buffer"
+                )
+            kernel = self.runtime.api.create_kernel(
+                program, "kinera_mean_pool_forward_f64"
+            )
+            self.runtime.api.set_kernel_buffer(kernel, 0, matrix.handle)
+            self.runtime.api.set_kernel_buffer(kernel, 1, output.handle)
+            self.runtime.api.set_kernel_int(kernel, 2, context_size)
+            self.runtime.api.set_kernel_int(kernel, 3, feature_dim)
+            self.runtime.api.set_kernel_int(
+                kernel, 4, int(_PYTHON_FLOAT_SUM_COMPENSATED)
+            )
+            # Runtime double division on the target RX 550 returned a quotient
+            # with ~2^-28 relative error in an isolated probe. Compute this
+            # scalar in Python and multiply after the ordered sum; this remains
+            # within the CPU oracle tolerance without moving tensor data hostward.
+            self.runtime.api.set_kernel_double(
+                kernel, 5, 1.0 / context_size
+            )
+            self.runtime.api.enqueue_1d(
+                self.memory.queue, kernel, feature_dim
+            )
+            kernel_to_release, kernel = kernel, None
+            self.runtime.api.release_kernel(kernel_to_release)
+        except BaseException as error:
+            cleanup_error = self._release_mean_pool_temporaries(kernel, output)
+            if cleanup_error is not None:
+                raise error from cleanup_error
+            raise
+        assert output is not None
+        return output
+
     def hybrid_representation_forward(
         self,
         char_vectors: BackendArray,
@@ -934,6 +1096,31 @@ class OpenCLBackend:
                     first_error = error
         return first_error
 
+    def _release_mean_pool_temporaries(
+        self, kernel: int | None, *buffers: OpenCLBuffer | None
+    ) -> BaseException | None:
+        """Attempt each release once and preserve errors from the operation."""
+        first_error: BaseException | None = None
+        if kernel is not None:
+            try:
+                self.runtime.api.release_kernel(kernel)
+            except BaseException as error:
+                first_error = error
+        for buffer in buffers:
+            if buffer is None:
+                continue
+            try:
+                self.memory.release(buffer)
+            except BaseException as error:
+                # A failed release can be ambiguous. Disarm the wrapper to avoid
+                # a destructor retry that might release the native handle twice.
+                if not buffer.closed:
+                    self.memory._buffers.discard(buffer)
+                    buffer._mark_closed()
+                if first_error is None:
+                    first_error = error
+        return first_error
+
     def neuron_forward(
         self,
         weights: list[float],
@@ -1022,6 +1209,7 @@ class OpenCLBackend:
             "embedding_backward.cl",
             "embedding_step.cl",
             "hybrid_representation_forward.cl",
+            "mean_pool_forward.cl",
         }:
             raise ValueError(f"unsupported OpenCL kernel program: {kernel_filename}")
         program = self._programs.get(kernel_filename)
