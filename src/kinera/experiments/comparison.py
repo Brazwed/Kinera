@@ -16,7 +16,11 @@ from typing import Any, cast
 
 from kinera.backends import get_backend
 from kinera.experiments.config import ExperimentConfig, ExecutionConfig
-from kinera.experiments.fingerprint import canonical_sha256
+from kinera.experiments.fingerprint import (
+    FINGERPRINT_SCHEMA_VERSION,
+    canonical_sha256,
+    fingerprint_components_digest,
+)
 from kinera.monitor.metrics.aggregation import (
     aggregate_metric_values,
     mean_std,
@@ -53,7 +57,6 @@ from kinera.experiments.variants import (
 
 
 _INVALID_METRIC_OBSERVATION = object()
-FINGERPRINT_SCHEMA_VERSION = 1
 EXPERIMENT_PROTOCOL_VERSION = 1
 VARIANT_PREPARATION_VERSION = 1
 _FINGERPRINT_EXAMPLE_FIELDS = (
@@ -104,11 +107,7 @@ def _fingerprint_components_digest(
     *,
     schema_version: int = FINGERPRINT_SCHEMA_VERSION,
 ) -> str:
-    return canonical_sha256({
-        "fingerprint_schema_version": schema_version,
-        "algorithm": "sha256",
-        "components": components,
-    })
+    return fingerprint_components_digest(components, schema_version=schema_version)
 
 
 def _build_experiment_fingerprint(

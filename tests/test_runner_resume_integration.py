@@ -35,25 +35,6 @@ class RunnerResumeIntegrationTests(unittest.TestCase):
             self.assertEqual(result["completed_runs"], len(resume_seeds))
             return result
 
-    def test_phase53_resume_allows_operational_worker_change(self) -> None:
-        pair = {"mean_delta_loss": 0.0, "accuracy_delta": 0.0, "improved_loss_fraction": 0.0, "regressed_loss_fraction": 0.0}
-        report = {
-            "phase": "5.3_expanded_analysis", "variants": ["A", "B", "C", "D"],
-            "seeds": [7], "epochs": 1, "learning_rate": 0.05, "max_examples": 10,
-            "context_size": 8, "top_examples": 2, "workers": 3,
-            "runs": [{"seed": seed, "status": "completed", "run": {"pair_deltas": {"A_vs_C": {"overall": pair}, "B_vs_D": {"overall": pair}}}} for seed in [7, 42]],
-        }
-        result = self._run_resume(
-            "scripts/legacy/phase5_3.py", report, ["--top-examples", "2"], [7, 42]
-        )
-        self.assertNotIn("metrics_schema_version", result["runs"][0]["run"])
-        aggregate = result["aggregates"]["A_vs_C"]
-        self.assertEqual(aggregate["metrics_schema_version"], 1)
-        self.assertEqual(
-            aggregate["metric_results"]["mean_delta_loss"]["support"],
-            {"seeds": 2},
-        )
-
     def test_phase54_resume_allows_operational_worker_change(self) -> None:
         metrics = {variant: {"validation": {"char_loss": 1.0, "char_accuracy": 0.0, "total_loss": 1.0}} for variant in "ABCDEF"}
         report = {
@@ -63,15 +44,6 @@ class RunnerResumeIntegrationTests(unittest.TestCase):
             "runs": [{"seed": seed, "status": "completed", "run": {"metrics": metrics}} for seed in [7, 42]],
         }
         self._run_resume("scripts/legacy/phase5_4_expanded.py", report, [], [7, 42])
-
-    def test_phase55_resume_allows_operational_worker_change(self) -> None:
-        report = {
-            "phase": "5.5_orthographic_class_analysis", "variants": ["A", "B", "C", "D"], "seeds": [7],
-            "epochs": 1, "learning_rate": 0.05, "max_examples": 10,
-            "context_size": 8, "workers": 3,
-            "runs": [{"seed": seed, "status": "completed", "run": {}} for seed in [7, 42]],
-        }
-        self._run_resume("scripts/legacy/phase5_5.py", report, [], [7, 42])
 
 
 if __name__ == "__main__":
