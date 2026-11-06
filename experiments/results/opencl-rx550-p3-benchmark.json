@@ -1,0 +1,1532 @@
+{
+  "schema_version": 1,
+  "phase": "issue-52-p3-linear-cpu-vs-opencl",
+  "source_json_sha256": "049c5b57eede9adc052f2fe10b56230c1575bbcbd54e53ec5f6d0395ff35cc21",
+  "code": {
+    "base_commit": "781f02386868a2e7d2001c001e6727433d88fb1d",
+    "benchmark_fingerprint_sha256": "a08a863613b13222dc591929d749ca29e90721a7c9c7d0c2390f5ccb9060446f",
+    "benchmark_script_sha256": "abffdeb154743a03b4937b4b557e3d1ce05d1c38cc69c7882d6cbdfd6fc04cbc"
+  },
+  "environment": {
+    "python": "3.15.0 (3.15.0-1.fc45.x86_64, Oct  9 2026, 00:00:00) [GCC 16.2.1 20260819 (Red Hat 16.2.1-2)]",
+    "python_implementation": "CPython",
+    "platform": "Linux-7.2.11-300.fc45.x86_64-x86_64-with-glibc2.44",
+    "kernel": "7.2.11-300.fc45.x86_64",
+    "cpu_model": "Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz",
+    "cpu_logical_processors": 28,
+    "opencl_device": {
+      "name": "AMD Radeon RX 550 / 550 Series",
+      "vendor": "AMD",
+      "platform": "rusticl",
+      "platform_vendor": "Mesa/X.org",
+      "opencl_version": "OpenCL 3.1 ",
+      "opencl_c_version": "OpenCL C 1.2 ",
+      "driver_version": "26.2.6",
+      "fp64_extension": true,
+      "double_fp_config": 63,
+      "global_memory_bytes": 4294967296,
+      "max_single_allocation_bytes": 1073741824
+    },
+    "rusticl_enable": "radeonsi",
+    "rusticl_features": "fp64",
+    "runtime_warning": "Patched Mesa libclc not detected"
+  },
+  "protocol": {
+    "warmups_per_measurement": 3,
+    "timed_repetitions": 15,
+    "setup_compile_samples": 5,
+    "timer": "time.perf_counter_ns (monotonic high-resolution wall clock)",
+    "sample_order": "CPU/OpenCL pairs alternate first position by repetition",
+    "arithmetic_dtype": "float64",
+    "tolerances": {
+      "atol": 1e-12,
+      "rtol": 1e-12
+    },
+    "learning_rate": 0.03125,
+    "random_seed_rule": "52052 + case index for weights; seed + 0x5A52 for inputs and grad_output",
+    "resident_operation_timing": "CPUBackend/OpenCLBackend call; OpenCL includes validation, temporary allocation, enqueue, clFinish synchronization, and kernel release; result cleanup/host transfers are outside this metric",
+    "step_sample_state": "Each resident step timing starts from the same deterministic weights and bias; OpenCL parameter reset uses blocking H2D writes before the timer, CPU linear_step is functional and receives the same host values; reset transfers are excluded from step latency and separately measured in transfer_costs",
+    "end_to_end_timing": "Linear construction, input preparation/H2D, forward-backward-step, result consumption/D2H, and explicit object/buffer close; runtime discovery and program compilation are prewarmed and reported separately",
+    "result_consumption": "End-to-end CPU and OpenCL paths compute math.fsum across output, grad_weights, grad_bias, grad_inputs, and updated weights/bias; OpenCL first materializes those buffers to host",
+    "transfer_timing": "Raw preallocated blocking API transfers and public buffer_from_host/buffer_to_host paths are both measured",
+    "kernel_device_timestamps": "Not available: current command queue does not enable OpenCL profiling; resident wall latency is not raw kernel time",
+    "external_interference_control": "One sequential process; no other benchmark or training process launched; CPU/GPU affinity, load, frequency, VRAM and utilization snapshots recorded when exposed; clocks/governors were not changed"
+  },
+  "startup_and_compilation": {
+    "backend_runtime_discovery_and_device_selection": {
+      "samples": 5,
+      "median_ms": 3.498365,
+      "q1_ms": 3.464711,
+      "q3_ms": 3.506885,
+      "iqr_ms": 0.042174000000000156,
+      "min_ms": 3.453368,
+      "max_ms": 3.708916
+    },
+    "context_and_command_queue_creation": {
+      "samples": 5,
+      "median_ms": 0.08281,
+      "q1_ms": 0.082185,
+      "q3_ms": 0.086774,
+      "iqr_ms": 0.00458900000000001,
+      "min_ms": 0.07695,
+      "max_ms": 0.334715
+    },
+    "per_program_build": {
+      "forward": {
+        "program_file": "linear_forward.cl",
+        "source_read_cache_insert_and_clBuildProgram": {
+          "samples": 5,
+          "median_ms": 1.82419,
+          "q1_ms": 1.788683,
+          "q3_ms": 1.891649,
+          "iqr_ms": 0.10296599999999989,
+          "min_ms": 1.755617,
+          "max_ms": 7.954101
+        },
+        "ordered_samples_ms": [
+          7.954101,
+          1.788683,
+          1.755617,
+          1.891649,
+          1.82419
+        ]
+      },
+      "backward": {
+        "program_file": "linear_backward.cl",
+        "source_read_cache_insert_and_clBuildProgram": {
+          "samples": 5,
+          "median_ms": 3.001062,
+          "q1_ms": 2.992304,
+          "q3_ms": 3.1157,
+          "iqr_ms": 0.12339600000000006,
+          "min_ms": 2.98998,
+          "max_ms": 3.408608
+        },
+        "ordered_samples_ms": [
+          3.408608,
+          3.1157,
+          2.992304,
+          2.98998,
+          3.001062
+        ]
+      },
+      "step": {
+        "program_file": "linear_step.cl",
+        "source_read_cache_insert_and_clBuildProgram": {
+          "samples": 5,
+          "median_ms": 1.528284,
+          "q1_ms": 1.524814,
+          "q3_ms": 1.528523,
+          "iqr_ms": 0.0037090000000001844,
+          "min_ms": 1.517253,
+          "max_ms": 1.581696
+        },
+        "ordered_samples_ms": [
+          1.528523,
+          1.524814,
+          1.528284,
+          1.581696,
+          1.517253
+        ]
+      }
+    },
+    "build_note": "New OpenCL program/context each sample; Mesa driver cache was not flushed and may serve cached binaries."
+  },
+  "cases": [
+    {
+      "label": "1x1",
+      "weights_shape": [
+        1,
+        1
+      ],
+      "seed": 52052,
+      "float_dtype": "float64",
+      "resident_backend_operations": {
+        "forward": {
+          "cpu": {
+            "samples": 15,
+            "median_ms": 0.003759,
+            "q1_ms": 0.0013155,
+            "q3_ms": 0.003975,
+            "iqr_ms": 0.0026595000000000004,
+            "min_ms": 0.001229,
+            "max_ms": 0.004046
+          },
+          "opencl": {
+            "samples": 15,
+            "median_ms": 0.132737,
+            "q1_ms": 0.129071,
+            "q3_ms": 0.1349915,
+            "iqr_ms": 0.005920499999999995,
+            "min_ms": 0.12745,
+            "max_ms": 0.142086
+          },
+          "paired_cpu_over_opencl_speedup": {
+            "samples": 15,
+            "median": 0.028461635910645666,
+            "q1": 0.009808304213918421,
+            "q3": 0.02977137833710785,
+            "iqr": 0.019963074123189428,
+            "min": 0.009553727326100051,
+            "max": 0.03043249788663209
+          },
+          "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+        },
+        "backward": {
+          "cpu": {
+            "samples": 15,
+            "median_ms": 0.006027,
+            "q1_ms": 0.0024075,
+            "q3_ms": 0.006200499999999999,
+            "iqr_ms": 0.0037929999999999995,
+            "min_ms": 0.002168,
+            "max_ms": 0.006637
+          },
+          "opencl": {
+            "samples": 15,
+            "median_ms": 0.181321,
+            "q1_ms": 0.17949700000000002,
+            "q3_ms": 0.19565149999999998,
+            "iqr_ms": 0.01615449999999996,
+            "min_ms": 0.17728,
+            "max_ms": 0.226009
+          },
+          "paired_cpu_over_opencl_speedup": {
+            "samples": 15,
+            "median": 0.02734846842382383,
+            "q1": 0.012462854080204536,
+            "q3": 0.03339015105094224,
+            "iqr": 0.020927296970737707,
+            "min": 0.011087410155344308,
+            "max": 0.037101633992408616
+          },
+          "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+        },
+        "step": {
+          "cpu": {
+            "samples": 15,
+            "median_ms": 0.003184,
+            "q1_ms": 0.001726,
+            "q3_ms": 0.0032845,
+            "iqr_ms": 0.0015585,
+            "min_ms": 0.001652,
+            "max_ms": 0.003526
+          },
+          "opencl": {
+            "samples": 15,
+            "median_ms": 0.112665,
+            "q1_ms": 0.1121305,
+            "q3_ms": 0.1140825,
+            "iqr_ms": 0.0019520000000000093,
+            "min_ms": 0.111155,
+            "max_ms": 0.125097
+          },
+          "paired_cpu_over_opencl_speedup": {
+            "samples": 15,
+            "median": 0.026867151090753574,
+            "q1": 0.015259616385865113,
+            "q3": 0.02837327367306713,
+            "iqr": 0.013113657287202018,
+            "min": 0.014669709536199196,
+            "max": 0.0311787072243346
+          },
+          "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+        },
+        "step_end_state_max_abs_error": {
+          "weights": 0.0,
+          "bias": 0.0
+        }
+      },
+      "integrated_linear_cycle_resident": {
+        "cpu": {
+          "samples": 15,
+          "median_ms": 0.150826,
+          "q1_ms": 0.121598,
+          "q3_ms": 0.1557,
+          "iqr_ms": 0.03410200000000001,
+          "min_ms": 0.120367,
+          "max_ms": 0.186593
+        },
+        "opencl": {
+          "samples": 15,
+          "median_ms": 0.561289,
+          "q1_ms": 0.48721749999999997,
+          "q3_ms": 0.5890595000000001,
+          "iqr_ms": 0.1018420000000001,
+          "min_ms": 0.46571,
+          "max_ms": 0.629117
+        },
+        "paired_cpu_over_opencl_speedup": {
+          "samples": 15,
+          "median": 0.3073220682121522,
+          "q1": 0.20874444744606013,
+          "q3": 0.319598122354142,
+          "iqr": 0.11085367490808185,
+          "min": 0.19592222114487448,
+          "max": 0.32802611560245304
+        },
+        "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+      },
+      "steady_state_end_to_end_linear_cycle": {
+        "cpu": {
+          "samples": 15,
+          "median_ms": 0.198182,
+          "q1_ms": 0.169427,
+          "q3_ms": 0.2036875,
+          "iqr_ms": 0.0342605,
+          "min_ms": 0.166394,
+          "max_ms": 0.214797
+        },
+        "opencl": {
+          "samples": 15,
+          "median_ms": 1.27572,
+          "q1_ms": 1.269686,
+          "q3_ms": 1.3509665000000002,
+          "iqr_ms": 0.08128050000000009,
+          "min_ms": 1.259186,
+          "max_ms": 1.500312
+        },
+        "paired_cpu_over_opencl_speedup": {
+          "samples": 15,
+          "median": 0.13843587200528956,
+          "q1": 0.13269617527530084,
+          "q3": 0.1537827807447232,
+          "iqr": 0.02108660546942237,
+          "min": 0.12173833618736034,
+          "max": 0.17000804146101317
+        },
+        "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+      },
+      "end_to_end_transfer_bytes": {
+        "h2d": 32,
+        "d2h": 48,
+        "definition": "H2D weights/bias/input/grad_output; D2H output, all three gradients, and final weights/bias"
+      },
+      "transfer_measurements": {
+        "weights": {
+          "bytes": 8,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.020058,
+            "q1_ms": 0.0200005,
+            "q3_ms": 0.021062,
+            "iqr_ms": 0.0010615,
+            "min_ms": 0.019715,
+            "max_ms": 0.02371
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.071487,
+            "q1_ms": 0.07122049999999999,
+            "q3_ms": 0.07319300000000001,
+            "iqr_ms": 0.001972500000000016,
+            "min_ms": 0.070961,
+            "max_ms": 0.076783
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 0.046991,
+            "q1_ms": 0.0466395,
+            "q3_ms": 0.047735,
+            "iqr_ms": 0.0010954999999999993,
+            "min_ms": 0.045765,
+            "max_ms": 0.05565
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.079335,
+            "q1_ms": 0.07861850000000001,
+            "q3_ms": 0.0832415,
+            "iqr_ms": 0.004622999999999988,
+            "min_ms": 0.078176,
+            "max_ms": 0.100216
+          }
+        },
+        "bias": {
+          "bytes": 8,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.019934,
+            "q1_ms": 0.0198445,
+            "q3_ms": 0.020133,
+            "iqr_ms": 0.00028850000000000056,
+            "min_ms": 0.019784,
+            "max_ms": 0.022082
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.071681,
+            "q1_ms": 0.071381,
+            "q3_ms": 0.0725915,
+            "iqr_ms": 0.0012105000000000032,
+            "min_ms": 0.070947,
+            "max_ms": 0.08218
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 0.044508,
+            "q1_ms": 0.044164499999999995,
+            "q3_ms": 0.0457125,
+            "iqr_ms": 0.0015480000000000077,
+            "min_ms": 0.043769,
+            "max_ms": 0.05359
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.077608,
+            "q1_ms": 0.07679749999999999,
+            "q3_ms": 0.07959250000000001,
+            "iqr_ms": 0.0027950000000000197,
+            "min_ms": 0.076228,
+            "max_ms": 0.085797
+          }
+        },
+        "inputs": {
+          "bytes": 8,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.020063,
+            "q1_ms": 0.020019500000000003,
+            "q3_ms": 0.020284499999999997,
+            "iqr_ms": 0.0002649999999999944,
+            "min_ms": 0.01978,
+            "max_ms": 0.021072
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.07218,
+            "q1_ms": 0.071878,
+            "q3_ms": 0.07371649999999999,
+            "iqr_ms": 0.001838499999999993,
+            "min_ms": 0.071208,
+            "max_ms": 0.079567
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 0.04645,
+            "q1_ms": 0.045418,
+            "q3_ms": 0.0473355,
+            "iqr_ms": 0.0019175000000000025,
+            "min_ms": 0.044836,
+            "max_ms": 0.053254
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.082157,
+            "q1_ms": 0.0772085,
+            "q3_ms": 0.0837285,
+            "iqr_ms": 0.006519999999999998,
+            "min_ms": 0.075473,
+            "max_ms": 0.090305
+          }
+        },
+        "grad_output": {
+          "bytes": 8,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.020357,
+            "q1_ms": 0.020122,
+            "q3_ms": 0.0210055,
+            "iqr_ms": 0.0008834999999999989,
+            "min_ms": 0.019797,
+            "max_ms": 0.027801
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.076049,
+            "q1_ms": 0.073783,
+            "q3_ms": 0.081455,
+            "iqr_ms": 0.007671999999999998,
+            "min_ms": 0.07042,
+            "max_ms": 0.093845
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 0.045057,
+            "q1_ms": 0.04437,
+            "q3_ms": 0.047525,
+            "iqr_ms": 0.003154999999999998,
+            "min_ms": 0.043456,
+            "max_ms": 0.054904
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.077534,
+            "q1_ms": 0.0764745,
+            "q3_ms": 0.07793900000000001,
+            "iqr_ms": 0.0014645000000000075,
+            "min_ms": 0.07608,
+            "max_ms": 0.090125
+          }
+        }
+      },
+      "numerical_equivalence": {
+        "tolerances": {
+          "atol": 1e-12,
+          "rtol": 1e-12
+        },
+        "max_absolute_error_by_result": {
+          "initial_weights": 0.0,
+          "initial_bias": 0.0,
+          "forward": 0.0,
+          "grad_weights": 0.0,
+          "grad_bias": 0.0,
+          "grad_inputs": 0.0,
+          "final_weights": 0.0,
+          "final_bias": 0.0
+        },
+        "overall_max_absolute_error": 0.0,
+        "pass": true
+      }
+    },
+    {
+      "label": "51x26",
+      "weights_shape": [
+        51,
+        26
+      ],
+      "seed": 52053,
+      "float_dtype": "float64",
+      "resident_backend_operations": {
+        "forward": {
+          "cpu": {
+            "samples": 15,
+            "median_ms": 0.084938,
+            "q1_ms": 0.0815225,
+            "q3_ms": 0.08530399999999999,
+            "iqr_ms": 0.003781499999999993,
+            "min_ms": 0.080843,
+            "max_ms": 0.091562
+          },
+          "opencl": {
+            "samples": 15,
+            "median_ms": 0.148636,
+            "q1_ms": 0.144573,
+            "q3_ms": 0.20563700000000001,
+            "iqr_ms": 0.06106400000000001,
+            "min_ms": 0.141625,
+            "max_ms": 0.23788
+          },
+          "paired_cpu_over_opencl_speedup": {
+            "samples": 15,
+            "median": 0.577705531424983,
+            "q1": 0.40310290291962425,
+            "q3": 0.5890682699159483,
+            "iqr": 0.18596536699632404,
+            "min": 0.3441272910711283,
+            "max": 0.6332176102020775
+          },
+          "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+        },
+        "backward": {
+          "cpu": {
+            "samples": 15,
+            "median_ms": 0.179917,
+            "q1_ms": 0.170821,
+            "q3_ms": 0.18468400000000001,
+            "iqr_ms": 0.013863000000000014,
+            "min_ms": 0.170085,
+            "max_ms": 0.190297
+          },
+          "opencl": {
+            "samples": 15,
+            "median_ms": 0.296078,
+            "q1_ms": 0.2872655,
+            "q3_ms": 0.331719,
+            "iqr_ms": 0.04445349999999998,
+            "min_ms": 0.228649,
+            "max_ms": 0.373355
+          },
+          "paired_cpu_over_opencl_speedup": {
+            "samples": 15,
+            "median": 0.5836743845289073,
+            "q1": 0.5166219885200523,
+            "q3": 0.6353709668982295,
+            "iqr": 0.11874897837817722,
+            "min": 0.46614050099647064,
+            "max": 0.8056628281776872
+          },
+          "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+        },
+        "step": {
+          "cpu": {
+            "samples": 15,
+            "median_ms": 0.137943,
+            "q1_ms": 0.1356035,
+            "q3_ms": 0.1390425,
+            "iqr_ms": 0.0034390000000000254,
+            "min_ms": 0.134598,
+            "max_ms": 0.14591
+          },
+          "opencl": {
+            "samples": 15,
+            "median_ms": 0.111147,
+            "q1_ms": 0.10938149999999999,
+            "q3_ms": 0.112396,
+            "iqr_ms": 0.0030145000000000033,
+            "min_ms": 0.107012,
+            "max_ms": 0.133072
+          },
+          "paired_cpu_over_opencl_speedup": {
+            "samples": 15,
+            "median": 1.2399614924379425,
+            "q1": 1.216672270712186,
+            "q3": 1.2910176517276812,
+            "iqr": 0.07434538101549526,
+            "min": 1.0442392088493446,
+            "max": 1.3400751201369838
+          },
+          "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+        },
+        "step_end_state_max_abs_error": {
+          "weights": 0.0,
+          "bias": 0.0
+        }
+      },
+      "integrated_linear_cycle_resident": {
+        "cpu": {
+          "samples": 15,
+          "median_ms": 3.770336,
+          "q1_ms": 3.7578135,
+          "q3_ms": 3.7814284999999996,
+          "iqr_ms": 0.023614999999999498,
+          "min_ms": 3.724411,
+          "max_ms": 3.826599
+        },
+        "opencl": {
+          "samples": 15,
+          "median_ms": 0.684135,
+          "q1_ms": 0.6272535,
+          "q3_ms": 0.7302655,
+          "iqr_ms": 0.10301199999999999,
+          "min_ms": 0.583088,
+          "max_ms": 1.092893
+        },
+        "paired_cpu_over_opencl_speedup": {
+          "samples": 15,
+          "median": 5.487912473415335,
+          "q1": 5.164494680517268,
+          "q3": 6.0132317458187945,
+          "iqr": 0.8487370653015267,
+          "min": 3.4078459647925277,
+          "max": 6.533926268419175
+        },
+        "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+      },
+      "steady_state_end_to_end_linear_cycle": {
+        "cpu": {
+          "samples": 15,
+          "median_ms": 5.38379,
+          "q1_ms": 5.354172,
+          "q3_ms": 5.4089165,
+          "iqr_ms": 0.054744499999999974,
+          "min_ms": 5.333484,
+          "max_ms": 5.449398
+        },
+        "opencl": {
+          "samples": 15,
+          "median_ms": 5.107959,
+          "q1_ms": 4.9712700000000005,
+          "q3_ms": 5.2122525,
+          "iqr_ms": 0.24098249999999943,
+          "min_ms": 4.922624,
+          "max_ms": 5.364483
+        },
+        "paired_cpu_over_opencl_speedup": {
+          "samples": 15,
+          "median": 1.0529475142373403,
+          "q1": 1.0360781190232498,
+          "q3": 1.079372661395027,
+          "iqr": 0.04329454237177721,
+          "min": 1.015209438135519,
+          "max": 1.0936829625825577
+        },
+        "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+      },
+      "end_to_end_transfer_bytes": {
+        "h2d": 11632,
+        "d2h": 22648,
+        "definition": "H2D weights/bias/input/grad_output; D2H output, all three gradients, and final weights/bias"
+      },
+      "transfer_measurements": {
+        "weights": {
+          "bytes": 10608,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.074133,
+            "q1_ms": 0.07367000000000001,
+            "q3_ms": 0.07563349999999999,
+            "iqr_ms": 0.001963499999999979,
+            "min_ms": 0.073058,
+            "max_ms": 0.095105
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.079653,
+            "q1_ms": 0.07861850000000001,
+            "q3_ms": 0.082262,
+            "iqr_ms": 0.003643499999999994,
+            "min_ms": 0.077878,
+            "max_ms": 0.089036
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 1.663971,
+            "q1_ms": 1.6486295,
+            "q3_ms": 1.6663890000000001,
+            "iqr_ms": 0.01775950000000015,
+            "min_ms": 1.621437,
+            "max_ms": 1.682327
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.423495,
+            "q1_ms": 0.386618,
+            "q3_ms": 0.45608099999999996,
+            "iqr_ms": 0.06946299999999994,
+            "min_ms": 0.343754,
+            "max_ms": 0.488617
+          }
+        },
+        "bias": {
+          "bytes": 408,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.020266,
+            "q1_ms": 0.019907,
+            "q3_ms": 0.0204765,
+            "iqr_ms": 0.0005695000000000006,
+            "min_ms": 0.019816,
+            "max_ms": 0.021007
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.076363,
+            "q1_ms": 0.0757645,
+            "q3_ms": 0.077269,
+            "iqr_ms": 0.0015045000000000058,
+            "min_ms": 0.075346,
+            "max_ms": 0.086126
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 0.097666,
+            "q1_ms": 0.09595100000000001,
+            "q3_ms": 0.10097300000000001,
+            "iqr_ms": 0.005021999999999999,
+            "min_ms": 0.094546,
+            "max_ms": 0.145244
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.092907,
+            "q1_ms": 0.0923075,
+            "q3_ms": 0.09491150000000001,
+            "iqr_ms": 0.002604000000000009,
+            "min_ms": 0.091351,
+            "max_ms": 0.135502
+          }
+        },
+        "inputs": {
+          "bytes": 208,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.020016,
+            "q1_ms": 0.019822,
+            "q3_ms": 0.020867999999999998,
+            "iqr_ms": 0.0010459999999999983,
+            "min_ms": 0.019615,
+            "max_ms": 0.021241
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.076706,
+            "q1_ms": 0.07638400000000001,
+            "q3_ms": 0.077597,
+            "iqr_ms": 0.0012129999999999919,
+            "min_ms": 0.07576,
+            "max_ms": 0.083876
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 0.070451,
+            "q1_ms": 0.0698355,
+            "q3_ms": 0.0713715,
+            "iqr_ms": 0.0015360000000000096,
+            "min_ms": 0.068829,
+            "max_ms": 0.081001
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.089251,
+            "q1_ms": 0.08864849999999999,
+            "q3_ms": 0.08953,
+            "iqr_ms": 0.0008815000000000073,
+            "min_ms": 0.088027,
+            "max_ms": 0.096811
+          }
+        },
+        "grad_output": {
+          "bytes": 408,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.020068,
+            "q1_ms": 0.019980499999999998,
+            "q3_ms": 0.0205815,
+            "iqr_ms": 0.0006010000000000008,
+            "min_ms": 0.01969,
+            "max_ms": 0.036602
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.076556,
+            "q1_ms": 0.076126,
+            "q3_ms": 0.077567,
+            "iqr_ms": 0.0014409999999999978,
+            "min_ms": 0.075337,
+            "max_ms": 0.083971
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 0.095858,
+            "q1_ms": 0.0940925,
+            "q3_ms": 0.0972655,
+            "iqr_ms": 0.003173000000000009,
+            "min_ms": 0.093498,
+            "max_ms": 0.106549
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.093218,
+            "q1_ms": 0.0923625,
+            "q3_ms": 0.0949975,
+            "iqr_ms": 0.0026349999999999985,
+            "min_ms": 0.091931,
+            "max_ms": 0.108374
+          }
+        }
+      },
+      "numerical_equivalence": {
+        "tolerances": {
+          "atol": 1e-12,
+          "rtol": 1e-12
+        },
+        "max_absolute_error_by_result": {
+          "initial_weights": 0.0,
+          "initial_bias": 0.0,
+          "forward": 0.0,
+          "grad_weights": 0.0,
+          "grad_bias": 0.0,
+          "grad_inputs": 0.0,
+          "final_weights": 0.0,
+          "final_bias": 0.0
+        },
+        "overall_max_absolute_error": 0.0,
+        "pass": true
+      }
+    },
+    {
+      "label": "3932x26",
+      "weights_shape": [
+        3932,
+        26
+      ],
+      "seed": 52054,
+      "float_dtype": "float64",
+      "resident_backend_operations": {
+        "forward": {
+          "cpu": {
+            "samples": 15,
+            "median_ms": 6.491905,
+            "q1_ms": 6.4549335,
+            "q3_ms": 6.5554065,
+            "iqr_ms": 0.10047300000000003,
+            "min_ms": 6.426298,
+            "max_ms": 6.653482
+          },
+          "opencl": {
+            "samples": 15,
+            "median_ms": 0.682793,
+            "q1_ms": 0.6334365,
+            "q3_ms": 0.7299720000000001,
+            "iqr_ms": 0.09653550000000011,
+            "min_ms": 0.586987,
+            "max_ms": 0.840203
+          },
+          "paired_cpu_over_opencl_speedup": {
+            "samples": 15,
+            "median": 9.453006987476439,
+            "q1": 8.907543780918772,
+            "q3": 10.268705130114835,
+            "iqr": 1.3611613491960632,
+            "min": 7.726591073823826,
+            "max": 10.973766028889907
+          },
+          "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+        },
+        "backward": {
+          "cpu": {
+            "samples": 15,
+            "median_ms": 16.496898,
+            "q1_ms": 16.1101135,
+            "q3_ms": 16.6864165,
+            "iqr_ms": 0.5763029999999993,
+            "min_ms": 16.009255,
+            "max_ms": 17.372331
+          },
+          "opencl": {
+            "samples": 15,
+            "median_ms": 4.845001,
+            "q1_ms": 4.8219080000000005,
+            "q3_ms": 4.887587,
+            "iqr_ms": 0.06567899999999938,
+            "min_ms": 4.779066,
+            "max_ms": 5.014568
+          },
+          "paired_cpu_over_opencl_speedup": {
+            "samples": 15,
+            "median": 3.3609179839387613,
+            "q1": 3.3175052827153815,
+            "q3": 3.4753585447883326,
+            "iqr": 0.15785326207295114,
+            "min": 3.2126743520079897,
+            "max": 3.550922533436433
+          },
+          "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+        },
+        "step": {
+          "cpu": {
+            "samples": 15,
+            "median_ms": 10.889904,
+            "q1_ms": 10.865889,
+            "q3_ms": 11.0575175,
+            "iqr_ms": 0.1916285000000002,
+            "min_ms": 10.839252,
+            "max_ms": 11.434647
+          },
+          "opencl": {
+            "samples": 15,
+            "median_ms": 0.318594,
+            "q1_ms": 0.313396,
+            "q3_ms": 0.33452499999999996,
+            "iqr_ms": 0.021128999999999953,
+            "min_ms": 0.299628,
+            "max_ms": 0.414959
+          },
+          "paired_cpu_over_opencl_speedup": {
+            "samples": 15,
+            "median": 34.30349293153702,
+            "q1": 32.687197252098606,
+            "q3": 34.95149348390663,
+            "iqr": 2.264296231808025,
+            "min": 26.977829134926584,
+            "max": 36.24231046497657
+          },
+          "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+        },
+        "step_end_state_max_abs_error": {
+          "weights": 0.0,
+          "bias": 0.0
+        }
+      },
+      "integrated_linear_cycle_resident": {
+        "cpu": {
+          "samples": 15,
+          "median_ms": 278.691446,
+          "q1_ms": 278.2998595,
+          "q3_ms": 279.258502,
+          "iqr_ms": 0.9586424999999963,
+          "min_ms": 277.360043,
+          "max_ms": 282.103609
+        },
+        "opencl": {
+          "samples": 15,
+          "median_ms": 6.507295,
+          "q1_ms": 5.9660315,
+          "q3_ms": 6.794187,
+          "iqr_ms": 0.8281555000000003,
+          "min_ms": 5.357235,
+          "max_ms": 7.064795
+        },
+        "paired_cpu_over_opencl_speedup": {
+          "samples": 15,
+          "median": 42.74317208609722,
+          "q1": 41.07888763554763,
+          "q3": 46.91817795671794,
+          "iqr": 5.83929032117031,
+          "min": 39.33815475183639,
+          "max": 52.089426355200025
+        },
+        "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+      },
+      "steady_state_end_to_end_linear_cycle": {
+        "cpu": {
+          "samples": 15,
+          "median_ms": 399.207646,
+          "q1_ms": 398.142519,
+          "q3_ms": 401.9068375,
+          "iqr_ms": 3.7643185000000017,
+          "min_ms": 396.752001,
+          "max_ms": 409.120307
+        },
+        "opencl": {
+          "samples": 15,
+          "median_ms": 222.566976,
+          "q1_ms": 221.338209,
+          "q3_ms": 223.97976899999998,
+          "iqr_ms": 2.64155999999997,
+          "min_ms": 219.470825,
+          "max_ms": 225.299174
+        },
+        "paired_cpu_over_opencl_speedup": {
+          "samples": 15,
+          "median": 1.8019786088687826,
+          "q1": 1.79164222791487,
+          "q3": 1.8134843375199368,
+          "iqr": 0.021842109605066717,
+          "min": 1.7610006905751017,
+          "max": 1.829207675670901
+        },
+        "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+      },
+      "end_to_end_transfer_bytes": {
+        "h2d": 880976,
+        "d2h": 1730288,
+        "definition": "H2D weights/bias/input/grad_output; D2H output, all three gradients, and final weights/bias"
+      },
+      "transfer_measurements": {
+        "weights": {
+          "bytes": 817856,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.320657,
+            "q1_ms": 0.3164785,
+            "q3_ms": 0.328812,
+            "iqr_ms": 0.012333499999999997,
+            "min_ms": 0.309866,
+            "max_ms": 0.591631
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.309481,
+            "q1_ms": 0.307569,
+            "q3_ms": 0.31484749999999995,
+            "iqr_ms": 0.0072784999999999656,
+            "min_ms": 0.30097,
+            "max_ms": 0.323406
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 114.221671,
+            "q1_ms": 113.776332,
+            "q3_ms": 114.630529,
+            "iqr_ms": 0.8541969999999992,
+            "min_ms": 112.762835,
+            "max_ms": 115.265544
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 21.892119,
+            "q1_ms": 21.700857,
+            "q3_ms": 22.056994500000002,
+            "iqr_ms": 0.35613750000000266,
+            "min_ms": 21.584208,
+            "max_ms": 22.196255
+          }
+        },
+        "bias": {
+          "bytes": 31456,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.085075,
+            "q1_ms": 0.082068,
+            "q3_ms": 0.0904545,
+            "iqr_ms": 0.008386499999999991,
+            "min_ms": 0.080901,
+            "max_ms": 0.109238
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.091123,
+            "q1_ms": 0.087844,
+            "q3_ms": 0.096392,
+            "iqr_ms": 0.008548,
+            "min_ms": 0.08655,
+            "max_ms": 0.105358
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 4.840293,
+            "q1_ms": 4.813061,
+            "q3_ms": 4.8501104999999995,
+            "iqr_ms": 0.03704949999999929,
+            "min_ms": 4.703484,
+            "max_ms": 5.186648
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.878322,
+            "q1_ms": 0.8557705,
+            "q3_ms": 0.913978,
+            "iqr_ms": 0.05820749999999997,
+            "min_ms": 0.811485,
+            "max_ms": 1.39842
+          }
+        },
+        "inputs": {
+          "bytes": 208,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.020241,
+            "q1_ms": 0.0200135,
+            "q3_ms": 0.020414500000000002,
+            "iqr_ms": 0.00040100000000000205,
+            "min_ms": 0.019708,
+            "max_ms": 0.021332
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.081645,
+            "q1_ms": 0.0799965,
+            "q3_ms": 0.082168,
+            "iqr_ms": 0.0021715000000000068,
+            "min_ms": 0.079795,
+            "max_ms": 0.095209
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 0.073235,
+            "q1_ms": 0.072463,
+            "q3_ms": 0.0739245,
+            "iqr_ms": 0.0014615000000000045,
+            "min_ms": 0.071588,
+            "max_ms": 0.086106
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.093543,
+            "q1_ms": 0.0933525,
+            "q3_ms": 0.094885,
+            "iqr_ms": 0.0015324999999999922,
+            "min_ms": 0.091569,
+            "max_ms": 0.105636
+          }
+        },
+        "grad_output": {
+          "bytes": 31456,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.08284,
+            "q1_ms": 0.082393,
+            "q3_ms": 0.083967,
+            "iqr_ms": 0.001574000000000006,
+            "min_ms": 0.081868,
+            "max_ms": 0.087504
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.089512,
+            "q1_ms": 0.0885515,
+            "q3_ms": 0.09328800000000001,
+            "iqr_ms": 0.004736500000000005,
+            "min_ms": 0.087854,
+            "max_ms": 0.328947
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 4.765589,
+            "q1_ms": 4.709113500000001,
+            "q3_ms": 4.807095,
+            "iqr_ms": 0.0979814999999995,
+            "min_ms": 4.649635,
+            "max_ms": 5.104692
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.884809,
+            "q1_ms": 0.856658,
+            "q3_ms": 0.892489,
+            "iqr_ms": 0.035830999999999946,
+            "min_ms": 0.799145,
+            "max_ms": 0.989066
+          }
+        }
+      },
+      "numerical_equivalence": {
+        "tolerances": {
+          "atol": 1e-12,
+          "rtol": 1e-12
+        },
+        "max_absolute_error_by_result": {
+          "initial_weights": 0.0,
+          "initial_bias": 0.0,
+          "forward": 0.0,
+          "grad_weights": 0.0,
+          "grad_bias": 0.0,
+          "grad_inputs": 0.0,
+          "final_weights": 0.0,
+          "final_bias": 0.0
+        },
+        "overall_max_absolute_error": 0.0,
+        "pass": true
+      }
+    },
+    {
+      "label": "26x3932",
+      "weights_shape": [
+        26,
+        3932
+      ],
+      "seed": 52055,
+      "float_dtype": "float64",
+      "resident_backend_operations": {
+        "forward": {
+          "cpu": {
+            "samples": 15,
+            "median_ms": 4.580431,
+            "q1_ms": 4.520106500000001,
+            "q3_ms": 4.685855,
+            "iqr_ms": 0.1657484999999994,
+            "min_ms": 4.490822,
+            "max_ms": 6.879445
+          },
+          "opencl": {
+            "samples": 15,
+            "median_ms": 4.872639,
+            "q1_ms": 3.1816575,
+            "q3_ms": 4.9437315,
+            "iqr_ms": 1.7620740000000001,
+            "min_ms": 2.961958,
+            "max_ms": 5.201188
+          },
+          "paired_cpu_over_opencl_speedup": {
+            "samples": 15,
+            "median": 0.9578672275147002,
+            "q1": 0.9286536738356408,
+            "q3": 1.4301954718749337,
+            "iqr": 0.5015417980392929,
+            "min": 0.865322307134447,
+            "max": 2.3226004555094972
+          },
+          "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+        },
+        "backward": {
+          "cpu": {
+            "samples": 15,
+            "median_ms": 14.441446,
+            "q1_ms": 13.801048000000002,
+            "q3_ms": 16.614322,
+            "iqr_ms": 2.813274,
+            "min_ms": 13.635374,
+            "max_ms": 18.115142
+          },
+          "opencl": {
+            "samples": 15,
+            "median_ms": 0.832357,
+            "q1_ms": 0.801523,
+            "q3_ms": 0.8702845,
+            "iqr_ms": 0.06876150000000003,
+            "min_ms": 0.772001,
+            "max_ms": 2.154036
+          },
+          "paired_cpu_over_opencl_speedup": {
+            "samples": 15,
+            "median": 17.71848352528041,
+            "q1": 16.600426368925422,
+            "q3": 19.5005620233297,
+            "iqr": 2.900135654404277,
+            "min": 6.441950830905333,
+            "max": 21.797157739365918
+          },
+          "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+        },
+        "step": {
+          "cpu": {
+            "samples": 15,
+            "median_ms": 7.913146,
+            "q1_ms": 7.826838,
+            "q3_ms": 9.0552045,
+            "iqr_ms": 1.2283665,
+            "min_ms": 7.802624,
+            "max_ms": 12.049945
+          },
+          "opencl": {
+            "samples": 15,
+            "median_ms": 0.363381,
+            "q1_ms": 0.33197849999999995,
+            "q3_ms": 0.422498,
+            "iqr_ms": 0.09051950000000003,
+            "min_ms": 0.239668,
+            "max_ms": 0.468231
+          },
+          "paired_cpu_over_opencl_speedup": {
+            "samples": 15,
+            "median": 23.414849120388798,
+            "q1": 21.127820407479042,
+            "q3": 25.99697412580729,
+            "iqr": 4.869153718328249,
+            "min": 17.020000811565232,
+            "max": 35.683769289312295
+          },
+          "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+        },
+        "step_end_state_max_abs_error": {
+          "weights": 0.0,
+          "bias": 0.0
+        }
+      },
+      "integrated_linear_cycle_resident": {
+        "cpu": {
+          "samples": 15,
+          "median_ms": 254.395661,
+          "q1_ms": 253.79727450000001,
+          "q3_ms": 255.986871,
+          "iqr_ms": 2.1895964999999933,
+          "min_ms": 253.237714,
+          "max_ms": 278.242703
+        },
+        "opencl": {
+          "samples": 15,
+          "median_ms": 5.023821,
+          "q1_ms": 4.6255445,
+          "q3_ms": 6.389196999999999,
+          "iqr_ms": 1.7636524999999992,
+          "min_ms": 4.2551,
+          "max_ms": 7.478061
+        },
+        "paired_cpu_over_opencl_speedup": {
+          "samples": 15,
+          "median": 50.52023828078269,
+          "q1": 40.00267711629912,
+          "q3": 54.92306459088243,
+          "iqr": 14.920387474583315,
+          "min": 34.097473797017706,
+          "max": 59.78605931705483
+        },
+        "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+      },
+      "steady_state_end_to_end_linear_cycle": {
+        "cpu": {
+          "samples": 15,
+          "median_ms": 364.531588,
+          "q1_ms": 363.8768005,
+          "q3_ms": 365.55185600000004,
+          "iqr_ms": 1.6750555000000418,
+          "min_ms": 362.498202,
+          "max_ms": 412.820483
+        },
+        "opencl": {
+          "samples": 15,
+          "median_ms": 219.253641,
+          "q1_ms": 216.4568825,
+          "q3_ms": 221.4644275,
+          "iqr_ms": 5.007544999999993,
+          "min_ms": 213.669733,
+          "max_ms": 225.648017
+        },
+        "paired_cpu_over_opencl_speedup": {
+          "samples": 15,
+          "median": 1.6697774676688746,
+          "q1": 1.647325073170311,
+          "q3": 1.696218169538629,
+          "iqr": 0.048893096368317845,
+          "min": 1.619754482486766,
+          "max": 1.8546562514435432
+        },
+        "speedup_definition": "CPU median sample / paired OpenCL sample; >1 favors OpenCL"
+      },
+      "end_to_end_transfer_bytes": {
+        "h2d": 849728,
+        "d2h": 1667792,
+        "definition": "H2D weights/bias/input/grad_output; D2H output, all three gradients, and final weights/bias"
+      },
+      "transfer_measurements": {
+        "weights": {
+          "bytes": 817856,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.338586,
+            "q1_ms": 0.329481,
+            "q3_ms": 0.378946,
+            "iqr_ms": 0.04946499999999998,
+            "min_ms": 0.318048,
+            "max_ms": 0.512737
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.394156,
+            "q1_ms": 0.358973,
+            "q3_ms": 0.440064,
+            "iqr_ms": 0.08109100000000002,
+            "min_ms": 0.314851,
+            "max_ms": 0.610177
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 124.725195,
+            "q1_ms": 122.814744,
+            "q3_ms": 127.41959650000001,
+            "iqr_ms": 4.604852500000007,
+            "min_ms": 121.075318,
+            "max_ms": 136.898861
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 19.630044,
+            "q1_ms": 19.392889500000003,
+            "q3_ms": 19.692145,
+            "iqr_ms": 0.29925549999999745,
+            "min_ms": 19.337167,
+            "max_ms": 19.842185
+          }
+        },
+        "bias": {
+          "bytes": 208,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.020617,
+            "q1_ms": 0.0202045,
+            "q3_ms": 0.021973,
+            "iqr_ms": 0.0017684999999999992,
+            "min_ms": 0.020057,
+            "max_ms": 0.02541
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.084501,
+            "q1_ms": 0.0833,
+            "q3_ms": 0.08585899999999999,
+            "iqr_ms": 0.002558999999999992,
+            "min_ms": 0.082319,
+            "max_ms": 0.09421
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 0.078138,
+            "q1_ms": 0.075891,
+            "q3_ms": 0.0788085,
+            "iqr_ms": 0.0029175000000000034,
+            "min_ms": 0.071658,
+            "max_ms": 0.084504
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.113474,
+            "q1_ms": 0.1077735,
+            "q3_ms": 0.127378,
+            "iqr_ms": 0.019604499999999997,
+            "min_ms": 0.084198,
+            "max_ms": 0.171389
+          }
+        },
+        "inputs": {
+          "bytes": 31456,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.083779,
+            "q1_ms": 0.08232500000000001,
+            "q3_ms": 0.0937385,
+            "iqr_ms": 0.011413499999999993,
+            "min_ms": 0.081417,
+            "max_ms": 0.105701
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.089124,
+            "q1_ms": 0.0853695,
+            "q3_ms": 0.093349,
+            "iqr_ms": 0.0079795,
+            "min_ms": 0.084659,
+            "max_ms": 0.096692
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 4.828396,
+            "q1_ms": 4.810461500000001,
+            "q3_ms": 4.9044955,
+            "iqr_ms": 0.09403399999999973,
+            "min_ms": 4.754767,
+            "max_ms": 9.697883
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.891462,
+            "q1_ms": 0.8665015,
+            "q3_ms": 0.9038619999999999,
+            "iqr_ms": 0.03736049999999991,
+            "min_ms": 0.789583,
+            "max_ms": 1.451621
+          }
+        },
+        "grad_output": {
+          "bytes": 208,
+          "raw_blocking_h2d": {
+            "samples": 15,
+            "median_ms": 0.021876,
+            "q1_ms": 0.0206065,
+            "q3_ms": 0.024847,
+            "iqr_ms": 0.004240500000000001,
+            "min_ms": 0.020103,
+            "max_ms": 0.031795
+          },
+          "raw_blocking_d2h": {
+            "samples": 15,
+            "median_ms": 0.075136,
+            "q1_ms": 0.07439499999999999,
+            "q3_ms": 0.07676949999999999,
+            "iqr_ms": 0.0023745000000000016,
+            "min_ms": 0.073429,
+            "max_ms": 0.080416
+          },
+          "public_buffer_from_host_h2d_and_allocation": {
+            "samples": 15,
+            "median_ms": 0.071285,
+            "q1_ms": 0.0707165,
+            "q3_ms": 0.073169,
+            "iqr_ms": 0.0024524999999999963,
+            "min_ms": 0.070472,
+            "max_ms": 0.077271
+          },
+          "public_buffer_to_host_d2h_and_materialization": {
+            "samples": 15,
+            "median_ms": 0.083725,
+            "q1_ms": 0.0802725,
+            "q3_ms": 0.0865135,
+            "iqr_ms": 0.0062409999999999966,
+            "min_ms": 0.078845,
+            "max_ms": 0.09186
+          }
+        }
+      },
+      "numerical_equivalence": {
+        "tolerances": {
+          "atol": 1e-12,
+          "rtol": 1e-12
+        },
+        "max_absolute_error_by_result": {
+          "initial_weights": 0.0,
+          "initial_bias": 0.0,
+          "forward": 0.0,
+          "grad_weights": 0.0,
+          "grad_bias": 0.0,
+          "grad_inputs": 0.0,
+          "final_weights": 0.0,
+          "final_bias": 0.0
+        },
+        "overall_max_absolute_error": 0.0,
+        "pass": true
+      }
+    }
+  ],
+  "limitations": [
+    "Measurements characterize this RX 550, Rusticl/Mesa build and runtime state only.",
+    "Mesa driver compiler cache was not cleared; program-build samples may include cached binaries.",
+    "CPU turbo/frequency and GPU clocks or thermal state were not locked; before/after telemetry is observational.",
+    "OpenCL operation wall times include host dispatch, per-call temporary allocations, and clFinish; no claim is made about isolated kernel time.",
+    "End-to-end results represent one Linear forward-backward-step with explicit final materialization, not a training run or full Kinera model."
+  ],
+  "redactions": [
+    "Removed transient load, CPU affinity, frequency snapshots, GPU busy percentage, VRAM-in-use snapshots, PCI bus address, local process IDs, executable paths, and temporary log paths.",
+    "Timing observations, shapes, seeds, protocol, hardware model, runtime versions, and device capability limits are preserved."
+  ]
+}
