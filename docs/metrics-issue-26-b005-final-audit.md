@@ -52,6 +52,18 @@ atualizada:
 - O diff B005 contra essa base contém apenas README, documentação B005,
   `experiments/comparison.py` e seus testes; nenhum backend/kernel foi alterado.
 
+Publicação B005:
+
+- PR draft #68: `https://github.com/Brazwed/Kinera/pull/68`, base `main`.
+- Commits remotos iniciais: código/testes `2fd8a67478377a893b3c87692a7a260f57811f93`;
+  auditoria `5fd39068ee885b5a7cc7699f7fe5ed028edbeac5`.
+- Antes do follow-up documental abaixo, a árvore local validada e a árvore
+  publicada coincidiam (`70c64ea6f22ea3ac2600951ff0aaf5b72f8a7206`). A
+  publicação ocorreu pela API GitHub, sem force push, porque o checkout local
+  não tinha credencial Git HTTPS.
+- GitHub Actions CI run #131 para o head inicial `5fd39068...`: `success`.
+  Um follow-up documental posterior requer consultar a CI do head novo.
+
 Tranches de metrics observadas na linha de primeiro pai de `main`:
 
 | Tranche | PR | Commit integrado |
@@ -277,8 +289,9 @@ configurada roda Python 3.14. Python 3.10 não está instalado neste ambiente.
 
 Os testes de round-trip/resume são fixtures pequenas determinísticas. Eles
 demonstram persistência e contrato, não equivalência científica universal dos
-fingerprints nem equivalência CPU/CUDA. A CI hospedada do PR B005 deve ser
-verificada após abrir o PR; a validação local acima não a substitui.
+fingerprints nem equivalência CPU/CUDA. A CI hospedada do primeiro head do PR
+foi verificada; qualquer atualização de branch deve ter seu próprio resultado
+consultado. A CI não substitui a reprodução local documentada acima.
 
 ## Pendências, donos e recomendação
 
