@@ -1,6 +1,7 @@
 """CPU-only OpenCL discovery and explicit buffer lifecycle tests."""
 
 import ctypes
+import struct
 import subprocess
 import sys
 import unittest
@@ -16,6 +17,7 @@ from kinera.backends.opencl.api import (
 from kinera.backends.opencl.backend import OpenCLBackend
 from kinera.backends.opencl import memory as opencl_memory
 from kinera.backends.opencl.runtime import OpenCLRuntime
+from kinera.nn.layers.embedding import Embedding
 
 
 class FakeOpenCLApi:
@@ -37,7 +39,13 @@ class FakeOpenCLApi:
         self.created_kernels: list[str] = []
         self.enqueues: list[int] = []
         self.kernel_double_arguments: list[tuple[int, float]] = []
+        self.kernel_names: dict[int, str] = {}
+        self.kernel_buffers: dict[int, dict[int, int]] = {}
+        self.kernel_ints: dict[int, dict[int, int]] = {}
+        self.read_sizes: list[int] = []
+        self.built_sources: list[str] = []
         self._next_handle = 100
+        self._next_kernel = 30
 
     def platforms(self):
         return [1]
@@ -84,6 +92,8 @@ class FakeOpenCLApi:
         return 11
 
     def create_buffer(self, context, nbytes):
+        if self.fail_on == "create_buffer":
+            raise RuntimeError("injected OpenCL allocation failure")
         handle = self._next_handle
         self._next_handle += 1
         self.allocations[handle] = bytearray(nbytes)
@@ -93,6 +103,9 @@ class FakeOpenCLApi:
         self.allocations[buffer][:] = ctypes.string_at(host_address, nbytes)
 
     def read_buffer(self, queue, buffer, host_address, nbytes):
+        if self.fail_on == "read_buffer":
+            raise RuntimeError("injected OpenCL status read failure")
+        self.read_sizes.append(nbytes)
         ctypes.memmove(host_address, bytes(self.allocations[buffer]), nbytes)
 
     def release_mem(self, handle):
@@ -106,22 +119,34 @@ class FakeOpenCLApi:
         pass
 
     def build_program(self, context, device, source, options):
+        if self.fail_on == "build_program":
+            raise RuntimeError("injected OpenCL program build failure")
+        self.built_sources.append(source)
         return 20
 
     def create_kernel(self, program, name):
         if self.fail_on == "create_kernel":
             raise RuntimeError("injected OpenCL kernel creation failure")
+        if self.fail_on == f"create_{name}":
+            raise RuntimeError(f"injected OpenCL creation failure for {name}")
         self.created_kernels.append(name)
-        return 30
+        handle = self._next_kernel
+        self._next_kernel += 1
+        self.kernel_names[handle] = name
+        self.kernel_buffers[handle] = {}
+        self.kernel_ints[handle] = {}
+        return handle
 
     def set_kernel_buffer(self, kernel, index, buffer):
         if self.fail_on == f"set_kernel_buffer_{index}":
             raise RuntimeError("injected OpenCL argument failure")
         self.kernel_arguments.append((index, buffer))
+        self.kernel_buffers[kernel][index] = buffer
 
     def set_kernel_int(self, kernel, index, value):
         if self.fail_on == f"set_kernel_int_{index}":
             raise RuntimeError("injected OpenCL scalar argument failure")
+        self.kernel_ints[kernel][index] = value
 
     def set_kernel_double(self, kernel, index, value):
         if self.fail_on == f"set_kernel_double_{index}":
@@ -131,16 +156,45 @@ class FakeOpenCLApi:
     def enqueue_1d(self, queue, kernel, global_size):
         if self.fail_on == "enqueue_1d":
             raise RuntimeError("injected OpenCL enqueue failure")
+        kernel_name = self.kernel_names[kernel]
+        if self.fail_on == f"enqueue_{kernel_name}":
+            raise RuntimeError(f"injected enqueue failure for {kernel_name}")
         self.enqueues.append(global_size)
+        buffers = self.kernel_buffers[kernel]
+        values = self.kernel_ints[kernel]
+        if kernel_name == "kinera_embedding_validate_ids_i32":
+            ids = self.allocations[buffers[0]]
+            ids_count, vocab_size = values[2], values[3]
+            invalid_position = -1
+            for position in range(ids_count):
+                token_id = struct.unpack_from("<i", ids, position * 4)[0]
+                if token_id < 0 or token_id >= vocab_size:
+                    invalid_position = position
+                    break
+            self.allocations[buffers[1]][:4] = struct.pack("<i", invalid_position)
+        elif kernel_name == "kinera_embedding_forward_f64":
+            weights = self.allocations[buffers[0]]
+            ids = self.allocations[buffers[1]]
+            output = self.allocations[buffers[2]]
+            embedding_dim, ids_count = values[3], values[4]
+            for output_row in range(ids_count):
+                token_id = struct.unpack_from("<i", ids, output_row * 4)[0]
+                source = (token_id * embedding_dim) * 8
+                target = output_row * embedding_dim * 8
+                output[target : target + embedding_dim * 8] = weights[
+                    source : source + embedding_dim * 8
+                ]
 
     def release_kernel(self, handle):
         self.released_kernels.append(handle)
+        if self.fail_on == "release_kernel":
+            raise RuntimeError("injected OpenCL kernel release failure")
 
     def release_program(self, handle):
         self.programs_released.append(handle)
 
 
-class OpenCLScaffoldTests(unittest.TestCase):
+class OpenCLScaffoldDiscoveryTests(unittest.TestCase):
     def test_api_enumeration_keeps_empty_results_distinct_from_errors(self) -> None:
         api = OpenCLApi.__new__(OpenCLApi)
 
@@ -201,7 +255,7 @@ class OpenCLScaffoldTests(unittest.TestCase):
         self.assertFalse(backend.is_available)
         with self.assertRaisesRegex(BackendUnavailableError, "no GPU devices"):
             backend.buffer_from_host([1.0], shape=(1,))
-        with self.assertRaisesRegex(BackendUnavailableError, "current gate"):
+        with self.assertRaisesRegex(TypeError, "weights as an OpenCLBuffer"):
             backend.embedding_forward(None, [])
         backend.close()
 
@@ -276,6 +330,9 @@ class OpenCLScaffoldTests(unittest.TestCase):
             self.assertEqual(len(backend.memory._buffers), 0)
         finally:
             backend.close()
+
+
+class OpenCLScaffoldTests(unittest.TestCase):
 
     def test_copy_to_device_write_failure_releases_once_and_preserves_error(self) -> None:
         api = FakeOpenCLApi()
@@ -609,6 +666,363 @@ class OpenCLScaffoldTests(unittest.TestCase):
                     bias.close()
                     weights.close()
                     backend.close()
+
+
+class OpenCLEmbeddingForwardTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.api = FakeOpenCLApi()
+        self.backend = OpenCLBackend(runtime=OpenCLRuntime(api=self.api))
+        self.weights = self.backend.buffer_from_host(
+            [[0.0, -0.0, 1.25], [-2.5, 3.0, 4.125], [9.5, -7.0, 0.5]],
+            shape=(3, 3),
+            dtype="float64",
+        )
+
+    def tearDown(self) -> None:
+        self.backend.close()
+
+    def _ids(self, values: list[int], *, shape: tuple[int, ...] | None = None):
+        return self.backend.buffer_from_host(
+            values,
+            shape=(len(values),) if shape is None else shape,
+            dtype="int32",
+        )
+
+    def test_lookup_copies_rows_exactly_and_preserves_repeated_ids(self) -> None:
+        ids = self._ids([2, 0, 2, 1])
+        output = None
+        try:
+            output = self.backend.embedding_forward(self.weights, ids)
+            self.assertNotIsInstance(output, list)
+            self.assertEqual(output.dtype, "float64")
+            self.assertEqual(output.shape, (4, 3))
+            self.assertIs(output._manager, self.backend.memory)
+            self.assertEqual(self.api.read_sizes, [ctypes.sizeof(ctypes.c_int32)])
+            self.assertEqual(
+                self.backend.buffer_to_host(output),
+                [
+                    [9.5, -7.0, 0.5],
+                    [0.0, -0.0, 1.25],
+                    [9.5, -7.0, 0.5],
+                    [-2.5, 3.0, 4.125],
+                ],
+            )
+            self.assertEqual(
+                self.api.read_sizes,
+                [ctypes.sizeof(ctypes.c_int32), output.nbytes],
+            )
+            self.assertFalse(ids.closed)
+            self.assertFalse(self.weights.closed)
+        finally:
+            if output is not None:
+                output.close()
+            ids.close()
+
+    def test_invalid_resident_ids_fail_before_lookup_and_release_preflight(self) -> None:
+        for invalid_id in (-1, 3, -(2**31), 2**31 - 1):
+            with self.subTest(invalid_id=invalid_id):
+                ids = self._ids([1, invalid_id])
+                before_enqueues = len(self.api.enqueues)
+                before_releases = list(self.api.released)
+                try:
+                    with self.assertRaisesRegex(ValueError, "position 1"):
+                        self.backend.embedding_forward(self.weights, ids)
+                    self.assertEqual(self.api.enqueues[before_enqueues:], [1])
+                    self.assertEqual(
+                        self.api.released[len(before_releases) :], [ids.handle + 1]
+                    )
+                    self.assertEqual(
+                        self.api.created_kernels[-1],
+                        "kinera_embedding_validate_ids_i32",
+                    )
+                    self.assertEqual(
+                        len(self.api.allocations), 2,
+                        "only caller-owned weights and IDs remain allocated",
+                    )
+                finally:
+                    ids.close()
+
+    def test_host_ids_must_be_explicitly_transferred_and_host_layer_validates(self) -> None:
+        with self.assertRaisesRegex(TypeError, "int32 OpenCLBuffer"):
+            self.backend.embedding_forward(self.weights, [-1])
+        layer = Embedding(3, 3, seed=7, backend=self.backend)
+        try:
+            layer.forward([1, 2])
+            previous = (layer.last_ids, layer.output, layer.grad_weights)
+            with self.assertRaisesRegex(ValueError, "fora do vocabulário"):
+                layer.forward([-1])
+            self.assertEqual(
+                (layer.last_ids, layer.output, layer.grad_weights), previous
+            )
+            self.assertFalse(previous[0].closed)
+            self.assertFalse(previous[1].closed)
+            self.assertFalse(previous[2].closed)
+        finally:
+            layer.close()
+
+    def test_empty_host_ids_return_empty_without_zero_sized_output_or_kernel(self) -> None:
+        before_allocations = set(self.api.allocations)
+        before_kernels = list(self.api.created_kernels)
+        before_enqueues = list(self.api.enqueues)
+        self.assertEqual(self.backend.embedding_forward(self.weights, []), [])
+        self.assertEqual(set(self.api.allocations), before_allocations)
+        self.assertEqual(self.api.created_kernels, before_kernels)
+        self.assertEqual(self.api.enqueues, before_enqueues)
+
+        layer = Embedding(3, 3, seed=7, backend=self.backend)
+        try:
+            self.assertEqual(layer.forward([]), [])
+            self.assertEqual(layer.last_ids, [])
+            self.assertEqual(layer.output, [])
+            self.assertEqual(layer.grad_weights.shape, (3, 3))
+            self.assertEqual(self.api.created_kernels, before_kernels)
+        finally:
+            layer.close()
+
+    def test_input_contract_rejects_shape_dtype_closed_and_foreign_owner(self) -> None:
+        wrong_rank = self.backend.buffer_from_host(
+            [[1, 0]], shape=(1, 2), dtype="int32"
+        )
+        wrong_weight_shape = self.backend.buffer_from_host([1.0], shape=(1,))
+        wrong_ids_dtype = self.backend.buffer_from_host([0.0], shape=(1,))
+        wrong_weight_dtype = self.backend.buffer_from_host(
+            [[1, 0]], shape=(1, 2), dtype="int32"
+        )
+        other_api = FakeOpenCLApi()
+        other_backend = OpenCLBackend(runtime=OpenCLRuntime(api=other_api))
+        foreign_ids = other_backend.buffer_from_host([1], shape=(1,), dtype="int32")
+        foreign_weights = other_backend.buffer_from_host(
+            [[1.0, 2.0]], shape=(1, 2), dtype="float64"
+        )
+        closed_ids = self._ids([0])
+        closed_ids.close()
+        closed_weights = self.backend.buffer_from_host(
+            [[1.0]], shape=(1, 1), dtype="float64"
+        )
+        closed_weights.close()
+        try:
+            with self.assertRaisesRegex(ValueError, "rank 1"):
+                self.backend.embedding_forward(self.weights, wrong_rank)
+            with self.assertRaisesRegex(ValueError, "rank 2"):
+                self.backend.embedding_forward(wrong_weight_shape, [])
+            with self.assertRaisesRegex(ValueError, "dtype float64"):
+                self.backend.embedding_forward(wrong_weight_dtype, [])
+            with self.assertRaisesRegex(BackendError, "different memory manager"):
+                self.backend.embedding_forward(self.weights, foreign_ids)
+            with self.assertRaisesRegex(BackendError, "different memory manager"):
+                self.backend.embedding_forward(foreign_weights, [])
+            with self.assertRaisesRegex(ValueError, "dtype int32"):
+                self.backend.embedding_forward(self.weights, wrong_ids_dtype)
+            with self.assertRaisesRegex(BackendError, "released/closed"):
+                self.backend.embedding_forward(self.weights, closed_ids)
+            with self.assertRaisesRegex(BackendError, "released/closed"):
+                self.backend.embedding_forward(closed_weights, [])
+            with self.assertRaisesRegex(ValueError, "outside"):
+                # Valid shape and dtype, but an out-of-vocabulary device value.
+                bad_id = self._ids([3])
+                try:
+                    self.backend.embedding_forward(self.weights, bad_id)
+                finally:
+                    bad_id.close()
+        finally:
+            closed_ids.close()
+            foreign_ids.close()
+            foreign_weights.close()
+            other_backend.close()
+            closed_weights.close()
+            wrong_ids_dtype.close()
+            wrong_weight_dtype.close()
+            wrong_weight_shape.close()
+            wrong_rank.close()
+
+    def test_buffer_on_different_selected_device_is_rejected(self) -> None:
+        backend_for_other_device = OpenCLBackend(
+            runtime=self.backend.runtime,
+            memory_manager=self.backend.memory,
+            device_id=1,
+        )
+        with self.assertRaisesRegex(BackendError, "selected OpenCL GPU"):
+            backend_for_other_device.embedding_forward(self.weights, [])
+
+    def test_preflight_and_lookup_failures_release_temporaries_and_keep_inputs(self) -> None:
+        failure_cases = (
+            ("build_program", "build failure"),
+            ("create_buffer", "allocation failure"),
+            ("create_kinera_embedding_validate_ids_i32", "creation failure"),
+            ("set_kernel_buffer_0", "argument failure"),
+            ("enqueue_kinera_embedding_validate_ids_i32", "enqueue failure"),
+            ("set_kernel_int_3", "scalar argument failure"),
+            ("read_buffer", "status read failure"),
+            ("create_kinera_embedding_forward_f64", "creation failure"),
+            ("set_kernel_buffer_2", "argument failure"),
+            ("set_kernel_int_4", "scalar argument failure"),
+            ("enqueue_kinera_embedding_forward_f64", "enqueue failure"),
+        )
+        for fail_on, message in failure_cases:
+            with self.subTest(fail_on=fail_on):
+                api = FakeOpenCLApi()
+                backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+                weights = backend.buffer_from_host([[1.0, 2.0]], shape=(1, 2))
+                ids = backend.buffer_from_host([0], shape=(1,), dtype="int32")
+                api.fail_on = fail_on
+                before_release_mem = list(api.released)
+                before_release_kernels = list(api.released_kernels)
+                try:
+                    with self.assertRaisesRegex(RuntimeError, message):
+                        backend.embedding_forward(weights, ids)
+                    self.assertFalse(weights.closed)
+                    self.assertFalse(ids.closed)
+                    self.assertEqual(
+                        set(api.allocations), {weights.handle, ids.handle}
+                    )
+                    newly_released = api.released[len(before_release_mem) :]
+                    expected_temp_releases = {
+                        "build_program": 0,
+                        "create_buffer": 0,
+                        "create_kinera_embedding_validate_ids_i32": 1,
+                        "set_kernel_buffer_0": 1,
+                        "enqueue_kinera_embedding_validate_ids_i32": 1,
+                        "set_kernel_int_3": 1,
+                        "read_buffer": 1,
+                        "create_kinera_embedding_forward_f64": 2,
+                        "set_kernel_buffer_2": 2,
+                        "set_kernel_int_4": 2,
+                        "enqueue_kinera_embedding_forward_f64": 2,
+                    }[fail_on]
+                    self.assertEqual(len(newly_released), expected_temp_releases)
+                    self.assertEqual(len(set(newly_released)), len(newly_released))
+                    self.assertEqual(len(api.allocations), 2)
+                    expected_kernel_releases = {
+                        "build_program": [],
+                        "create_buffer": [],
+                        "create_kinera_embedding_validate_ids_i32": [],
+                        "set_kernel_buffer_0": [30],
+                        "enqueue_kinera_embedding_validate_ids_i32": [30],
+                        "set_kernel_int_3": [30],
+                        "read_buffer": [30],
+                        "create_kinera_embedding_forward_f64": [30],
+                        "set_kernel_buffer_2": [30, 31],
+                        "set_kernel_int_4": [30, 31],
+                        "enqueue_kinera_embedding_forward_f64": [30, 31],
+                    }[fail_on]
+                    self.assertEqual(
+                        api.released_kernels[len(before_release_kernels) :],
+                        expected_kernel_releases,
+                    )
+                finally:
+                    backend.close()
+
+    def test_cleanup_release_errors_preserve_primary_error_and_do_not_double_release(self) -> None:
+        api = FakeOpenCLApi()
+        backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+        weights = backend.buffer_from_host([[1.0]], shape=(1, 1))
+        ids = backend.buffer_from_host([0], shape=(1,), dtype="int32")
+        enqueue_error = RuntimeError("injected lookup enqueue failure")
+        release_error = RuntimeError("injected temporary release failure")
+        release_attempts: list[int] = []
+        original_release_mem = api.release_mem
+        original_release_kernel = api.release_kernel
+
+        def fail_status_release(handle: int) -> None:
+            if handle == 102:
+                release_attempts.append(handle)
+            if handle == 102 and len(release_attempts) == 1:
+                raise release_error
+            original_release_mem(handle)
+
+        try:
+            api.fail_on = "enqueue_kinera_embedding_validate_ids_i32"
+            # The failed status release stays owned by the manager for close().
+            with (
+                patch.object(api, "enqueue_1d", side_effect=enqueue_error),
+                patch.object(api, "release_mem", side_effect=fail_status_release),
+            ):
+                with self.assertRaises(RuntimeError) as raised:
+                    backend.embedding_forward(weights, ids)
+                self.assertIs(raised.exception, enqueue_error)
+                self.assertIs(raised.exception.__cause__, release_error)
+                self.assertEqual(len(release_attempts), 1)
+                self.assertEqual(len(api.allocations), 3)
+                self.assertEqual(len(backend.memory._buffers), 3)
+                backend.close()
+            self.assertIs(raised.exception, enqueue_error)
+            self.assertIs(raised.exception.__cause__, release_error)
+            self.assertEqual(release_attempts, [102, 102])
+            self.assertEqual(api.allocations, {})
+
+            # A native kernel-release failure is attempted once; the output is
+            # still released and the enqueue exception remains primary.
+        finally:
+            if not backend._closed:
+                backend.close()
+
+        api = FakeOpenCLApi()
+        backend = OpenCLBackend(runtime=OpenCLRuntime(api=api))
+        weights = backend.buffer_from_host([[1.0]], shape=(1, 1))
+        ids = backend.buffer_from_host([0], shape=(1,), dtype="int32")
+        enqueue_count = 0
+        release_attempts = []
+        enqueue_error = RuntimeError("injected lookup enqueue failure")
+        release_error = RuntimeError("injected kernel release failure")
+        original_enqueue = api.enqueue_1d
+        original_release_kernel = api.release_kernel
+
+        def fail_lookup_enqueue(queue, kernel, global_size) -> None:
+            nonlocal enqueue_count
+            enqueue_count += 1
+            if enqueue_count == 1:
+                original_enqueue(queue, kernel, global_size)
+                return
+            raise enqueue_error
+
+        def fail_lookup_kernel_release(handle: int) -> None:
+            if handle == 31:
+                release_attempts.append(handle)
+                raise release_error
+            original_release_kernel(handle)
+
+        try:
+            with (
+                patch.object(api, "enqueue_1d", side_effect=fail_lookup_enqueue),
+                patch.object(api, "release_kernel", side_effect=fail_lookup_kernel_release),
+            ):
+                with self.assertRaises(RuntimeError) as raised:
+                    backend.embedding_forward(weights, ids)
+            self.assertIs(raised.exception, enqueue_error)
+            self.assertIs(raised.exception.__cause__, release_error)
+            self.assertEqual(release_attempts, [31])
+            self.assertEqual(api.released_kernels, [30])
+            self.assertEqual(set(api.allocations), {weights.handle, ids.handle})
+        finally:
+            backend.close()
+
+    def test_failed_layer_forward_preserves_previous_state_and_releases_new_buffers(self) -> None:
+        layer = Embedding(3, 3, seed=9, backend=self.backend)
+        try:
+            layer.forward([0, 2])
+            previous = (layer.last_ids, layer.output, layer.grad_weights)
+            previous_handles = {
+                previous[0].handle,
+                previous[1].handle,
+                previous[2].handle,
+            }
+            before = set(self.api.allocations)
+            forward_error = RuntimeError("injected forward failure")
+            with patch.object(self.backend, "embedding_forward", side_effect=forward_error):
+                with self.assertRaises(RuntimeError) as raised:
+                    layer.forward([1])
+            self.assertIs(raised.exception, forward_error)
+            self.assertEqual((layer.last_ids, layer.output, layer.grad_weights), previous)
+            self.assertTrue(previous_handles.issubset(self.api.allocations))
+            self.assertEqual(set(self.api.allocations), before)
+        finally:
+            layer.close()
+
+    def test_backward_and_step_remain_unavailable(self) -> None:
+        with self.assertRaisesRegex(BackendUnavailableError, "Embedding.backward"):
+            self.backend.embedding_backward(self.weights, [], [])
+        with self.assertRaisesRegex(BackendUnavailableError, "Embedding.step"):
+            self.backend.embedding_step(self.weights, self.weights, 0.1)
 
 
 if __name__ == "__main__":

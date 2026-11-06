@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import math
 from importlib import resources
 from typing import NoReturn
@@ -22,7 +23,7 @@ _OPENCL_INT_MAX = 2**31 - 1
 
 
 class OpenCLBackend:
-    """Fail-closed OpenCL backend with gated Linear forward/backward/step ops."""
+    """Fail-closed backend with gated Linear and Embedding.forward operations."""
 
     name = "opencl"
 
@@ -303,8 +304,134 @@ class OpenCLBackend:
 
     def embedding_forward(
         self, weights: BackendArray, ids: list[int] | BackendBuffer
-    ) -> OpenCLBuffer:
-        self._unavailable("Embedding.forward")
+    ) -> OpenCLBuffer | list[list[float]]:
+        """Look up resident row-major embedding weights by resident int32 IDs."""
+        self._ensure_open()
+        weights_buffer = self._require_buffer(
+            weights, "weights", rank=2, operation="Embedding.forward"
+        )
+        self.memory._validate_buffer(weights_buffer)
+        if weights_buffer.device_id != self.device_id:
+            raise BackendError(
+                "Embedding.forward weights must reside on the selected OpenCL GPU"
+            )
+        vocab_size, embedding_dim = weights_buffer.shape
+        if vocab_size <= 0 or embedding_dim <= 0:
+            raise ValueError("Embedding.forward weights dimensions must be positive")
+        if weights_buffer.nbytes != vocab_size * embedding_dim * ctypes.sizeof(ctypes.c_double):
+            raise ValueError("Embedding.forward weights buffer size does not match its shape")
+
+        if isinstance(ids, list):
+            if ids:
+                raise TypeError(
+                    "OpenCL Embedding.forward requires IDs in an int32 OpenCLBuffer; "
+                    "call buffer_from_host explicitly after layer validation"
+                )
+            # Match CPU/CUDA's empty lookup contract without creating a zero-sized
+            # allocation or requiring FP64 kernel support for a no-op.
+            self.runtime.require_device(self.device_id)
+            return []
+        if not isinstance(ids, OpenCLBuffer):
+            raise TypeError("OpenCL Embedding.forward requires IDs as an OpenCLBuffer")
+        ids._assert_open()
+        if ids.dtype != "int32":
+            raise ValueError("Embedding IDs must use dtype int32")
+        if len(ids.shape) != 1:
+            raise ValueError("Embedding IDs must have rank 1")
+        self.memory._validate_buffer(ids)
+        if ids.device_id != self.device_id:
+            raise BackendError(
+                "Embedding.forward IDs must reside on the selected OpenCL GPU"
+            )
+        ids_count = ids.shape[0]
+        if ids_count <= 0:
+            raise ValueError("resident Embedding IDs buffer must not be empty")
+        if ids.nbytes != ids_count * ctypes.sizeof(ctypes.c_int32):
+            raise ValueError("Embedding IDs buffer size does not match its shape")
+        if any(
+            dimension > _OPENCL_INT_MAX
+            for dimension in (vocab_size, embedding_dim, ids_count)
+        ):
+            raise ValueError("Embedding dimensions must fit in a signed 32-bit integer")
+
+        self.runtime.require_device(self.device_id, require_fp64=True)
+        program = self._get_program("embedding_forward.cl")
+
+        # Validate arbitrary resident IDs before allocating the result or enqueueing
+        # the lookup. The validation kernel scans only the ID buffer and returns a
+        # single int32 position; the full ID vector remains resident on the device.
+        status: OpenCLBuffer | None = None
+        validation_kernel: int | None = None
+        try:
+            status = self.memory.allocate((1,), dtype="int32", device_id=self.device_id)
+            validation_kernel = self.runtime.api.create_kernel(
+                program, "kinera_embedding_validate_ids_i32"
+            )
+            self.runtime.api.set_kernel_buffer(validation_kernel, 0, ids.handle)
+            self.runtime.api.set_kernel_buffer(validation_kernel, 1, status.handle)
+            self.runtime.api.set_kernel_int(validation_kernel, 2, ids_count)
+            self.runtime.api.set_kernel_int(validation_kernel, 3, vocab_size)
+            self.runtime.api.enqueue_1d(self.memory.queue, validation_kernel, 1)
+            status_host = (ctypes.c_int32 * 1)()
+            self.runtime.api.read_buffer(
+                self.memory.queue,
+                status.handle,
+                ctypes.addressof(status_host),
+                ctypes.sizeof(status_host),
+            )
+            invalid_position = int(status_host[0])
+        except BaseException as error:
+            cleanup_error = self._release_embedding_temporaries(
+                validation_kernel, status
+            )
+            if cleanup_error is not None:
+                raise error from cleanup_error
+            raise
+
+        cleanup_error = self._release_embedding_temporaries(
+            validation_kernel, status
+        )
+        validation_kernel = None
+        status = None
+        if cleanup_error is not None:
+            raise cleanup_error
+        if invalid_position != -1:
+            raise ValueError(
+                f"Embedding ID at position {invalid_position} is outside "
+                f"[0, {vocab_size})"
+            )
+
+        output: OpenCLBuffer | None = None
+        lookup_kernel: int | None = None
+        try:
+            output = self.memory.allocate(
+                (ids_count, embedding_dim),
+                dtype="float64",
+                device_id=self.device_id,
+            )
+            lookup_kernel = self.runtime.api.create_kernel(
+                program, "kinera_embedding_forward_f64"
+            )
+            for index, buffer in enumerate((weights_buffer, ids, output)):
+                self.runtime.api.set_kernel_buffer(lookup_kernel, index, buffer.handle)
+            self.runtime.api.set_kernel_int(lookup_kernel, 3, embedding_dim)
+            self.runtime.api.set_kernel_int(lookup_kernel, 4, ids_count)
+            self.runtime.api.enqueue_1d(
+                self.memory.queue, lookup_kernel, ids_count * embedding_dim
+            )
+            # A release call is attempted exactly once. Do not retry an ambiguous
+            # native release error, which could turn into a double release.
+            kernel_to_release, lookup_kernel = lookup_kernel, None
+            self.runtime.api.release_kernel(kernel_to_release)
+            result, output = output, None
+            return result
+        except BaseException as error:
+            cleanup_error = self._release_embedding_temporaries(
+                lookup_kernel, output
+            )
+            if cleanup_error is not None:
+                raise error from cleanup_error
+            raise
 
     def embedding_backward(
         self,
@@ -406,6 +533,7 @@ class OpenCLBackend:
             "linear_forward.cl",
             "linear_backward.cl",
             "linear_step.cl",
+            "embedding_forward.cl",
         }:
             raise ValueError(f"unsupported OpenCL kernel program: {kernel_filename}")
         program = self._programs.get(kernel_filename)
@@ -428,6 +556,26 @@ class OpenCLBackend:
     def _ensure_open(self) -> None:
         if self._closed:
             raise BackendError("OpenCL backend is closed")
+
+    def _release_embedding_temporaries(
+        self, kernel: int | None, *buffers: OpenCLBuffer | None
+    ) -> BaseException | None:
+        """Attempt every temporary cleanup once and return the first failure."""
+        first_error: BaseException | None = None
+        if kernel is not None:
+            try:
+                self.runtime.api.release_kernel(kernel)
+            except BaseException as error:
+                first_error = error
+        for buffer in buffers:
+            if buffer is None:
+                continue
+            try:
+                self.memory.release(buffer)
+            except BaseException as error:
+                if first_error is None:
+                    first_error = error
+        return first_error
 
     @staticmethod
     def _require_buffer(
