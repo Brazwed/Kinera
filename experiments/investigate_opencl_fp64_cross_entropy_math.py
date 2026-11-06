@@ -51,15 +51,25 @@ __kernel void probe_log(__global const double *input, int count,
   }
 }
 
-__kernel void probe_sum(__global const double *input, int count, int reverse,
+__kernel void probe_sum(__global const double *input, int count, int mode,
                         __global double *output, __global ulong *echo) {
   if (get_global_id(0) != 0) return;
   double total = 0.0;
+  double correction = 0.0;
+  const int reverse = mode & 1;
+  const int compensated = mode >= 2;
   for (int step = 0; step < count; ++step) {
     const int i = reverse ? count - 1 - step : step;
     echo[i] = as_ulong(input[i]);
-    total = total + input[i];
+    const double value = input[i];
+    const double next = total + value;
+    if (compensated) {
+      if (fabs(total) >= fabs(value)) correction += (total - next) + value;
+      else correction += (value - next) + total;
+    }
+    total = next;
   }
+  if (compensated && correction != 0.0 && isfinite(correction)) total += correction;
   output[0] = total;
 }
 
@@ -77,18 +87,30 @@ __kernel void probe_cross_entropy(__global const double *logits, int count,
   }
   trace[0] = maximum;
   double total = 0.0;
+  double correction = 0.0;
   for (int i = 0; i < count; ++i) {
     const double shifted = logits[i] - maximum;
     const double exponential = exp(shifted);
     trace[1 + i] = shifted;
     trace[1 + count + i] = exponential;
-    total = total + exponential;
+    const double next = total + exponential;
+    if (fabs(total) >= fabs(exponential)) correction += (total - next) + exponential;
+    else correction += (exponential - next) + total;
+    total = next;
     trace[1 + 2 * count + i] = total;
   }
+  const double compensated_total = (correction != 0.0 && isfinite(correction))
+      ? total + correction : total;
   const int log_index = 1 + 3 * count;
-  trace[log_index] = log(total);
-  trace[log_index + 1] = maximum + trace[log_index];
-  trace[log_index + 2] = trace[log_index + 1] - logits[target];
+  trace[log_index] = total;
+  trace[log_index + 1] = correction;
+  trace[log_index + 2] = compensated_total;
+  trace[log_index + 3] = log(total);
+  trace[log_index + 4] = maximum + trace[log_index + 3];
+  trace[log_index + 5] = trace[log_index + 4] - logits[target];
+  trace[log_index + 6] = log(compensated_total);
+  trace[log_index + 7] = maximum + trace[log_index + 6];
+  trace[log_index + 8] = trace[log_index + 7] - logits[target];
   scalar_echo[0] = as_ulong(scalar_argument);
   target_echo[0] = target;
 }
@@ -140,6 +162,8 @@ def compare(expected: float, actual: float) -> dict[str, Any]:
 
 
 def decimal_exp(value: float) -> float:
+    if value == -math.inf:
+        return 0.0
     with localcontext() as context:
         context.prec = 100
         return float(Decimal.from_float(value).exp())
@@ -205,6 +229,13 @@ def exp_cases() -> list[tuple[str, float]]:
         ("near_zero_rounding_edge", -745.1332191019411),
         ("underflow_zero", -746.0), ("very_negative", -1000.0),
         ("extreme_negative", -1.0e6),
+        # Distinct unary-exp inputs from PR #83.
+        ("pr83_minus_1e_15", -1.0e-15), ("pr83_minus_1e_8", -1.0e-8),
+        ("pr83_minus_0_1", -0.1), ("pr83_minus_0_5", -0.5),
+        ("pr83_minus_ln2", -math.log(2.0)), ("pr83_minus_2", -2.0),
+        ("pr83_minus_5", -5.0), ("pr83_minus_20", -20.0),
+        ("pr83_minus_50", -50.0), ("pr83_minus_709", -709.0),
+        ("pr83_negative_infinity", -math.inf),
     ]
 
 
@@ -215,7 +246,11 @@ def log_cases() -> list[tuple[str, float]]:
         ("half", 0.5), ("two", 2.0), ("small_positive", 2.0**-52),
         ("min_normal", sys.float_info.min), ("min_subnormal", math.ulp(0.0)),
         ("one_e_minus_300", 1.0e-300), ("four", 4.0),
-        ("sum_3", 3.0), ("sum_100", 100.0),
+        ("sum_3", 3.0), ("sum_100", 100.0), ("log_257_from_pr83", 257.0),
+        ("pr83_log_1_plus_2_minus_50", 1.0 + 2.0**-50),
+        ("pr83_log_1_00000001", 1.00000001), ("pr83_log_1_5", 1.5),
+        ("pr83_log_7", 7.0), ("pr83_log_26", 26.0),
+        ("pr83_log_51", 51.0), ("pr83_log_3932", 3932.0),
         ("large_finite", 1.0e300),
     ]
     for label, logits, _target in ce_cases():
@@ -235,6 +270,11 @@ def sum_cases() -> list[tuple[str, list[float]]]:
         ("exp_like_long", [math.exp(-index / 8.0) for index in range(256)]),
         ("many_equal_positive", [1.0] * 1000),
         ("mixed_positive_magnitudes", [1.0, 1.0e-16, 1.0e-16, 1.0e-16] * 64),
+        # Exclusive signed cancellation fixtures from PR #83.
+        ("pr83_cancel_1e16", [1.0e16, 1.0, -1.0e16]),
+        ("pr83_alternating_signed_128", [1.0e16, 1.0, -1.0e16, -1.0] * 32),
+        ("pr83_positive_long", [1.0] + [2.0**-53] * 256),
+        ("pr83_positive_exp_257", [math.exp(-index / 16.0) for index in range(257)]),
     ]
 
 
@@ -242,6 +282,7 @@ def ce_cases() -> list[tuple[str, list[float], int]]:
     close = math.nextafter(1.0, 0.0)
     near_large = math.nextafter(1.0e300, 0.0)
     cases = [
+        ("pr83_vocab_one_nonzero", [2.5], 0),
         ("vocab_one", [0.0], 0),
         ("two_equal_target_first", [0.0, 0.0], 0),
         ("two_equal_target_last", [0.0, 0.0], 1),
@@ -260,6 +301,33 @@ def ce_cases() -> list[tuple[str, list[float], int]]:
         ("wide_finite_logits_loss_overflow", [1.0e308, -1.0e308], 1),
         ("near_largest_close_logits", [1.0e300, near_large], 1),
         ("long_vocabulary", [0.0] * 256, 255),
+        # Relevant fixtures unique to the independent PR #83 audit.
+        ("pr83_mixed_logits", [3.0, -2.0, 0.0, 1.0, -10.0], 0),
+        ("pr83_mixed_logits_target_middle", [3.0, -2.0, 0.0, 1.0, -10.0], 2),
+        ("pr83_mixed_logits_target_last", [3.0, -2.0, 0.0, 1.0, -10.0], 4),
+        ("pr83_extreme_logits", [1000.0, 0.0, -1000.0], 1),
+        ("pr83_extreme_logits_target_first", [1000.0, 0.0, -1000.0], 0),
+        ("pr83_extreme_logits_target_last", [1000.0, 0.0, -1000.0], 2),
+        ("pr83_small_gap", [0.0, -1.0e-15, -2.0e-15], 0),
+        ("pr83_small_gap_target_middle", [0.0, -1.0e-15, -2.0e-15], 1),
+        ("pr83_small_gap_target_last", [0.0, -1.0e-15, -2.0e-15], 2),
+        ("pr83_underflow_sequence", [0.0, -700.0, -744.0, -745.0, -746.0, -1000.0], 3),
+        ("pr83_underflow_sequence_target_last", [0.0, -700.0, -744.0, -745.0, -746.0, -1000.0], 5),
+        ("pr83_final_cancellation", [1.0e16, 1.0e16, 1.0e16 - 2.0], 0),
+        ("pr83_final_cancellation_target_last", [1.0e16, 1.0e16, 1.0e16 - 2.0], 2),
+        ("pr83_equal_logits_26", [0.0] * 26, 13),
+        ("pr83_equal_logits_26_target_first", [0.0] * 26, 0),
+        ("pr83_equal_logits_26_target_last", [0.0] * 26, 25),
+        ("pr83_equal_logits_257", [0.0] * 257, 128),
+        ("pr83_equal_logits_257_target_first", [0.0] * 257, 0),
+        ("pr83_equal_logits_257_target_last", [0.0] * 257, 256),
+        ("pr83_long_mixed_257", [-index / 16.0 for index in range(257)], 128),
+        ("pr83_long_mixed_257_target_first", [-index / 16.0 for index in range(257)], 0),
+        ("pr83_long_mixed_257_target_last", [-index / 16.0 for index in range(257)], 256),
+        ("pr83_near_tie", [1.0, math.nextafter(1.0, math.inf), math.nextafter(1.0, 0.0)], 1),
+        ("pr83_near_tie_target_first", [1.0, math.nextafter(1.0, math.inf), math.nextafter(1.0, 0.0)], 0),
+        ("pr83_near_tie_target_last", [1.0, math.nextafter(1.0, math.inf), math.nextafter(1.0, 0.0)], 2),
+        ("pr83_finite_overflow_difference_target_first", [1.0e308, -1.0e308], 0),
     ]
     return cases
 
@@ -306,6 +374,8 @@ def _run_unary(api: Any, queue: int, context: int, kernels: dict[str, int],
         high_precision = decimal_exp(value) if name == "probe_exp" else decimal_log(value)
         rows.append({
             "case": label, "input": repr(value), "input_bits": bits(value),
+            "fixture_origin": "PR #83 exclusive" if label.startswith("pr83_") or label == "log_257_from_pr83"
+            else ("PR #83-derived CE denominator" if label.startswith("ce_denominator_pr83_") else "PR #84 base"),
             "ce_denominator_domain": name == "probe_log" and value >= 1.0,
             "output": repr(output), "output_bits": bits(output),
             "argument_echo_bits": f"{echoed:016x}",
@@ -326,15 +396,15 @@ def _run_sum(api: Any, queue: int, context: int, kernels: dict[str, int],
         kernel = kernels["probe_sum"]
         api.set_kernel_buffer(kernel, 0, input_buffer)
         api.set_kernel_int(kernel, 1, len(values))
-        api.set_kernel_int(kernel, 2, 0)
         api.set_kernel_buffer(kernel, 3, output_buffer)
         api.set_kernel_buffer(kernel, 4, echo_buffer)
-        api.enqueue_1d(queue, kernel, 1)
-        forward = _read_doubles(api, queue, output_buffer, 1)[0]
-        echoes = _read_ulongs(api, queue, echo_buffer, len(values))
-        api.set_kernel_int(kernel, 2, 1)
-        api.enqueue_1d(queue, kernel, 1)
-        reverse = _read_doubles(api, queue, output_buffer, 1)[0]
+        outputs = []
+        for mode in range(4):
+            api.set_kernel_int(kernel, 2, mode)
+            api.enqueue_1d(queue, kernel, 1)
+            outputs.append(_read_doubles(api, queue, output_buffer, 1)[0])
+            if mode == 0:
+                echoes = _read_ulongs(api, queue, echo_buffer, len(values))
     finally:
         api.release_mem(echo_buffer)
         api.release_mem(output_buffer)
@@ -345,26 +415,39 @@ def _run_sum(api: Any, queue: int, context: int, kernels: dict[str, int],
         context_decimal.prec = 100
         exact = float(sum((Decimal.from_float(value) for value in values), Decimal(0)))
     return {
-        "case": label, "count": len(values),
+        "case": label, "fixture_origin": "PR #83 exclusive" if label.startswith("pr83_") else "PR #84 base",
+        "count": len(values),
         "input_bits": [bits(value) for value in values],
         "input_echo_bits_match": echoes == [int(bits(value), 16) for value in values],
         "cpu_builtin_sum": repr(cpu_sum), "cpu_builtin_sum_bits": bits(cpu_sum),
         "cpu_fsum": repr(fsum), "cpu_fsum_bits": bits(fsum),
         "decimal_exact_sum_rounded_to_fp64": repr(exact),
         "decimal_exact_sum_bits": bits(exact),
-        "opencl_forward_sum": repr(forward), "opencl_forward_sum_bits": bits(forward),
-        "opencl_reverse_sum": repr(reverse), "opencl_reverse_sum_bits": bits(reverse),
-        "forward_vs_cpu": compare(cpu_sum, forward),
-        "reverse_vs_cpu": compare(cpu_sum, reverse),
-        "forward_vs_fsum": compare(fsum, forward),
-        "order_changes_result": bits(forward) != bits(reverse),
+        "opencl_forward_sum": repr(outputs[0]), "opencl_forward_sum_bits": bits(outputs[0]),
+        "opencl_reverse_sum": repr(outputs[1]), "opencl_reverse_sum_bits": bits(outputs[1]),
+        "opencl_compensated_forward_sum": repr(outputs[2]),
+        "opencl_compensated_forward_sum_bits": bits(outputs[2]),
+        "opencl_compensated_reverse_sum": repr(outputs[3]),
+        "opencl_compensated_reverse_sum_bits": bits(outputs[3]),
+        "forward_vs_cpu": compare(cpu_sum, outputs[0]),
+        "reverse_vs_cpu": compare(cpu_sum, outputs[1]),
+        "compensated_forward_vs_cpu": compare(cpu_sum, outputs[2]),
+        "compensated_reverse_vs_cpu": compare(cpu_sum, outputs[3]),
+        "forward_vs_fsum": compare(fsum, outputs[0]),
+        "compensated_forward_vs_fsum": compare(fsum, outputs[2]),
+        "forward_vs_decimal": compare(exact, outputs[0]),
+        "reverse_vs_decimal": compare(exact, outputs[1]),
+        "compensated_forward_vs_decimal": compare(exact, outputs[2]),
+        "compensated_reverse_vs_decimal": compare(exact, outputs[3]),
+        "order_changes_result": bits(outputs[0]) != bits(outputs[1]),
+        "compensation_changes_result": bits(outputs[0]) != bits(outputs[2]),
     }
 
 
 def _run_ce(api: Any, queue: int, context: int, kernels: dict[str, int],
             label: str, logits: list[float], target: int) -> dict[str, Any]:
     count = len(logits)
-    trace_count = 3 * count + 4
+    trace_count = 3 * count + 10
     input_buffer = api.create_buffer(context, ctypes.sizeof(ctypes.c_double) * count)
     trace_buffer = api.create_buffer(context, ctypes.sizeof(ctypes.c_double) * trace_count)
     input_echo_buffer = api.create_buffer(context, ctypes.sizeof(ctypes.c_ulonglong) * count)
@@ -407,11 +490,16 @@ def _run_ce(api: Any, queue: int, context: int, kernels: dict[str, int],
     gpu_shifted = trace[1:1 + count]
     gpu_exponentials = trace[1 + count:1 + 2 * count]
     gpu_partial_sums = trace[1 + 2 * count:1 + 3 * count]
-    gpu_sum = gpu_partial_sums[-1]
     log_index = 1 + 3 * count
-    gpu_log, gpu_lse, gpu_loss = trace[log_index:log_index + 3]
+    gpu_sum, gpu_correction, gpu_compensated_sum = trace[log_index:log_index + 3]
+    gpu_log, gpu_lse, gpu_loss, gpu_compensated_log, gpu_compensated_lse, gpu_compensated_loss = trace[log_index + 3:log_index + 9]
+    with localcontext() as decimal_context:
+        decimal_context.prec = 120
+        decimal_exp_sum = sum((Decimal.from_float(value) for value in exponentials), Decimal(0))
+        decimal_sum_rounded = float(decimal_exp_sum)
     return {
-        "case": label, "logits": [repr(value) for value in logits],
+        "case": label, "fixture_origin": "PR #83 exclusive" if label.startswith("pr83_") else "PR #84 base",
+        "logits": [repr(value) for value in logits],
         "logits_bits": [bits(value) for value in logits], "target": target,
         "target_echo": target_echo.value,
         "target_echo_matches": target_echo.value == target,
@@ -439,19 +527,35 @@ def _run_ce(api: Any, queue: int, context: int, kernels: dict[str, int],
             "exp": [repr(value) for value in gpu_exponentials],
             "exp_bits": [bits(value) for value in gpu_exponentials],
             "sum_sequential": repr(gpu_sum), "sum_sequential_bits": bits(gpu_sum),
+            "sum_compensation": repr(gpu_correction), "sum_compensation_bits": bits(gpu_correction),
+            "sum_compensated": repr(gpu_compensated_sum), "sum_compensated_bits": bits(gpu_compensated_sum),
             "log": repr(gpu_log), "log_bits": bits(gpu_log),
             "log_sum_exp": repr(gpu_lse), "log_sum_exp_bits": bits(gpu_lse),
             "loss": repr(gpu_loss), "loss_bits": bits(gpu_loss),
+            "compensated_log": repr(gpu_compensated_log), "compensated_log_bits": bits(gpu_compensated_log),
+            "compensated_log_sum_exp": repr(gpu_compensated_lse),
+            "compensated_log_sum_exp_bits": bits(gpu_compensated_lse),
+            "compensated_loss": repr(gpu_compensated_loss),
+            "compensated_loss_bits": bits(gpu_compensated_loss),
         },
         "stage_comparisons": {
             "maximum": compare(maximum, gpu_maximum),
             "shifted": _comparison_vector(shifted, gpu_shifted),
             "exp": _comparison_vector(exponentials, gpu_exponentials),
-            "sum": compare(cpu_sum, gpu_sum), "log": compare(cpu_log, gpu_log),
+            "sum": compare(cpu_sum, gpu_sum),
+            "sum_compensated_vs_cpu": compare(cpu_sum, gpu_compensated_sum),
+            "sum_sequential_vs_decimal": compare(decimal_sum_rounded, gpu_sum),
+            "sum_compensated_vs_decimal": compare(decimal_sum_rounded, gpu_compensated_sum),
+            "log": compare(cpu_log, gpu_log),
             "log_sum_exp": compare(cpu_lse, gpu_lse),
             "loss_vs_cpu_backend": compare(cpu_loss, gpu_loss),
+            "compensated_log_vs_cpu": compare(cpu_log, gpu_compensated_log),
+            "compensated_loss_vs_cpu_backend": compare(cpu_loss, gpu_compensated_loss),
             "loss_vs_decimal_high_precision": compare(decimal_loss, gpu_loss),
+            "compensated_loss_vs_decimal_high_precision": compare(decimal_loss, gpu_compensated_loss),
         },
+        "cpu_decimal_exp_sum_rounded_to_fp64": repr(decimal_sum_rounded),
+        "cpu_decimal_exp_sum_bits": bits(decimal_sum_rounded),
         "decimal_high_precision_loss_rounded_to_fp64": repr(decimal_loss),
         "decimal_high_precision_loss_bits": bits(decimal_loss),
     }
@@ -489,16 +593,22 @@ def _signature(trial: dict[str, Any], group: str) -> Any:
     if group in {"exp", "log"}:
         return [row["output_bits"] for row in trial[group]]
     if group == "sum":
-        return [[row["opencl_forward_sum_bits"], row["opencl_reverse_sum_bits"]]
+        return [[row["opencl_forward_sum_bits"], row["opencl_reverse_sum_bits"],
+                 row["opencl_compensated_forward_sum_bits"],
+                 row["opencl_compensated_reverse_sum_bits"]]
                 for row in trial[group]]
     return [{
         "maximum": row["opencl"]["maximum_bits"],
         "shifted": row["opencl"]["shifted_bits"],
         "exp": row["opencl"]["exp_bits"],
         "sum": row["opencl"]["sum_sequential_bits"],
+        "sum_compensated": row["opencl"]["sum_compensated_bits"],
         "log": row["opencl"]["log_bits"],
         "log_sum_exp": row["opencl"]["log_sum_exp_bits"],
         "loss": row["opencl"]["loss_bits"],
+        "compensated_log": row["opencl"]["compensated_log_bits"],
+        "compensated_log_sum_exp": row["opencl"]["compensated_log_sum_exp_bits"],
+        "compensated_loss": row["opencl"]["compensated_loss_bits"],
     } for row in trial[group]]
 
 
@@ -564,11 +674,12 @@ def _repeatability_from_checks(checks: list[dict[str, Any]]) -> dict[str, Any]:
     result = {}
     for option, rows in by_option.items():
         result[option] = {}
+        reference_outputs = rows[0]["output_sha256"]
         for group in ("exp", "log", "sum", "cross_entropy"):
             result[option][group] = {
                 "fresh_context_and_program_builds": len(rows),
                 "bitwise_stable_across_trials": all(
-                    row["matches_canonical_output_bits"][group] for row in rows
+                    row["output_sha256"][group] == reference_outputs[group] for row in rows
                 ),
             }
     result["across_compilation_options"] = {
@@ -620,21 +731,31 @@ def run(trial_numbers: tuple[int, ...] = (1, 2, 3)) -> dict[str, Any]:
                                    for trial in selected for row in trial["sum"]],
             "sum_reverse_vs_cpu": [{"comparisons": {"cpu": row["reverse_vs_cpu"]}}
                                    for trial in selected for row in trial["sum"]],
+            "sum_compensated_forward_vs_cpu": [{"comparisons": {"cpu": row["compensated_forward_vs_cpu"]}}
+                                               for trial in selected for row in trial["sum"]],
+            "sum_compensated_reverse_vs_cpu": [{"comparisons": {"cpu": row["compensated_reverse_vs_cpu"]}}
+                                               for trial in selected for row in trial["sum"]],
+            "sum_compensated_forward_vs_fsum": [{"comparisons": {"fsum": row["compensated_forward_vs_fsum"]}}
+                                                for trial in selected for row in trial["sum"]],
+            "sum_forward_vs_decimal": [{"comparisons": {"decimal": row["forward_vs_decimal"]}}
+                                       for trial in selected for row in trial["sum"]],
+            "sum_compensated_forward_vs_decimal": [{"comparisons": {"decimal": row["compensated_forward_vs_decimal"]}}
+                                                   for trial in selected for row in trial["sum"]],
             "ce_vs_cpu": [{"comparisons": {"cpu": row["stage_comparisons"]["loss_vs_cpu_backend"]}}
                           for trial in selected for row in trial["cross_entropy"]],
+            "ce_compensated_vs_cpu": [{"comparisons": {"cpu": row["stage_comparisons"]["compensated_loss_vs_cpu_backend"]}}
+                                      for trial in selected for row in trial["cross_entropy"]],
             "ce_vs_decimal": [{"comparisons": {"decimal": row["stage_comparisons"]["loss_vs_decimal_high_precision"]}}
                               for trial in selected for row in trial["cross_entropy"]],
+            "ce_compensated_vs_decimal": [{"comparisons": {"decimal": row["stage_comparisons"]["compensated_loss_vs_decimal_high_precision"]}}
+                                           for trial in selected for row in trial["cross_entropy"]],
         }
         aggregates[option or "<default>"] = _summary(groups)
-        stage_pairs: dict[str, list[dict[str, Any]]] = {
-            name: [] for name in (
-                "maximum", "shifted", "exp", "sum", "log", "log_sum_exp",
-                "loss_vs_cpu_backend", "loss_vs_decimal_high_precision",
-            )
-        }
+        stage_pairs: dict[str, list[dict[str, Any]]] = {}
         for trial in selected:
             for row in trial["cross_entropy"]:
                 for stage, comparison_result in row["stage_comparisons"].items():
+                    stage_pairs.setdefault(stage, [])
                     if isinstance(comparison_result, list):
                         stage_pairs[stage].extend(comparison_result)
                     else:
@@ -683,13 +804,24 @@ def run(trial_numbers: tuple[int, ...] = (1, 2, 3)) -> dict[str, Any]:
             "comparison_rule": "abs(actual-expected) <= max(atol, rtol*max(abs(actual),abs(expected)))",
             "cpu_sum": "built-in sum(generator) on the recorded Python interpreter",
             "python_float_sum_compensated_probe": sum((1.0e16, 1.0, -1.0e16)) == 1.0,
-            "opencl_sum": "explicit sequential left-to-right FP64 accumulation; reverse-order probe is separate",
+            "opencl_sum": "explicit sequential left-to-right and reverse-order FP64 accumulation, each in naive and Neumaier-compensated variants",
+            "opencl_compensated_sum": "Neumaier compensation in a fixed sequential pass; it is a controlled algorithm probe, not a claim to reproduce CPython internals",
+            "consolidated_from": {
+                "pr83_commit": "f6fa46438c6b6ba68101c1cffca79fb9516d3d7b",
+                "pr83_diagnostic_sha256": "ed62afa8481a1f22808dabcfa10093982de481a58b16181e22e749359ae4d875",
+                "pr83_results_sha256": "68a5478aedd08bfc45089ada1cead367c78ccc55313ffbe15e5d9f6c385cf014",
+                "pr84_commit": "66f0c20457bf1f5d9a71bac7fa3016b535ff80dd",
+                "pr84_diagnostic_sha256": "c928921c35e692e811ecde5d559ddc80a443f544d712a1a65b04edf4ea54c2a0",
+                "pr84_opencl_source_sha256": "474dd522f8e8fa18f236f7689091efd914cad61b56d8c89fff2a5b521a54c0fc",
+                "pr84_results_sha256": "82940bdeb55a4c4e221bcba1a1ad76de43ed102808363254e3c9216d15245f80",
+            },
+            "historical_pr84_json_preserved": "experiments/results/opencl-rx550-f2-3a-math-audit.json",
         },
         "matrices": {
             "E1_exp": ["zero and signed zero", "negative near zero", "-1/-10/-100", "underflow boundaries", "extreme negatives"],
             "E2_log": ["neighbors of one", "small positive and subnormal", "sums/classes magnitudes"],
-            "E3_sum": ["order and cancellation", "short/long positive sequences", "Python sum vs fsum/Decimal", "sequential/reverse device order"],
-            "E4_cross_entropy": ["vocab 1/2/many", "equal/near/extreme logits", "target first/middle/last", "underflow and final cancellation", "full intermediate trace"],
+            "E3_sum": ["all original PR #84 sequences retained", "PR #83 signed cancellation fixtures", "Python 3.15 compensated sum behavior probe", "Python sum vs fsum/Decimal", "sequential/reverse naive and compensated device order"],
+            "E4_cross_entropy": ["all original PR #84 fixtures retained", "PR #83 log(257), 257 equal logits, 26 equal logits, mixed/underflow/cancellation/long-mixed fixtures", "sequential and Neumaier-compensated device sums in full CE composition", "CPUBackend and Decimal comparison"],
             "E5_data_integrity": ["buffer input bits echoed from device", "scalar double and integer target echoed"],
             "E6_compilation": ["default", "-cl-opt-disable", "-cl-fast-relaxed-math (diagnostic only; not a production recommendation)"],
             "E7_future_dependencies": ["softmax/division/CE gradient and BCE are explicitly out of scope"],
@@ -737,12 +869,16 @@ def _merge_summaries(target: dict[str, Any], source: dict[str, Any]) -> None:
 def _combine_process_results(reports: list[dict[str, Any]]) -> dict[str, Any]:
     combined = reports[0]
     checks = [check for report in reports for check in report["trial_verification"]]
-    reference_outputs = reports[0]["trial_verification"][0]["output_sha256"]
-    if any(
-        check["output_sha256"] != reference_outputs
-        for report in reports for check in report["trial_verification"]
-    ):
-        raise RuntimeError("independent process outputs are not bitwise identical")
+    reference_outputs = {
+        check["options"]: check["output_sha256"]
+        for check in reports[0]["trial_verification"]
+    }
+    for report in reports:
+        for check in report["trial_verification"]:
+            if check["output_sha256"] != reference_outputs[check["options"]]:
+                raise RuntimeError(
+                    f"independent process outputs differ for {check['options']}"
+                )
     if any(
         report["canonical_results"]["options"] != "<default>"
         for report in reports
@@ -790,7 +926,10 @@ def main() -> None:
         result = _combine_process_results(reports)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
-    print(f"Wrote {len(result['trial_verification'])} independently verified option/process runs to {args.output}")
+    print(
+        f"Wrote {len(result['trial_verification'])} option/process records "
+        f"({result.get('independent_process_repetitions', 1)} independent processes) to {args.output}"
+    )
 
 
 if __name__ == "__main__":
