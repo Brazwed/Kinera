@@ -564,6 +564,22 @@ Além das métricas, o relatório registra duração por seed e o uso efetivo do
 canal silábico: posições não-`<UNK_SYL>` e quantidade de IDs silábicos únicos
 presentes em treino e validação.
 
+A validação intermediária é opcional e pode ser ativada com
+`--validation-every-n-epochs N` (ou `validation_every_n_epochs=N` na API do
+runner). Ela observa o split de validação após cada múltiplo de N, sem alterar
+updates, losses ou seleção do modelo. O histórico aparece como
+`validation_history` no registro de cada execução em `runs[variant]`; o campo
+não é emitido quando a opção fica desativada. A validação final continua
+obrigatória e é reutilizada como observação da última época quando ela coincide
+com a cadência. A coleta aumenta o tempo de execução conforme o número de
+avaliações.
+
+Em checkpoints, a cadência fica em `observation_config`, fora do fingerprint
+científico: ela altera as observações produzidas, não a configuração de
+aprendizado. Resume exige a mesma configuração observacional. Checkpoints
+anteriores ao B006 sem essa configuração continuam compatíveis com a opção
+desativada se também atenderem à verificação fail-closed de fingerprint da M1.4.
+
 O checkpoint é atualizado depois de cada variante/seed usando substituição
 atômica. Se o processo for interrompido, a execução pode ser retomada com os
 mesmos parâmetros e `--resume`; combinações concluídas não são repetidas:

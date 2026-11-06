@@ -363,6 +363,91 @@ class MultitaskTrainingWorkflowTests(unittest.TestCase):
             self.assertEqual(entry.latest_event.total_loss, observed[6][index + 3]["total_loss"])
             self.assertEqual(observed[2][index + 3][3], observed[6][index + 3])
 
+    def test_epoch_end_evaluation_preserves_training_updates_and_model_state(self) -> None:
+        def parameters(model: AutoregressiveModel) -> tuple[Any, ...]:
+            return copy.deepcopy(
+                (
+                    model.representation.char_embedding.weights,
+                    model.representation.syllable_embedding.weights,
+                    model.heads.char.weights,
+                    model.heads.char.bias,
+                    model.heads.syllable.weights,
+                    model.heads.syllable.bias,
+                    model.heads.boundary.weights,
+                    model.heads.boundary.bias,
+                )
+            )
+
+        baseline_model = self._model()
+        observed_model = self._model()
+        baseline_rng = random.getstate()
+        baseline_order: list[list[int]] = []
+        baseline_train_step = baseline_model.multitask_train_step
+
+        def record_baseline_step(*args: Any, **kwargs: Any) -> dict[str, float]:
+            baseline_order.append(list(args[0]))
+            return baseline_train_step(*args, **kwargs)
+
+        with patch.object(
+            baseline_model,
+            "multitask_train_step",
+            side_effect=record_baseline_step,
+        ):
+            baseline = train_multitask_examples(
+                baseline_model,
+                self.examples,
+                self.vocabulary,
+                epochs=3,
+                learning_rate=0.1,
+            )
+        baseline_parameters = parameters(baseline_model)
+        self.assertEqual(random.getstate(), baseline_rng)
+
+        observations: list[tuple[int, dict[str, Any]]] = []
+        train_step = observed_model.multitask_train_step
+        update_count = 0
+        observed_order: list[list[int]] = []
+
+        def counted_train_step(*args: Any, **kwargs: Any) -> dict[str, float]:
+            nonlocal update_count
+            update_count += 1
+            observed_order.append(list(args[0]))
+            return train_step(*args, **kwargs)
+
+        def observe(epoch: int, model: AutoregressiveModel) -> None:
+            metrics = evaluate_multitask_examples(
+                model, self.examples, self.vocabulary
+            )
+            observations.append((epoch, metrics))
+
+        with patch.object(
+            observed_model,
+            "multitask_train_step",
+            side_effect=counted_train_step,
+        ):
+            observed = train_multitask_examples(
+                observed_model,
+                self.examples,
+                self.vocabulary,
+                epochs=3,
+                learning_rate=0.1,
+                epoch_end_observer=observe,
+            )
+
+        self.assertEqual(random.getstate(), baseline_rng)
+        self.assertEqual(observed, baseline)
+        self.assertEqual(parameters(observed_model), baseline_parameters)
+        self.assertEqual(update_count, len(self.examples) * 3)
+        self.assertEqual(len(baseline_order), len(self.examples) * 3)
+        self.assertEqual(observed_order, baseline_order)
+        self.assertEqual([epoch for epoch, _ in observations], [1, 2, 3])
+        self.assertEqual(
+            observations[-1][1],
+            evaluate_multitask_examples(
+                baseline_model, self.examples, self.vocabulary
+            ),
+        )
+
     def test_step_observer_errors_propagate_after_one_successful_update(self) -> None:
         model = self._model()
         calls = 0

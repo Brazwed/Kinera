@@ -1,5 +1,6 @@
 import unittest
 import json
+import random
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -65,6 +66,362 @@ class ControlledComparisonTests(unittest.TestCase):
         self.assertEqual(cpu_args.backend, "cpu")
         self.assertEqual(cuda_args.backend, "cuda")
 
+    def test_compare_cli_exposes_optional_validation_cadence(self) -> None:
+        arguments = [
+            "--vocabulary", "vocabulary.json",
+            "--syllable-vocabulary", "syllables.json",
+            "--train", "train.jsonl",
+            "--validation", "validation.jsonl",
+        ]
+        default_args = build_parser().parse_args(arguments)
+        enabled_args = build_parser().parse_args(
+            [*arguments, "--validation-every-n-epochs", "3"]
+        )
+
+        self.assertIsNone(default_args.validation_every_n_epochs)
+        self.assertEqual(enabled_args.validation_every_n_epochs, 3)
+
+    def test_validation_cadence_preserves_legacy_results_and_reuses_final(self) -> None:
+        common = {
+            "syllable_vocab_size": 5,
+            "syllable_vocabulary": self.syllable_vocabulary,
+            "seeds": [7],
+            "epochs": 3,
+            "learning_rate": 0.05,
+            "max_examples": 1,
+            "variants": ("A",),
+        }
+        rng_before = random.getstate()
+        baseline = run_controlled_experiments(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            **common,
+        )
+        self.assertEqual(random.getstate(), rng_before)
+
+        original_evaluate = comparison.evaluate_multitask_examples
+        with patch.object(
+            comparison,
+            "evaluate_multitask_examples",
+            wraps=original_evaluate,
+        ) as evaluate:
+            observed = run_controlled_experiments(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                validation_every_n_epochs=1,
+                **common,
+            )
+
+        self.assertEqual(random.getstate(), rng_before)
+        self.assertEqual(
+            evaluate.call_count,
+            4,  # initial + epochs 1/2 + final; epoch 3 is reused
+        )
+        baseline_run = baseline["runs"]["A"][0]
+        observed_run = observed["runs"]["A"][0]
+        self.assertEqual(observed_run["training"], baseline_run["training"])
+        self.assertEqual(
+            observed_run["initial_validation"], baseline_run["initial_validation"]
+        )
+        self.assertEqual(observed_run["final_validation"], baseline_run["final_validation"])
+        for section in ("aggregates", "paired_deltas", "metrics"):
+            self.assertEqual(observed[section], baseline[section])
+        self.assertEqual(
+            [item["total_loss"] for item in baseline_run["training"]["history"]],
+            [2.9987254639778302, 2.931094460057473, 2.8646954739655675],
+        )
+        self.assertEqual(
+            [item["char_accuracy"] for item in baseline_run["training"]["history"]],
+            [0.0, 1.0, 1.0],
+        )
+        self.assertEqual(
+            baseline_run["initial_validation"]["total_loss"], 3.067645245925604
+        )
+        self.assertEqual(
+            baseline_run["final_validation"]["total_loss"], 2.8646954739655675
+        )
+        self.assertNotIn("validation_history", baseline_run)
+        self.assertNotIn("observation_config", baseline)
+        self.assertEqual(
+            [item["epoch"] for item in observed_run["validation_history"]], [1, 2, 3]
+        )
+        self.assertEqual(
+            {
+                key: value
+                for key, value in observed_run["validation_history"][-1].items()
+                if key not in {"epoch", "split"}
+            },
+            observed_run["final_validation"],
+        )
+        self.assertEqual(
+            observed_run["validation_history"][-1]["metrics_schema_version"], 1
+        )
+        self.assertEqual(
+            observed_run["validation_history"][-1]["metric_results"][
+                "char_accuracy"
+            ]["support"],
+            {"examples": 1},
+        )
+        self.assertEqual(
+            baseline["experiment_fingerprint"], observed["experiment_fingerprint"]
+        )
+        reloaded = json.loads(json.dumps(observed, allow_nan=False))
+        self.assertEqual(
+            reloaded["runs"]["A"][0]["validation_history"],
+            observed_run["validation_history"],
+        )
+
+    def test_validation_cadence_two_and_greater_than_epochs(self) -> None:
+        common = {
+            "syllable_vocab_size": 5,
+            "seeds": [7],
+            "learning_rate": 0.05,
+            "max_examples": 1,
+            "variants": ("A",),
+        }
+        every_two = run_controlled_experiments(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            epochs=5,
+            validation_every_n_epochs=2,
+            **common,
+        )
+        self.assertEqual(
+            [item["epoch"] for item in every_two["runs"]["A"][0]["validation_history"]],
+            [2, 4],
+        )
+
+        beyond_run = run_controlled_experiments(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            epochs=2,
+            validation_every_n_epochs=3,
+            **common,
+        )["runs"]["A"][0]
+        self.assertEqual(beyond_run["validation_history"], [])
+
+    def test_validation_cadence_rejects_invalid_values(self) -> None:
+        for value in (True, False, 0, -1, "2", 2.0):
+            with self.subTest(value=value):
+                with self.assertRaises((TypeError, ValueError)):
+                    run_controlled_experiments(
+                        self.examples,
+                        self.examples,
+                        self.vocabulary,
+                        syllable_vocab_size=5,
+                        seeds=[7],
+                        epochs=1,
+                        learning_rate=0.05,
+                        variants=("A",),
+                        validation_every_n_epochs=value,  # type: ignore[arg-type]
+                    )
+
+    def test_parallel_cpu_worker_receives_validation_cadence(self) -> None:
+        report = run_controlled_experiments(
+            self.examples,
+            self.examples,
+            self.vocabulary,
+            syllable_vocab_size=5,
+            seeds=[7],
+            epochs=2,
+            learning_rate=0.05,
+            max_examples=1,
+            variants=("A",),
+            execution_config=ExecutionConfig(workers=2),
+            validation_every_n_epochs=1,
+        )
+
+        run = report["runs"]["A"][0]
+        self.assertEqual(run["status"], "completed")
+        self.assertEqual([item["epoch"] for item in run["validation_history"]], [1, 2])
+
+    def test_validation_cadence_resume_is_strict_and_preserves_history(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "validation-cadence.json"
+            common = {
+                "syllable_vocab_size": 5,
+                "seeds": [7],
+                "epochs": 2,
+                "learning_rate": 0.05,
+                "max_examples": 1,
+                "variants": ("A",),
+                "checkpoint_path": checkpoint,
+            }
+            first = self._run_historical(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                validation_every_n_epochs=1,
+                **common,
+            )
+            prior_history = first["runs"]["A"][0]["validation_history"]
+            raw_before_mismatch = checkpoint.read_bytes()
+            with patch.object(
+                comparison,
+                "_execute_single_experiment",
+                side_effect=AssertionError(
+                    "execution began before cadence validation"
+                ),
+            ) as execute:
+                with self.assertRaisesRegex(ValueError, "validation_every_n_epochs"):
+                    self._run_historical(
+                        self.examples,
+                        self.examples,
+                        self.vocabulary,
+                        validation_every_n_epochs=2,
+                        resume=True,
+                        **common,
+                    )
+                execute.assert_not_called()
+            self.assertEqual(checkpoint.read_bytes(), raw_before_mismatch)
+            with self.assertRaisesRegex(ValueError, "validation_every_n_epochs"):
+                self._run_historical(
+                    self.examples,
+                    self.examples,
+                    self.vocabulary,
+                    resume=True,
+                    **common,
+                )
+            self.assertEqual(checkpoint.read_bytes(), raw_before_mismatch)
+
+            malformed = json.loads(raw_before_mismatch)
+            malformed["observation_config"]["validation_every_n_epochs"] = True
+            checkpoint.write_text(json.dumps(malformed), encoding="utf-8")
+            malformed_bytes = checkpoint.read_bytes()
+            with self.assertRaisesRegex(ValueError, "validation_every_n_epochs"):
+                self._run_historical(
+                    self.examples,
+                    self.examples,
+                    self.vocabulary,
+                    validation_every_n_epochs=1,
+                    resume=True,
+                    **common,
+                )
+            self.assertEqual(checkpoint.read_bytes(), malformed_bytes)
+            checkpoint.write_bytes(raw_before_mismatch)
+
+            expanded = self._run_historical(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                validation_every_n_epochs=1,
+                seeds=[7, 8],
+                epochs=2,
+                learning_rate=0.05,
+                max_examples=1,
+                variants=("A", "D"),
+                checkpoint_path=checkpoint,
+                resume=True,
+            )
+            self.assertEqual(
+                expanded["runs"]["A"][0]["validation_history"], prior_history
+            )
+            self.assertEqual(expanded["variants"], ["A", "D"])
+            self.assertEqual(
+                [run["seed"] for run in expanded["runs"]["D"]], [7, 8]
+            )
+            self.assertTrue(
+                all(
+                    [item["epoch"] for item in run["validation_history"]] == [1, 2]
+                    for run in expanded["runs"]["D"]
+                )
+            )
+            self.assertEqual(
+                json.loads(checkpoint.read_text(encoding="utf-8"))["observation_config"],
+                {"validation_every_n_epochs": 1},
+            )
+
+    def test_checkpoint_without_validation_history_cannot_resume_with_cadence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "legacy-observation.json"
+            common = {
+                "syllable_vocab_size": 5,
+                "seeds": [7],
+                "epochs": 1,
+                "learning_rate": 0.05,
+                "max_examples": 1,
+                "variants": ("A",),
+            }
+            self._run_historical(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                checkpoint_path=checkpoint,
+                **common,
+            )
+            before = checkpoint.read_bytes()
+            with self.assertRaisesRegex(ValueError, "validation_every_n_epochs"):
+                self._run_historical(
+                    self.examples,
+                    self.examples,
+                    self.vocabulary,
+                    checkpoint_path=checkpoint,
+                    resume=True,
+                    validation_every_n_epochs=1,
+                    **common,
+                )
+            self.assertEqual(checkpoint.read_bytes(), before)
+
+    def test_failed_partial_validation_attempt_does_not_mix_history(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "partial-validation.json"
+            common = {
+                "syllable_vocab_size": 5,
+                "seeds": [7],
+                "epochs": 3,
+                "learning_rate": 0.05,
+                "max_examples": 1,
+                "variants": ("A",),
+                "checkpoint_path": checkpoint,
+                "validation_every_n_epochs": 1,
+            }
+            original_evaluate = comparison.evaluate_multitask_examples
+            evaluation_calls = 0
+
+            def fail_at_second_intermediate(
+                *args: Any,
+                **kwargs: Any,
+            ) -> dict[str, Any]:
+                nonlocal evaluation_calls
+                evaluation_calls += 1
+                if evaluation_calls == 3:  # initial, epoch 1, then epoch 2
+                    raise RuntimeError("synthetic validation failure")
+                return original_evaluate(*args, **kwargs)
+
+            with patch.object(
+                comparison,
+                "evaluate_multitask_examples",
+                side_effect=fail_at_second_intermediate,
+            ):
+                failed = self._run_historical(
+                    self.examples,
+                    self.examples,
+                    self.vocabulary,
+                    **common,
+                )
+
+            failed_run = failed["runs"]["A"][0]
+            self.assertEqual(failed_run["status"], "failed")
+            self.assertNotIn("validation_history", failed_run)
+            resumed = self._run_historical(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                resume=True,
+                **common,
+            )
+            completed_run = resumed["runs"]["A"][0]
+            self.assertEqual(completed_run["status"], "completed")
+            self.assertEqual(
+                [item["epoch"] for item in completed_run["validation_history"]],
+                [1, 2, 3],
+            )
+
     def test_compare_cli_passes_selected_execution_config_to_runner(self) -> None:
         syllable_vocabulary = self._make_syllable_vocabulary(5)
 
@@ -79,6 +436,7 @@ class ControlledComparisonTests(unittest.TestCase):
             "--max-examples", "1",
             "--backend", "cuda",
             "--workers", "1",
+            "--validation-every-n-epochs", "2",
         ]
         with (
             patch.object(Path, "read_text", return_value="{}"),
@@ -105,6 +463,9 @@ class ControlledComparisonTests(unittest.TestCase):
         self.assertIs(
             run_experiments.call_args.kwargs["syllable_vocabulary"],
             syllable_vocabulary,
+        )
+        self.assertEqual(
+            run_experiments.call_args.kwargs["validation_every_n_epochs"], 2
         )
         self.assertNotIn("workers", run_experiments.call_args.kwargs)
 
