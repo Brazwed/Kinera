@@ -28,6 +28,8 @@ def metric_result(
     if availability not in {"available", "not_applicable", "unavailable"}:
         raise ValueError("availability inválida")
     if availability == "available":
+        if value is None:
+            raise ValueError("metric disponível deve ter value")
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise TypeError("metric value disponível deve ser numérico")
         if not math.isfinite(value):

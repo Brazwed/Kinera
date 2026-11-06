@@ -495,6 +495,11 @@ distribuições alvo/prevista por ID e separa alvos silábicos conhecidos,
 `<UNK_SYL>` na head silábica, usando o ID do alvo de caractere para distingui-lo.
 As agregações e os deltas pareados usam o `value` canônico dos relatórios v1;
 relatórios antigos sem versão continuam usando os campos escalares existentes.
+Em um resume, `metrics_schema_version` no envelope descreve o formato emitido
+pelo escritor atual. Isso não garante que todos os registros internos tenham
+sido produzidos no schema v1: cada `final_validation` mantém sua própria versão,
+e a ausência dela identifica um registro histórico legado. O envelope não
+reescreve nem infere descritores para esses registros antigos.
 
 O fluxo recomendado para experimentos usa uma amostra limitada do JSONL:
 

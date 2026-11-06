@@ -549,6 +549,10 @@ class TelemetryCheckpointTests(unittest.TestCase):
         self.assertNotIn("telemetry", legacy_resumed)
         self.assertNotIn("telemetry", legacy_persisted)
         self.assertEqual(legacy_resumed["metrics_schema_version"], 1)
+        self.assertNotIn(
+            "metrics_schema_version",
+            legacy_resumed["runs"]["C"][0]["final_validation"],
+        )
         for variant in CONTROLLED_VARIANTS:
             self.assertEqual(
                 resumed["runs"][variant][0]["telemetry"],
