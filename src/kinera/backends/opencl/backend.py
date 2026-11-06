@@ -633,7 +633,97 @@ class OpenCLBackend:
         grad_weights: BackendArray,
         learning_rate: float,
     ) -> OpenCLBuffer:
-        self._unavailable("Embedding.step")
+        """Apply an in-place gradient descent update to a resident table."""
+        self._ensure_open()
+        weights_buffer = self._require_buffer(
+            weights, "weights", rank=2, operation="Embedding.step"
+        )
+        grad_weights_buffer = self._require_buffer(
+            grad_weights, "grad_weights", rank=2, operation="Embedding.step"
+        )
+        self.memory._validate_buffer(weights_buffer)
+        self.memory._validate_buffer(grad_weights_buffer)
+        if weights_buffer.device_id != self.device_id:
+            raise BackendError(
+                "Embedding.step weights must reside on the selected OpenCL GPU"
+            )
+        if grad_weights_buffer.device_id != self.device_id:
+            raise BackendError(
+                "Embedding.step grad_weights must reside on the selected OpenCL GPU"
+            )
+        if weights_buffer.shape != grad_weights_buffer.shape:
+            raise ValueError("grad_weights must match weights shape")
+        if weights_buffer.layout != "C" or grad_weights_buffer.layout != "C":
+            raise ValueError("Embedding.step buffers must use row-major layout")
+
+        vocab_size, embedding_dim = weights_buffer.shape
+        if vocab_size <= 0 or embedding_dim <= 0:
+            raise ValueError("Embedding.step dimensions must be positive")
+        expected_nbytes = (
+            vocab_size * embedding_dim * ctypes.sizeof(ctypes.c_double)
+        )
+        if weights_buffer.nbytes != expected_nbytes:
+            raise ValueError("weights buffer size does not match its shape")
+        if grad_weights_buffer.nbytes != expected_nbytes:
+            raise ValueError("grad_weights buffer size does not match its shape")
+        if (
+            weights_buffer._manager is not self.memory
+            or grad_weights_buffer._manager is not self.memory
+        ):
+            raise BackendError(
+                "Embedding.step buffers must belong to this OpenCL backend"
+            )
+        if weights_buffer.handle == grad_weights_buffer.handle:
+            raise BackendError(
+                "Embedding.step weights and grad_weights must not alias"
+            )
+        if vocab_size > _OPENCL_INT_MAX or embedding_dim > _OPENCL_INT_MAX:
+            raise ValueError(
+                "Embedding.step dimensions must fit in a signed 32-bit integer"
+            )
+        weight_count = vocab_size * embedding_dim
+        if weight_count > ctypes.c_size_t(-1).value:
+            raise ValueError("Embedding.step dispatch exceeds the host size_t range")
+
+        if isinstance(learning_rate, bool) or not isinstance(
+            learning_rate, (int, float)
+        ):
+            raise TypeError("learning_rate must be numeric")
+        try:
+            rate = float(learning_rate)
+        except (OverflowError, ValueError) as error:
+            raise ValueError("learning_rate must be finite") from error
+        if not math.isfinite(rate):
+            raise ValueError("learning_rate must be finite")
+        if rate < 0.0:
+            raise ValueError("learning_rate cannot be negative")
+
+        self.runtime.require_device(self.device_id, require_fp64=True)
+        if rate == 0.0:
+            return weights_buffer
+
+        kernel: int | None = None
+        try:
+            program = self._get_program("embedding_step.cl")
+            kernel = self.runtime.api.create_kernel(
+                program, "kinera_embedding_step_f64"
+            )
+            self.runtime.api.set_kernel_buffer(kernel, 0, weights_buffer.handle)
+            self.runtime.api.set_kernel_buffer(kernel, 1, grad_weights_buffer.handle)
+            self.runtime.api.set_kernel_int(kernel, 2, vocab_size)
+            self.runtime.api.set_kernel_int(kernel, 3, embedding_dim)
+            self.runtime.api.set_kernel_double(kernel, 4, rate)
+            self.runtime.api.enqueue_1d(
+                self.memory.queue, kernel, weight_count
+            )
+            kernel_to_release, kernel = kernel, None
+            self.runtime.api.release_kernel(kernel_to_release)
+        except BaseException as error:
+            cleanup_error = self._release_embedding_temporaries(kernel)
+            if cleanup_error is not None:
+                raise error from cleanup_error
+            raise
+        return weights_buffer
 
     def neuron_forward(
         self,
@@ -721,6 +811,7 @@ class OpenCLBackend:
             "linear_step.cl",
             "embedding_forward.cl",
             "embedding_backward.cl",
+            "embedding_step.cl",
         }:
             raise ValueError(f"unsupported OpenCL kernel program: {kernel_filename}")
         program = self._programs.get(kernel_filename)
