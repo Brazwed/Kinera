@@ -5,6 +5,7 @@ import math
 import struct
 import subprocess
 import sys
+from decimal import Decimal, localcontext
 from types import SimpleNamespace
 import unittest
 from unittest.mock import PropertyMock, patch
@@ -1690,10 +1691,22 @@ class OpenCLEmbeddingStepTests(unittest.TestCase):
         )
         self.assertEqual(self._values(result), expected)
         self.assertEqual(expected[0][0], 0.0)
-        self.assertEqual(
-            math.fma(-learning_rate, self.gradients_values[0][0], 1.0),
-            2.0**-54,
+        # Decimal.from_float preserves the exact binary64 operands.  A single
+        # final conversion therefore acts as an independent fused-operation
+        # oracle on Python versions without math.fma.
+        with localcontext() as context:
+            context.prec = 200
+            fused = float(
+                Decimal.from_float(1.0)
+                - Decimal.from_float(learning_rate)
+                * Decimal.from_float(self.gradients_values[0][0])
+            )
+        separately_rounded = 1.0 - (
+            learning_rate * self.gradients_values[0][0]
         )
+        self.assertEqual(fused, 2.0**-54)
+        self.assertEqual(separately_rounded, expected[0][0])
+        self.assertNotEqual(fused, separately_rounded)
         self.assertFalse(self.grad_weights.closed)
 
     def test_consecutive_updates_and_zero_rate_have_cpu_semantics(self) -> None:

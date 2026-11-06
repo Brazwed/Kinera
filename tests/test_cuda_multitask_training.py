@@ -19,7 +19,7 @@ from kinera.backends.cuda import CUDABackend, CudaBuffer
 from kinera.experiments import comparison
 from kinera.experiments.comparison import run_controlled_experiments
 from kinera.experiments.config import ExecutionConfig
-from kinera.language.vocabulary import CharacterVocabulary
+from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from kinera.nn.losses.multitask import MultiTaskLoss
 from kinera.nn.models.hybrid import AutoregressiveModel
 from kinera.training.evaluator import evaluate_multitask_examples
@@ -31,6 +31,131 @@ ATOL = 1e-12
 RTOL = 1e-12
 INPUTS = ([0, 1], [0, 1], [[1.0, 0.0], [0.0, 1.0]])
 TARGETS = {"char": 2, "syllable": 3, "boundary": 1.0}
+
+
+def _assert_nested_close(
+    testcase: unittest.TestCase,
+    actual: object,
+    expected: object,
+    label: str,
+) -> float:
+    errors: list[float] = []
+
+    def compare(got: object, want: object, path: tuple[str, ...] = ()) -> None:
+        label_at_path = f"{label}{path}"
+        if isinstance(got, dict) or isinstance(want, dict):
+            testcase.assertIsInstance(got, dict, label_at_path)
+            testcase.assertIsInstance(want, dict, label_at_path)
+            got_dict = cast(dict[object, object], got)
+            want_dict = cast(dict[object, object], want)
+            testcase.assertEqual(got_dict.keys(), want_dict.keys(), label_at_path)
+            for key in got_dict:
+                compare(got_dict[key], want_dict[key], path + (str(key),))
+            return
+        if isinstance(got, list) or isinstance(want, list):
+            testcase.assertIsInstance(got, list, label_at_path)
+            testcase.assertIsInstance(want, list, label_at_path)
+            got_list = cast(list[object], got)
+            want_list = cast(list[object], want)
+            testcase.assertEqual(len(got_list), len(want_list), label_at_path)
+            for index, (got_item, want_item) in enumerate(zip(got_list, want_list)):
+                compare(got_item, want_item, path + (str(index),))
+            return
+        if (
+            isinstance(got, bool)
+            or isinstance(want, bool)
+            or got is None
+            or want is None
+        ):
+            testcase.assertEqual(got, want, label_at_path)
+            return
+        if isinstance(got, int) and isinstance(want, int):
+            testcase.assertEqual(got, want, label_at_path)
+            return
+        if isinstance(got, float) and isinstance(want, float):
+            testcase.assertTrue(math.isfinite(got), f"{label_at_path} is non-finite")
+            testcase.assertTrue(
+                math.isfinite(want), f"expected {label_at_path} is non-finite"
+            )
+            error = abs(got - want)
+            errors.append(error)
+            testcase.assertLessEqual(error, ATOL + RTOL * abs(want), label_at_path)
+            return
+        if isinstance(got, (int, float)) or isinstance(want, (int, float)):
+            # Numeric type changes are contract changes (especially for IDs).
+            testcase.assertIs(type(got), type(want), label_at_path)
+            testcase.assertEqual(got, want, label_at_path)
+            return
+        testcase.assertEqual(got, want, label_at_path)
+
+    compare(actual, expected)
+    return max(errors, default=0.0)
+
+
+class CudaReportComparisonHelperTests(unittest.TestCase):
+    def test_nested_descriptors_keep_numeric_and_metadata_semantics(self) -> None:
+        expected = {
+            "metric_results": {
+                "char_accuracy": {
+                    "value": 0.25,
+                    "availability": "available",
+                    "reason": None,
+                    "support": {"examples": 4},
+                }
+            },
+            "baseline_selection": {"classes": {"char": 3}, "version": 1},
+            "validation_history": [
+                {"epoch": 1, "split": "validation"},
+                {"epoch": 2, "split": "validation"},
+            ],
+        }
+        actual = {
+            "metric_results": {
+                "char_accuracy": {
+                    "value": 0.25 + 1e-13,
+                    "availability": "available",
+                    "reason": None,
+                    "support": {"examples": 4},
+                }
+            },
+            "baseline_selection": {"classes": {"char": 3}, "version": 1},
+            "validation_history": [
+                {"epoch": 1, "split": "validation"},
+                {"epoch": 2, "split": "validation"},
+            ],
+        }
+        self.assertLessEqual(
+            _assert_nested_close(self, actual, expected, "report"), 1e-12
+        )
+        descriptor = actual["metric_results"]["char_accuracy"]
+        invalid_values = [
+            {
+                **actual,
+                "metric_results": {
+                    "char_accuracy": {**descriptor, "availability": "unavailable"}
+                },
+            },
+            {
+                **actual,
+                "metric_results": {
+                    "char_accuracy": {**descriptor, "support": {"examples": 5}}
+                },
+            },
+            {
+                **actual,
+                "metric_results": {
+                    "char_accuracy": {**descriptor, "value": None}
+                },
+            },
+            {
+                **actual,
+                "validation_history": list(reversed(actual["validation_history"])),
+            },
+        ]
+        for invalid_value in invalid_values:
+            with self.subTest(invalid_value=invalid_value):
+                with self.assertRaises(AssertionError):
+                    _assert_nested_close(self, invalid_value, expected, "report")
 
 
 @unittest.skipUnless(RUN_CUDA_TESTS, "set KINERA_RUN_CUDA_TESTS=1 on a CUDA runner")
@@ -68,32 +193,8 @@ class ResidentMultiTaskCudaEquivalenceTests(unittest.TestCase):
             return backend.buffer_to_host(value)
         return value
 
-    @staticmethod
-    def _flat(value: object) -> list[float]:
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
-            return [float(value)]
-        if isinstance(value, list) and value and isinstance(value[0], list):
-            return [
-                float(cast(float | int, item))
-                for row in cast(list[list[object]], value)
-                for item in row
-            ]
-        if isinstance(value, list):
-            return [float(cast(float | int, item)) for item in cast(list[object], value)]
-        raise TypeError(f"expected a list-backed numeric array, got {type(value).__name__}")
-
     def _assert_close(self, actual: object, expected: object, label: str) -> float:
-        actual_values = self._flat(actual)
-        expected_values = self._flat(expected)
-        self.assertEqual(len(actual_values), len(expected_values), label)
-        errors = []
-        for index, (got, want) in enumerate(zip(actual_values, expected_values)):
-            with self.subTest(value=label, index=index):
-                self.assertTrue(math.isfinite(got), f"{label}[{index}] is non-finite")
-                error = abs(got - want)
-                self.assertLessEqual(error, ATOL + RTOL * abs(want), label)
-                errors.append(error)
-        return max(errors, default=0.0)
+        return _assert_nested_close(self, actual, expected, label)
 
     def test_one_multitask_train_step_matches_cpu_oracle(self) -> None:
         cpu_model = self._model(self.cpu)
@@ -619,6 +720,273 @@ class ResidentMultiTaskCudaEquivalenceTests(unittest.TestCase):
                         f"unreleased CUDA allocations after model.close(): {remaining}",
                     )
             cpu_model.close()
+
+    def test_epoch_validation_and_b009_baselines_preserve_cuda_training(self) -> None:
+        vocabulary = CharacterVocabulary(["<START>", "<END>", "<UNK>", "a", "b"])
+        syllable_vocabulary = SyllableVocabulary(
+            ["<UNK_SYL>", "known-a", "known-b"]
+        )
+
+        def example(
+            index: int, target_char_id: int, target_syllable_id: int
+        ) -> dict[str, object]:
+            return {
+                "context_ids": [3, 4],
+                "context_syllable_ids": [1, 2],
+                "context_feature_vectors": [
+                    [1.0] + [0.0] * 9,
+                    [0.0, 1.0] + [0.0] * 8,
+                ],
+                "target_char_id": target_char_id,
+                "target_syllable_id": target_syllable_id,
+                "target_is_syllable_end": index % 2,
+            }
+
+        train_examples = [
+            example(0, 3, 1),
+            example(1, 3, 1),
+            example(2, 4, syllable_vocabulary.unk_id),
+            example(3, vocabulary.end_id, 2),
+        ]
+        validation_examples = [
+            example(0, 3, 1),
+            example(1, 4, 1),
+            example(2, 4, syllable_vocabulary.unk_id),
+            example(3, vocabulary.end_id, 2),
+        ]
+        run_args = {
+            "syllable_vocab_size": len(syllable_vocabulary),
+            "syllable_vocabulary": syllable_vocabulary,
+            "seeds": [41],
+            "epochs": 2,
+            "learning_rate": 0.05,
+            "max_examples": 4,
+            "variants": ("A",),
+        }
+
+        counts: dict[str, Counter[str]] = {
+            "disabled": Counter(),
+            "enabled": Counter(),
+        }
+        update_orders: dict[str, list[object]] = {"disabled": [], "enabled": []}
+        parameter_snapshots: dict[str, list[object]] = {}
+        d2h_shapes: list[tuple[tuple[int, ...], str]] = []
+        live_allocations: Counter[int] = Counter()
+        unmatched_frees: list[int] = []
+        case = {"name": "disabled"}
+        capturing_parameters = {"active": False}
+        models_closed = 0
+
+        original_train_step = AutoregressiveModel.multitask_train_step
+        original_eval_step = AutoregressiveModel.multitask_eval_step
+        original_backward = MultiTaskLoss.backward
+        original_close = AutoregressiveModel.close
+        original_allocate = self.cuda.bridge.allocate
+        original_free = self.cuda.bridge.free
+        original_copy_to_host = self.cuda.memory.copy_to_host
+
+        def tracked_train_step(
+            model: AutoregressiveModel, *args: Any, **kwargs: Any
+        ) -> object:
+            name = case["name"]
+            counts[name]["train_step"] += 1
+            update_orders[name].append(
+                (args[0], args[1], args[2], kwargs["targets"], kwargs["learning_rate"])
+            )
+            return original_train_step(model, *args, **kwargs)
+
+        def tracked_eval_step(
+            model: AutoregressiveModel, *args: Any, **kwargs: Any
+        ) -> object:
+            counts[case["name"]]["eval_step"] += 1
+            return original_eval_step(model, *args, **kwargs)
+
+        def tracked_backward(loss: MultiTaskLoss, *args: Any, **kwargs: Any) -> object:
+            counts[case["name"]]["backward"] += 1
+            return original_backward(loss, *args, **kwargs)
+
+        def tracked_allocate(device_id: int, nbytes: int) -> int:
+            pointer = original_allocate(device_id, nbytes)
+            live_allocations[pointer] += 1
+            return pointer
+
+        def tracked_free(device_id: int, pointer: int) -> None:
+            original_free(device_id, pointer)
+            if live_allocations[pointer] == 0:
+                unmatched_frees.append(pointer)
+            else:
+                live_allocations[pointer] -= 1
+                if live_allocations[pointer] == 0:
+                    del live_allocations[pointer]
+
+        def model_parameters(model: AutoregressiveModel) -> list[CudaBuffer]:
+            return [
+                model.representation.char_embedding.weights,
+                model.representation.syllable_embedding.weights,
+                model.heads.char.weights,
+                model.heads.char.bias,
+                model.heads.syllable.weights,
+                model.heads.syllable.bias,
+                model.heads.boundary.weights,
+                model.heads.boundary.bias,
+            ]
+
+        def tracked_close(model: AutoregressiveModel) -> None:
+            nonlocal models_closed
+            capturing_parameters["active"] = True
+            try:
+                parameter_snapshots[case["name"]] = [
+                    self.cuda.buffer_to_host(buffer)
+                    for buffer in model_parameters(model)
+                ]
+            finally:
+                capturing_parameters["active"] = False
+            original_close(model)
+            models_closed += 1
+            self.assertTrue(
+                all(buffer.closed for buffer in model_parameters(model)),
+                "model.close() deixou buffers de parâmetros abertos",
+            )
+            self.assertEqual(
+                live_allocations,
+                Counter(),
+                "model.close() deixou alocações CUDA ativas",
+            )
+
+        def tracked_copy_to_host(
+            buffer: CudaBuffer, *args: Any, **kwargs: Any
+        ) -> object:
+            if not capturing_parameters["active"]:
+                d2h_shapes.append((buffer.shape, buffer.dtype))
+            return original_copy_to_host(buffer, *args, **kwargs)
+
+        def run_case(name: str, cadence: int | None) -> tuple[dict[str, Any], int]:
+            case["name"] = name
+            with patch.object(
+                comparison,
+                "evaluate_multitask_examples",
+                wraps=evaluate_multitask_examples,
+            ) as validation_evaluator:
+                report = run_controlled_experiments(
+                    train_examples,
+                    validation_examples,
+                    vocabulary,
+                    **run_args,
+                    validation_every_n_epochs=cadence,
+                    execution_config=ExecutionConfig(backend="cuda", workers=1),
+                )
+            return report, validation_evaluator.call_count
+
+        with (
+            patch.object(self.cuda.memory, "copy_to_host", new=tracked_copy_to_host),
+            patch.object(self.cuda.bridge, "allocate", side_effect=tracked_allocate),
+            patch.object(self.cuda.bridge, "free", side_effect=tracked_free),
+            patch.object(AutoregressiveModel, "multitask_train_step", new=tracked_train_step),
+            patch.object(AutoregressiveModel, "multitask_eval_step", new=tracked_eval_step),
+            patch.object(MultiTaskLoss, "backward", new=tracked_backward),
+            patch.object(AutoregressiveModel, "close", new=tracked_close),
+            patch.object(comparison, "get_backend", return_value=self.cuda),
+        ):
+            disabled_report, disabled_validation_calls = run_case("disabled", None)
+            enabled_report, enabled_validation_calls = run_case("enabled", 1)
+
+        self.assertEqual(disabled_validation_calls, 2)  # initial + final
+        self.assertEqual(enabled_validation_calls, 3)  # initial + epoch 1 + final
+        self.assertEqual(models_closed, 2)
+        self.assertEqual(live_allocations, Counter())
+        self.assertEqual(unmatched_frees, [])
+        self.assertTrue(d2h_shapes)
+        self.assertTrue(
+            all(shape == (1,) and dtype in {"float64", "int32"} for shape, dtype in d2h_shapes),
+            f"validação exportou D2H não escalar: {d2h_shapes}",
+        )
+
+        disabled_run = disabled_report["runs"]["A"][0]
+        enabled_run = enabled_report["runs"]["A"][0]
+        self.assertNotIn("validation_history", disabled_run)
+        self.assertEqual(
+            [item["epoch"] for item in enabled_run["validation_history"]], [1, 2]
+        )
+        self.assertEqual(
+            enabled_run["validation_history"][-1]["split"], "validation"
+        )
+        self.assertEqual(
+            {
+                key: value
+                for key, value in enabled_run["validation_history"][-1].items()
+                if key not in {"epoch", "split"}
+            },
+            enabled_run["final_validation"],
+        )
+        self.assertEqual(disabled_run["training"], enabled_run["training"])
+        self.assertEqual(
+            disabled_run["initial_validation"], enabled_run["initial_validation"]
+        )
+        self.assertEqual(
+            disabled_run["final_validation"], enabled_run["final_validation"]
+        )
+        self.assertEqual(disabled_report["metrics"], enabled_report["metrics"])
+        self.assertEqual(update_orders["disabled"], update_orders["enabled"])
+        self.assertEqual(
+            counts["disabled"]["train_step"], counts["enabled"]["train_step"]
+        )
+        self.assertEqual(counts["disabled"]["train_step"], 8)
+        self.assertEqual(
+            counts["disabled"]["backward"], counts["enabled"]["backward"]
+        )
+        self.assertEqual(counts["disabled"]["backward"], 8)
+        self.assertEqual(counts["disabled"]["eval_step"], 16)
+        self.assertEqual(counts["enabled"]["eval_step"], 20)
+        for disabled_parameters, enabled_parameters in zip(
+            parameter_snapshots["disabled"], parameter_snapshots["enabled"]
+        ):
+            self._assert_close(enabled_parameters, disabled_parameters, "final_parameters")
+
+        validation = enabled_run["final_validation"]
+        self.assertEqual(validation["metrics_schema_version"], 1)
+        self.assertEqual(
+            validation["baseline_selection"]["classes"],
+            {
+                "char_baseline_majority": 3,
+                "syllable_baseline_majority_all": 1,
+                "syllable_baseline_majority_known": 1,
+            },
+        )
+        self.assertEqual(
+            validation["baseline_selection"]["syllable_known_scope"],
+            {
+                "excluded_syllable_id": syllable_vocabulary.unk_id,
+                "excluded_character_id": vocabulary.end_id,
+            },
+        )
+        expected_baseline_supports = {
+            "char_baseline_majority": {"training_targets": 4, "evaluation_targets": 4},
+            "syllable_baseline_majority_all": {
+                "training_targets": 4,
+                "evaluation_targets": 4,
+            },
+            "syllable_baseline_majority_known": {
+                "training_targets": 2,
+                "evaluation_targets": 2,
+            },
+        }
+        for name, support in expected_baseline_supports.items():
+            result = validation["metric_results"][name]
+            self.assertEqual(result["availability"], "available")
+            self.assertEqual(result["support"], support)
+        self.assertEqual(
+            validation["metric_results"]["char_baseline_majority"]["value"], 0.25
+        )
+        self.assertEqual(
+            validation["metric_results"]["syllable_baseline_majority_all"]["value"],
+            0.5,
+        )
+        self.assertEqual(
+            validation["metric_results"]["syllable_baseline_majority_known"]["value"],
+            1.0,
+        )
+        json.dumps(enabled_report, allow_nan=False)
+
     def test_controlled_runner_matches_cpu_cuda_and_resumes_without_duplicate_runs(self) -> None:
         vocabulary = CharacterVocabulary(
             ["<START>", "<END>", "<UNK>", *(f"char-{index}" for index in range(48))]
@@ -662,6 +1030,10 @@ class ResidentMultiTaskCudaEquivalenceTests(unittest.TestCase):
         ]
         run_args = {
             "syllable_vocab_size": 3932,
+            "syllable_vocabulary": SyllableVocabulary([
+                "<UNK_SYL>",
+                *(f"<FIXTURE_SYL_{index}>" for index in range(1, 3932)),
+            ]),
             "seeds": [7],
             "epochs": 1,
             "learning_rate": 0.05,
@@ -761,15 +1133,18 @@ class ResidentMultiTaskCudaEquivalenceTests(unittest.TestCase):
                 ):
                     self.assertEqual(left, right, f"report value differs at {path}")
                     return
-                if isinstance(left, int) and isinstance(right, int):
+                if isinstance(left, int) or isinstance(right, int):
+                    self.assertIs(type(left), type(right), f"report numeric type differs at {path}")
                     self.assertEqual(left, right, f"report integer differs at {path}")
                     return
                 if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                    self.assertTrue(math.isfinite(float(left)), f"report value is non-finite at {path}")
+                    self.assertTrue(math.isfinite(float(right)), f"expected report value is non-finite at {path}")
                     error = abs(float(left) - float(right))
                     maximum_error[0] = max(maximum_error[0], error)
                     self.assertLessEqual(
                         error,
-                        ATOL + RTOL * abs(float(left)),
+                        ATOL + RTOL * abs(float(right)),
                         f"report numeric value differs at {path}",
                     )
                     return
