@@ -678,10 +678,19 @@ class ControlledComparisonTests(unittest.TestCase):
             self.assertEqual(first["status"], "completed")
             self.assertEqual(first["completed_runs"], 4)
             self.assertEqual(first["metrics_schema_version"], 1)
+            self.assertEqual(
+                first["metrics"]["metrics_schema_version"],
+                first["metrics_schema_version"],
+            )
+            self.assertEqual(first["metrics"]["aggregates"], first["aggregates"])
+            self.assertEqual(
+                first["metrics"]["paired_deltas"], first["paired_deltas"]
+            )
             self.assertTrue(checkpoint.exists())
             persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
             self.assertEqual(persisted["completed_runs"], 4)
             self.assertEqual(persisted["metrics_schema_version"], 1)
+            self.assertEqual(persisted["metrics"], first["metrics"])
             self.assertEqual(
                 persisted["runs"]["A"][0]["final_validation"]["metrics_schema_version"],
                 1,
@@ -702,6 +711,12 @@ class ControlledComparisonTests(unittest.TestCase):
             self.assertEqual(resumed["status"], "completed")
             self.assertEqual(resumed["completed_runs"], 8)
             self.assertEqual(resumed["metrics_schema_version"], 1)
+            self.assertEqual(
+                resumed["metrics"]["aggregates"], resumed["aggregates"]
+            )
+            self.assertEqual(
+                resumed["metrics"]["paired_deltas"], resumed["paired_deltas"]
+            )
             for variant in CONTROLLED_VARIANTS:
                 self.assertEqual([run["seed"] for run in resumed["runs"][variant]], [7, 8])
 

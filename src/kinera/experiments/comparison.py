@@ -1449,9 +1449,15 @@ def _checkpoint_report(
         metric_names,
         tuple(configuration["variants"]),
     )
+    metrics_section = {
+        "metrics_schema_version": METRICS_SCHEMA_VERSION,
+        "aggregates": aggregates,
+        "paired_deltas": paired_deltas,
+    }
     report = {
         **configuration,
         "metrics_schema_version": METRICS_SCHEMA_VERSION,
+        "metrics": metrics_section,
         "status": "failed" if failed_runs else ("completed" if completed_runs == total_runs else "running"),
         "total_runs": total_runs,
         "completed_runs": completed_runs,
