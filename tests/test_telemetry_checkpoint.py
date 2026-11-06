@@ -535,6 +535,7 @@ class TelemetryCheckpointTests(unittest.TestCase):
 
         self.assertEqual(resumed["telemetry"], envelope)
         self.assertEqual(persisted["telemetry"], envelope)
+        self.assertEqual(resumed["metrics_schema_version"], 1)
         self.assertIn("paired_deltas", report)
         self.assertEqual(resumed["paired_deltas"], persisted["paired_deltas"])
         self.assertEqual(resumed["aggregates"]["A"]["n_values"]["char_loss"], 0)
@@ -547,6 +548,7 @@ class TelemetryCheckpointTests(unittest.TestCase):
         self.assertEqual(pair_ac["metrics"]["char_loss"]["n_missing_pairs"], 1)
         self.assertNotIn("telemetry", legacy_resumed)
         self.assertNotIn("telemetry", legacy_persisted)
+        self.assertEqual(legacy_resumed["metrics_schema_version"], 1)
         for variant in CONTROLLED_VARIANTS:
             self.assertEqual(
                 resumed["runs"][variant][0]["telemetry"],

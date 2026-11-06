@@ -22,19 +22,25 @@ class SyllableSegmenterTests(unittest.TestCase):
                 self.assertEqual(segment_word(word), syllables)
 
     def test_m0_keeps_zero_support_fallbacks_and_segmenter_counts(self) -> None:
-        self.assertEqual(evaluate_records([]), {
-            "total": 0,
-            "scored": 0,
-            "exact_matches": 0,
-            "exact_accuracy": 0.0,
-            "boundary_correct": 0,
-            "boundary_total": 0,
-            "boundary_accuracy": 1.0,
-            "boundary_offset_precision": None,
-            "boundary_offset_recall": None,
-            "boundary_offset_f1": None,
-            "errors": {},
-        })
+        empty = evaluate_records([])
+        self.assertEqual(
+            {key: value for key, value in empty.items() if key not in {
+                "metrics_schema_version", "metric_results"
+            }},
+            {
+                "total": 0,
+                "scored": 0,
+                "exact_matches": 0,
+                "exact_accuracy": 0.0,
+                "boundary_correct": 0,
+                "boundary_total": 0,
+                "boundary_accuracy": 1.0,
+                "boundary_offset_precision": None,
+                "boundary_offset_recall": None,
+                "boundary_offset_f1": None,
+                "errors": {},
+            },
+        )
         report = evaluate_records([{
             "word_normalized": "banana",
             "syllables": ["ba", "nana"],
@@ -95,6 +101,32 @@ class SyllableSegmenterTests(unittest.TestCase):
         self.assertIsNone(report["boundary_offset_precision"])
         self.assertIsNone(report["boundary_offset_recall"])
         self.assertIsNone(report["boundary_offset_f1"])
+
+    def test_metric_schema_reports_empty_and_nonmatching_support(self) -> None:
+        empty = evaluate_records([])
+        self.assertEqual(empty["metrics_schema_version"], 1)
+        self.assertEqual(
+            empty["metric_results"]["exact_accuracy"],
+            {
+                "value": None,
+                "availability": "not_applicable",
+                "reason": "no_scored_records",
+                "support": {"scored_records": 0},
+            },
+        )
+        self.assertEqual(empty["metric_results"]["boundary_accuracy"]["value"], None)
+
+        mismatch = evaluate_records([{
+            "word_normalized": "casa",
+            "syllables": ["cas", "a"],
+        }])
+        descriptor = mismatch["metric_results"]["boundary_offset_f1"]
+        self.assertEqual(descriptor["value"], 0.0)
+        self.assertEqual(descriptor["availability"], "available")
+        self.assertEqual(
+            descriptor["support"],
+            {"gold_boundaries": 1, "predicted_boundaries": 1, "matched_boundaries": 0},
+        )
 
 
 if __name__ == "__main__":

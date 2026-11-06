@@ -64,6 +64,10 @@ from kinera.monitor.metrics.confusion import (
     specificity,
 )
 from kinera.monitor.metrics.core import mean_from_total, safe_ratio
+from kinera.monitor.metrics.schema import (
+    METRICS_SCHEMA_VERSION,
+    metric_result,
+)
 from kinera.monitor.metrics.segmentation import (
     OffsetSegmentationConfusion,
     WordSegmentationResult,
@@ -84,6 +88,8 @@ __all__ = [
     "mean_std",
     "mean_from_total",
     "safe_ratio",
+    "METRICS_SCHEMA_VERSION",
+    "metric_result",
     # M1.2 Agregação e deltas pareados
     "MetricAggregateSummary",
     "aggregate_metric_values",

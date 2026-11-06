@@ -89,6 +89,10 @@ class AutoregressiveWorkflowTests(unittest.TestCase):
 
         self.assertEqual(report["examples"], 3)
         self.assertIn("loss", report)
+        self.assertEqual(report["metrics_schema_version"], 1)
+        self.assertEqual(
+            report["metric_results"]["accuracy"]["support"], {"examples": 3}
+        )
         self.assertEqual(before, model.output_layer.weights)
 
     def test_generation_stops_at_end_token(self) -> None:

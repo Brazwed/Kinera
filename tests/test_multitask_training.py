@@ -1,4 +1,5 @@
 import copy
+import json
 import random
 import unittest
 from typing import Any
@@ -90,6 +91,11 @@ class MultitaskTrainingWorkflowTests(unittest.TestCase):
         self.assertIn("boundary_recall", report)
         self.assertIn("boundary_f1", report)
         self.assertEqual(report["boundary_target_distribution"], {"0": 0, "1": 3})
+        self.assertEqual(report["metrics_schema_version"], 1)
+        self.assertEqual(
+            report["metric_results"]["syllable_accuracy_known"]["support"],
+            {"known_targets": 2},
+        )
 
     def test_evaluator_uses_scalar_model_step_without_exporting_head_vectors(self) -> None:
         model = self._model()
@@ -119,6 +125,143 @@ class MultitaskTrainingWorkflowTests(unittest.TestCase):
         self.assertEqual(before["char"], model.heads.char.weights)
         self.assertEqual(before["syllable"], model.heads.syllable.weights)
         self.assertEqual(before["boundary"], model.heads.boundary.weights)
+
+    def test_versioned_metric_distributions_and_end_unknown_separation(self) -> None:
+        class DeterministicModel:
+            backend = "cpu"
+
+            def __init__(self) -> None:
+                self.boundary_predictions = iter([0, 0, 0])
+
+            def multitask_eval_step(self, *inputs: Any, targets: dict[str, int], loss_function: Any):
+                del inputs, loss_function
+                return {
+                    "losses": {
+                        "char_loss": 0.1,
+                        "syllable_loss": 0.2,
+                        "boundary_loss": 0.3,
+                        "total_loss": 0.6,
+                    },
+                    "predictions": {
+                        "char": targets["char"],
+                        "syllable": targets["syllable"],
+                        "boundary": next(self.boundary_predictions),
+                    },
+                }
+
+        examples = [
+            {
+                "context_ids": [0],
+                "context_syllable_ids": [0],
+                "context_feature_vectors": [[0.0] * 10],
+                "target_char_id": 3,
+                "target_syllable_id": 1,
+                "target_is_syllable_end": 0,
+            },
+            {
+                "context_ids": [0],
+                "context_syllable_ids": [0],
+                "context_feature_vectors": [[0.0] * 10],
+                "target_char_id": self.vocabulary.end_id,
+                "target_syllable_id": 0,
+                "target_is_syllable_end": 0,
+            },
+            {
+                "context_ids": [0],
+                "context_syllable_ids": [0],
+                "context_feature_vectors": [[0.0] * 10],
+                "target_char_id": 4,
+                "target_syllable_id": 0,
+                "target_is_syllable_end": 1,
+            },
+        ]
+
+        report = evaluate_multitask_examples(
+            DeterministicModel(),
+            examples,
+            self.vocabulary,
+            loss_function=object(),  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(report["char_target_distribution"], {"1": 1, "3": 1, "4": 1})
+        self.assertEqual(report["char_prediction_distribution"], {"1": 1, "3": 1, "4": 1})
+        self.assertEqual(report["syllable_target_distribution"], {"0": 2, "1": 1})
+        self.assertEqual(report["syllable_prediction_distribution"], {"0": 2, "1": 1})
+        self.assertEqual(
+            report["boundary_confusion"], {"tp": 0, "tn": 2, "fp": 0, "fn": 1}
+        )
+        self.assertEqual(
+            report["syllable_target_status_distribution"],
+            {"known": 1, "unknown": 1, "end": 1},
+        )
+        self.assertEqual(report["boundary_precision"], 0.0)  # Legacy alias.
+        self.assertEqual(
+            report["metric_results"]["boundary_precision"],
+            {
+                "value": None,
+                "availability": "not_applicable",
+                "reason": "no_predicted_positive",
+                "support": {"predicted_positive": 0},
+            },
+        )
+        self.assertEqual(report["metric_results"]["boundary_f1"]["value"], 0.0)
+        self.assertEqual(report["metric_results"]["boundary_f1"]["availability"], "available")
+        self.assertEqual(
+            report["metric_results"]["boundary_baseline_majority"]["availability"],
+            "unavailable",
+        )
+        self.assertEqual(
+            json.loads(json.dumps(report))["metric_results"], report["metric_results"]
+        )
+
+    def test_empty_positive_support_is_not_applicable_in_versioned_results(self) -> None:
+        class AllNegativeModel:
+            backend = "cpu"
+
+            def multitask_eval_step(self, *inputs: Any, targets: dict[str, int], loss_function: Any):
+                del inputs, loss_function
+                return {
+                    "losses": {
+                        "char_loss": 0.0,
+                        "syllable_loss": 0.0,
+                        "boundary_loss": 0.0,
+                        "total_loss": 0.0,
+                    },
+                    "predictions": {
+                        "char": targets["char"],
+                        "syllable": targets["syllable"],
+                        "boundary": 0,
+                    },
+                }
+
+        examples = [{
+            "context_ids": [0],
+            "context_syllable_ids": [0],
+            "context_feature_vectors": [[0.0] * 10],
+            "target_char_id": 3,
+            "target_syllable_id": 0,
+            "target_is_syllable_end": 0,
+        }]
+        report = evaluate_multitask_examples(
+            AllNegativeModel(),
+            examples,
+            self.vocabulary,
+            loss_function=object(),  # type: ignore[arg-type]
+        )
+
+        for metric_name in ("boundary_precision", "boundary_recall", "boundary_f1"):
+            self.assertEqual(
+                report["metric_results"][metric_name]["availability"],
+                "not_applicable",
+            )
+            self.assertIsNone(report["metric_results"][metric_name]["value"])
+        self.assertEqual(report["boundary_precision"], 0.0)
+        self.assertEqual(report["boundary_recall"], 0.0)
+        self.assertEqual(report["boundary_f1"], 0.0)
+        self.assertEqual(
+            report["metric_results"]["syllable_accuracy_known"]["reason"],
+            "no_known_targets",
+        )
 
     def test_passive_recorder_is_equivalent_to_baseline_and_observes_each_update(self) -> None:
         def run(observer_enabled: bool) -> tuple[Any, ...]:

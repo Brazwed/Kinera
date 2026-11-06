@@ -553,9 +553,15 @@ class ControlledComparisonTests(unittest.TestCase):
             )
             self.assertEqual(first["status"], "completed")
             self.assertEqual(first["completed_runs"], 4)
+            self.assertEqual(first["metrics_schema_version"], 1)
             self.assertTrue(checkpoint.exists())
             persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
             self.assertEqual(persisted["completed_runs"], 4)
+            self.assertEqual(persisted["metrics_schema_version"], 1)
+            self.assertEqual(
+                persisted["runs"]["A"][0]["final_validation"]["metrics_schema_version"],
+                1,
+            )
 
             resumed = self._run_historical(
                 self.examples,
@@ -571,6 +577,7 @@ class ControlledComparisonTests(unittest.TestCase):
             )
             self.assertEqual(resumed["status"], "completed")
             self.assertEqual(resumed["completed_runs"], 8)
+            self.assertEqual(resumed["metrics_schema_version"], 1)
             for variant in CONTROLLED_VARIANTS:
                 self.assertEqual([run["seed"] for run in resumed["runs"][variant]], [7, 8])
 
@@ -830,6 +837,54 @@ class ControlledComparisonTests(unittest.TestCase):
         true_negative = paired["metrics"]["boundary_true_negative"]
         self.assertEqual(true_negative["unit"], "count")
         self.assertEqual(true_negative["mean"], 2.0)
+
+    def test_versioned_not_applicable_value_stays_missing_in_aggregate_and_pair(self) -> None:
+        missing_descriptor = {
+            "value": None,
+            "availability": "not_applicable",
+            "reason": "no_gold_or_predicted_positive",
+            "support": {"gold_positive": 0, "predicted_positive": 0},
+        }
+        available_descriptor = {
+            "value": 0.25,
+            "availability": "available",
+            "reason": None,
+            "support": {"gold_positive": 2, "predicted_positive": 1},
+        }
+        reports = {
+            "A": [{
+                "seed": 7,
+                "status": "completed",
+                "final_validation": {
+                    "boundary_f1": 0.0,
+                    "metrics_schema_version": 1,
+                    "metric_results": {"boundary_f1": missing_descriptor},
+                },
+            }],
+            "C": [{
+                "seed": 7,
+                "status": "completed",
+                "final_validation": {
+                    "boundary_f1": 0.25,
+                    "metrics_schema_version": 1,
+                    "metric_results": {"boundary_f1": available_descriptor},
+                },
+            }],
+        }
+
+        aggregate = comparison._build_aggregates(
+            reports, ("boundary_f1",), ("A",)
+        )["A"]
+        paired = comparison._build_paired_deltas(
+            reports, ("boundary_f1",), ("A", "C")
+        )[0]["metrics"]["boundary_f1"]
+
+        self.assertEqual(aggregate["n_values"]["boundary_f1"], 0)
+        self.assertEqual(aggregate["n_missing"]["boundary_f1"], 1)
+        self.assertIsNone(aggregate["mean"]["boundary_f1"])
+        self.assertEqual(paired["n_pairs"], 0)
+        self.assertEqual(paired["n_missing_pairs"], 1)
+        self.assertIsNone(paired["mean"])
 
     def test_majority_baseline_distribution_comes_only_from_training_examples(self) -> None:
         class ModelStub:

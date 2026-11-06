@@ -20,6 +20,7 @@ from kinera.monitor.metrics.aggregation import (
     mean_std,
     summarize_paired_deltas,
 )
+from kinera.monitor.metrics.schema import METRICS_SCHEMA_VERSION
 from kinera.monitor.telemetry.records import (
     TELEMETRY_SCHEMA_VERSION,
     TelemetryAttemptRecord,
@@ -53,11 +54,28 @@ _INVALID_METRIC_OBSERVATION = object()
 
 
 def _metric_observation_from_run(run: Mapping[str, Any], metric: str) -> Any:
-    """Retorna None para validação/metric ausente e sentinela para payload inválido."""
+    """Lê valores canônicos v1 e mantém compatibilidade com relatórios legados."""
     final_validation = run.get("final_validation")
     if final_validation is None:
         return None
     if not isinstance(final_validation, Mapping):
+        return _INVALID_METRIC_OBSERVATION
+    schema_version = final_validation.get("metrics_schema_version")
+    if schema_version is not None:
+        if isinstance(schema_version, bool) or schema_version != METRICS_SCHEMA_VERSION:
+            return _INVALID_METRIC_OBSERVATION
+        metric_results = final_validation.get("metric_results")
+        if not isinstance(metric_results, Mapping):
+            return _INVALID_METRIC_OBSERVATION
+        descriptor = metric_results.get(metric)
+        if not isinstance(descriptor, Mapping) or "value" not in descriptor:
+            return _INVALID_METRIC_OBSERVATION
+        availability = descriptor.get("availability")
+        value = descriptor["value"]
+        if availability == "available":
+            return value if value is not None else _INVALID_METRIC_OBSERVATION
+        if availability in {"not_applicable", "unavailable"}:
+            return None if value is None else _INVALID_METRIC_OBSERVATION
         return _INVALID_METRIC_OBSERVATION
     return final_validation.get(metric)
 
@@ -1163,6 +1181,7 @@ def _checkpoint_report(
     )
     report = {
         **configuration,
+        "metrics_schema_version": METRICS_SCHEMA_VERSION,
         "status": "failed" if failed_runs else ("completed" if completed_runs == total_runs else "running"),
         "total_runs": total_runs,
         "completed_runs": completed_runs,
