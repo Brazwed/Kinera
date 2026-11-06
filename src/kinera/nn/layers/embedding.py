@@ -166,7 +166,26 @@ class Embedding:
                 if isinstance(backend_grad_output, BackendBuffer):
                     temporary_grad_output = backend_grad_output
         elif isinstance(grad_output, BackendBuffer):
-            if self.backend.name != "cuda" or not isinstance(self.last_ids, BackendBuffer):
+            resident_pair_supported = (
+                self.backend.name == "cuda"
+                and isinstance(self.last_ids, BackendBuffer)
+            )
+            if self.backend.name == "opencl":
+                # OpenCL resident backward is enabled only for the concrete
+                # backend/buffer implementation that owns the validated F1b
+                # operation. Keep these imports lazy so CPU-only use has no
+                # OpenCL runtime dependency.
+                from kinera.backends.opencl.backend import OpenCLBackend
+                from kinera.backends.opencl.buffer import OpenCLBuffer
+
+                resident_pair_supported = (
+                    isinstance(self.backend, OpenCLBackend)
+                    and isinstance(self.last_ids, OpenCLBuffer)
+                    and isinstance(grad_output, OpenCLBuffer)
+                    and self.last_ids._manager is self.backend.memory
+                    and grad_output._manager is self.backend.memory
+                )
+            if not resident_pair_supported:
                 raise TypeError("device grad_output requires a device-backed Embedding forward")
             if grad_output.closed or self.last_ids.closed:
                 raise BackendError("Embedding backward received a released buffer")
