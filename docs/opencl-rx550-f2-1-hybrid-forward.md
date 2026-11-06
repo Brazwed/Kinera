@@ -96,6 +96,6 @@ O `pytest` local emitiu um aviso de depreciação do plugin `anyio` (alias `Call
 - O kernel de validação usa um único work-item para percorrer sequencialmente os três buffers. Isso simplifica a detecção determinística e não transfere matrizes completas, mas o custo não foi medido; este gate não faz afirmações de desempenho.
 - Não há rollback demonstrado para erros assíncronos posteriores à submissão do kernel de fusão.
 - O gate valida a fusão e a camada `HybridRepresentation.forward`; não valida pooling, backward, losses, `AutoregressiveModel`, trainer, evaluator ou treinamento completo.
-- A CI do GitHub ainda precisa executar no PR draft.
+- CI GitHub Actions do PR #74 (run `42267967497`, job `128064744591`) concluída com **success** no head revisado `7fbb38bd7962e4f16b2c30d49d4be37c9f43dddf`: **774 passed, 57 skipped, 5 deselected, 760 subtests passed**. É regressão remota CPU-only, não substitui os testes RX 550 realizados localmente. Esta atualização é apenas documental; o novo commit do relatório requer confirmação do status da CI no head final.
 
 **Parecer local: GO para revisão técnica do F2.1.** A conclusão não marca F2.1 como concluído e não autoriza F2.2 ou integração de treinamento.
