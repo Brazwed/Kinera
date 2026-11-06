@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-from kinera.language.vocabulary import CharacterVocabulary
+from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from kinera.experiments import comparison
 from kinera.experiments.config import ExecutionConfig
 from kinera.experiments.comparison import (
@@ -26,6 +26,7 @@ from scripts.compare import build_parser, main as compare_main
 class ControlledComparisonTests(unittest.TestCase):
     def setUp(self) -> None:
         self.vocabulary = CharacterVocabulary(["<START>", "<END>", "<UNK>", "a", "b"])
+        self.syllable_vocabulary = self._make_syllable_vocabulary(5)
         self.examples = [
             {
                 "context_ids": [0, 3],
@@ -39,7 +40,17 @@ class ControlledComparisonTests(unittest.TestCase):
 
     def _run_historical(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         kwargs.setdefault("variants", CONTROLLED_VARIANTS)
+        size = kwargs.get("syllable_vocab_size")
+        if size is not None:
+            kwargs.setdefault("syllable_vocabulary", self._make_syllable_vocabulary(size))
         return run_controlled_experiments(*args, **kwargs)
+
+    @staticmethod
+    def _make_syllable_vocabulary(size: int) -> SyllableVocabulary:
+        return SyllableVocabulary([
+            "<UNK_SYL>",
+            *(f"<SYNTHETIC_{index}>" for index in range(1, size)),
+        ])
 
     def test_compare_cli_backend_defaults_to_cpu_and_supports_explicit_cuda(self) -> None:
         arguments = [
@@ -55,11 +66,7 @@ class ControlledComparisonTests(unittest.TestCase):
         self.assertEqual(cuda_args.backend, "cuda")
 
     def test_compare_cli_passes_selected_execution_config_to_runner(self) -> None:
-        class FakeSyllableVocabulary:
-            unk_id = 0
-
-            def __len__(self) -> int:
-                return 5
+        syllable_vocabulary = self._make_syllable_vocabulary(5)
 
         arguments = [
             "--vocabulary", "vocabulary.json",
@@ -81,7 +88,7 @@ class ControlledComparisonTests(unittest.TestCase):
             ),
             patch(
                 "scripts.compare.SyllableVocabulary.from_dict",
-                return_value=FakeSyllableVocabulary(),
+                return_value=syllable_vocabulary,
             ),
             patch("scripts.compare.load_jsonl", return_value=self.examples),
             patch(
@@ -94,6 +101,10 @@ class ControlledComparisonTests(unittest.TestCase):
         self.assertEqual(
             run_experiments.call_args.kwargs["execution_config"],
             ExecutionConfig(backend="cuda", workers=1),
+        )
+        self.assertIs(
+            run_experiments.call_args.kwargs["syllable_vocabulary"],
+            syllable_vocabulary,
         )
         self.assertNotIn("workers", run_experiments.call_args.kwargs)
 
@@ -151,7 +162,7 @@ class ControlledComparisonTests(unittest.TestCase):
                 wraps=comparison.train_multitask_examples,
             ) as train,
         ):
-            report = run_controlled_experiments(
+            report = self._run_historical(
                 self.examples,
                 self.examples,
                 self.vocabulary,
@@ -212,10 +223,10 @@ class ControlledComparisonTests(unittest.TestCase):
                 variants=("A", "A"),
             )
 
-    def test_checkpoint_records_selection_and_rejects_incompatible_resume(self) -> None:
+    def test_checkpoint_records_selection_and_allows_variant_expansion(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             checkpoint = Path(directory) / "selected.json"
-            report = run_controlled_experiments(
+            report = self._run_historical(
                 self.examples,
                 self.examples,
                 self.vocabulary,
@@ -232,7 +243,33 @@ class ControlledComparisonTests(unittest.TestCase):
             self.assertEqual(report["variants"], ["D"])
             self.assertEqual(persisted["variants"], ["D"])
             self.assertEqual(list(persisted["runs"]), ["D"])
-            with self.assertRaisesRegex(ValueError, "checkpoint incompatível"):
+            fingerprint = persisted["experiment_fingerprint"]
+            self.assertEqual(fingerprint["fingerprint_schema_version"], 1)
+            self.assertEqual(fingerprint["algorithm"], "sha256")
+            self.assertEqual(len(fingerprint["digest"]), 64)
+            self.assertNotIn("training_examples", fingerprint)
+            self.assertEqual(set(fingerprint["variant_inputs"]), {"D"})
+            expanded = self._run_historical(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                max_examples=1,
+                checkpoint_path=checkpoint,
+                resume=True,
+                variants=("C", "D"),
+            )
+            self.assertEqual(expanded["variants"], ["C", "D"])
+            self.assertEqual(expanded["completed_runs"], 2)
+            self.assertEqual([run["seed"] for run in expanded["runs"]["D"]], [7])
+
+    def test_checkpoint_requires_complete_syllable_vocabulary_mapping(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "requires-vocabulary.json"
+            with self.assertRaisesRegex(ValueError, "syllable_vocabulary"):
                 run_controlled_experiments(
                     self.examples,
                     self.examples,
@@ -243,9 +280,94 @@ class ControlledComparisonTests(unittest.TestCase):
                     learning_rate=0.05,
                     max_examples=1,
                     checkpoint_path=checkpoint,
+                    variants=("D",),
+                )
+            self.assertFalse(checkpoint.exists())
+
+    def test_checkpoint_rejects_changed_data_before_execution_and_preserves_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "identity.json"
+            self._run_historical(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                syllable_vocabulary=self.syllable_vocabulary,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                max_examples=1,
+                checkpoint_path=checkpoint,
+                variants=("D",),
+            )
+            before = checkpoint.read_bytes()
+            changed = [dict(self.examples[0], target_char_id=3)]
+            with patch.object(
+                comparison,
+                "_execute_single_experiment",
+                side_effect=AssertionError("execution began before identity validation"),
+            ) as execute:
+                with self.assertRaisesRegex(ValueError, "training_examples_sha256"):
+                    self._run_historical(
+                        changed,
+                        self.examples,
+                        self.vocabulary,
+                        syllable_vocab_size=5,
+                        seeds=[7],
+                        epochs=1,
+                        learning_rate=0.05,
+                        max_examples=1,
+                        checkpoint_path=checkpoint,
+                        resume=True,
+                        variants=("D",),
+                    )
+                execute.assert_not_called()
+            self.assertEqual(checkpoint.read_bytes(), before)
+
+    def test_checkpoint_expands_seeds_and_variants_without_retraining_old_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "expand.json"
+            self._run_historical(
+                self.examples,
+                self.examples,
+                self.vocabulary,
+                syllable_vocab_size=5,
+                seeds=[7],
+                epochs=1,
+                learning_rate=0.05,
+                max_examples=1,
+                checkpoint_path=checkpoint,
+                variants=("D",),
+            )
+            executed: list[tuple[str, int]] = []
+
+            def fake_run(variant, seed, *args, **kwargs):
+                executed.append((variant, seed))
+                return variant, seed, {
+                    "seed": seed,
+                    "status": "completed",
+                    "parameter_count": 1,
+                    "final_validation": {},
+                }
+
+            with patch.object(comparison, "_execute_single_experiment", side_effect=fake_run):
+                expanded = self._run_historical(
+                    self.examples,
+                    self.examples,
+                    self.vocabulary,
+                    syllable_vocab_size=5,
+                    seeds=[7, 8],
+                    epochs=1,
+                    learning_rate=0.05,
+                    max_examples=1,
+                    checkpoint_path=checkpoint,
                     resume=True,
                     variants=("C", "D"),
                 )
+
+            self.assertEqual(executed, [("C", 7), ("C", 8), ("D", 8)])
+            self.assertEqual(expanded["completed_runs"], 4)
+            self.assertEqual([run["seed"] for run in expanded["runs"]["D"]], [7, 8])
 
     def test_parallel_runner_respects_selected_variants(self) -> None:
         report = run_controlled_experiments(
@@ -467,6 +589,7 @@ class ControlledComparisonTests(unittest.TestCase):
                 self.examples,
                 self.vocabulary,
                 syllable_vocab_size=5,
+                syllable_vocabulary=self.syllable_vocabulary,
                 seeds=[7],
                 epochs=1,
                 learning_rate=0.05,
@@ -505,6 +628,7 @@ class ControlledComparisonTests(unittest.TestCase):
                             self.examples,
                             self.vocabulary,
                             syllable_vocab_size=5,
+                            syllable_vocabulary=self.syllable_vocabulary,
                             seeds=[7],
                             epochs=1,
                             learning_rate=0.05,

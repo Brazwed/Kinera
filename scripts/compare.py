@@ -72,6 +72,7 @@ def main(argv: list[str] | None = None) -> None:
         validation_examples,
         vocabulary,
         syllable_vocab_size=len(syllable_vocabulary),
+        syllable_vocabulary=syllable_vocabulary,
         syllable_unknown_id=syllable_vocabulary.unk_id,
         seeds=args.seeds,
         epochs=args.epochs,
