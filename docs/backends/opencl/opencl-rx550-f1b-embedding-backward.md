@@ -94,4 +94,4 @@ Os testes de falhas confirmam que validação, preparação e erros antes do enq
 - `tests/test_opencl_scaffold.py`
 - `tests/test_opencl_embedding_backward.py`
 - `tests/test_opencl_host_conversion_analysis.py` (fingerprint corrente do backend atualizado; fingerprints históricos P3c e artefatos publicados preservados)
-- `docs/opencl-rx550-f1b-embedding-backward.md`
+- `docs/backends/opencl/opencl-rx550-f1b-embedding-backward.md`

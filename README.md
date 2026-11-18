@@ -921,7 +921,7 @@ A Fase 7 consolidou a execução experimental sem alterar a matemática do model
 - os runners 5.3, 5.4 e 5.5 são mantidos como adaptadores históricos.
 
 As invariantes de causalidade, dimensões, loss, parâmetros, avaliação e
-checkpoints estão documentadas em `docs/phase7-invariants.md`. A equivalência
+checkpoints estão documentadas em `docs/architecture/phase7-invariants.md`. A equivalência
 matemática antes/depois da consolidação e entre `workers=1`/`workers=2` está
 registrada em `experiments/phase7_deterministic_validation.json`.
 
@@ -1089,7 +1089,7 @@ pequena, não uma conclusão de qualidade ou performance no dataset completo.
 
 ## Fase 8 — arquitetura modular e backends
 
-O pacote instalável vive em `src/kinera/`: `language/` prepara representações e datasets, `nn/` mantém a matemática independente de hardware, `backends/` define a execução, `training/` concentra treino/avaliação/checkpoints/configuração, `experiments/` coordena protocolos e `diagnostics/` contém análises e gradient checks. O mapa de migração e os limites do scaffold estão em `docs/architecture.md`.
+O pacote instalável vive em `src/kinera/`: `language/` prepara representações e datasets, `nn/` mantém a matemática independente de hardware, `backends/` define a execução, `training/` concentra treino/avaliação/checkpoints/configuração, `experiments/` coordena protocolos e `diagnostics/` contém análises e gradient checks. O mapa de migração e os limites do scaffold estão em `docs/architecture/architecture.md`.
 
 A CPU permanece como oracle Python e backend padrão. O contrato está em `kinera.backends.base`; `CPUBackend` usa as operações Python existentes. O scaffold CUDA (backend/runtime/memory/bridge e arquivos `.cu`/`.cuh`) falha explicitamente: nenhum kernel é compilado ou executado nesta fase.
 

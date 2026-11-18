@@ -34,7 +34,7 @@ As duas diferenças numéricas não são prova de identidade bit a bit entre ver
 
 ## CUDA: auditoria e reprodução
 
-`tests/test_cuda_multitask_training.py` contém três gates opt-in: um step multitarefa, trainer/evaluator por duas épocas e runner A/C/D com resume. Usa `ATOL=RTOL=1e-12`. O teste de avaliação registra shapes/dtypes e callsites das transferências e espera apenas escalares; também audita buffers e cleanup. Outros `test_cuda_*.py` cobrem forward, backward, step, integração e embeddings. `docs/cuda-backend.md` registra para a T4, em trabalho anterior, erro máximo `1.3877787807814457e-17` no step e `2.2204460492503131e-16` no gate de trainer/evaluator, sob `1e-12`; essas medições são herdadas, não medições B010 nem evidência para M2.3/B009 no SHA atual.
+`tests/test_cuda_multitask_training.py` contém três gates opt-in: um step multitarefa, trainer/evaluator por duas épocas e runner A/C/D com resume. Usa `ATOL=RTOL=1e-12`. O teste de avaliação registra shapes/dtypes e callsites das transferências e espera apenas escalares; também audita buffers e cleanup. Outros `test_cuda_*.py` cobrem forward, backward, step, integração e embeddings. `docs/backends/cuda/cuda-backend.md` registra para a T4, em trabalho anterior, erro máximo `1.3877787807814457e-17` no step e `2.2204460492503131e-16` no gate de trainer/evaluator, sob `1e-12`; essas medições são herdadas, não medições B010 nem evidência para M2.3/B009 no SHA atual.
 
 Foram confirmadas duas incompatibilidades do próprio gate existente sem inicializar GPU:
 

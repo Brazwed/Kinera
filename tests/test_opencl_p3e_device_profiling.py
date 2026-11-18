@@ -30,7 +30,7 @@ from profile_opencl_device import (  # noqa: E402
 )
 
 RESULT_PATH = ROOT / "experiments/results/opencl-rx550-p3e-device-profiling.json"
-REPORT_PATH = ROOT / "docs/opencl-rx550-p3e-device-profiling.md"
+REPORT_PATH = ROOT / "docs/backends/opencl/opencl-rx550-p3e-device-profiling.md"
 MEASUREMENT_SOURCE_FINGERPRINT = (
     "a50ee80ae65123504e607ccb0fc615c9fd76a38a6a40bdc86fb036972bc4b868"
 )
