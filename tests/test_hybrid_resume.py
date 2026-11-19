@@ -308,5 +308,68 @@ class HybridResumeEpochTests(unittest.TestCase):
 
 
 
+    def test_history_validation_rejects_invalid_char_rows_on_save_and_load(self) -> None:
+        model = self._model()
+        args = self._args(mode="char")
+        _, state = train_hybrid_epochs(model, epochs=1, **args)
+        save_hybrid_training_checkpoint(self.path, model, state, **args)
+        baseline = self.path.read_bytes()
+        invalid_rows = [
+            {"loss": "inválida", "accuracy": 0.5},
+            {"loss": 0.5, "accuracy": True},
+            {"loss": [0.5], "accuracy": 0.5},
+            {"loss": 0.5},
+            {"loss": 0.5, "accuracy": 0.5, "unexpected": 0},
+        ]
+        for invalid in invalid_rows:
+            with self.subTest(row=invalid):
+                damaged = copy.deepcopy(state)
+                damaged["history"][0] = invalid
+                with self.assertRaises(CheckpointError):
+                    save_hybrid_training_checkpoint(self.path, model, damaged, **args)
+                self.assertEqual(self.path.read_bytes(), baseline)
+                payload = json.loads(baseline)
+                payload["training"] = damaged
+                self.path.write_text(json.dumps(payload), encoding="utf-8")
+                try:
+                    with self.assertRaises(CheckpointError):
+                        load_hybrid_training_checkpoint(self.path, **args)
+                finally:
+                    self.path.write_bytes(baseline)
+
+    def test_history_validation_rejects_invalid_multitask_metrics(self) -> None:
+        model = self._model()
+        args = self._args(mode="multitask")
+        _, state = train_hybrid_epochs(model, epochs=1, **args)
+        save_hybrid_training_checkpoint(self.path, model, state, **args)
+        baseline = self.path.read_bytes()
+        changes = [
+            ("scalar_string", ("char_loss",), "inválida"),
+            ("scalar_boolean", ("boundary_accuracy",), True),
+            ("distribution_string", ("char_target_distribution", "3"), "bad"),
+            ("confusion_boolean", ("boundary_confusion", "tp"), True),
+            ("metric_result_value_string", ("metric_results", "char_loss", "value"), "bad"),
+            ("metric_result_wrong_shape", ("metric_results", "char_loss"), []),
+        ]
+        for name, path, replacement in changes:
+            with self.subTest(name=name):
+                damaged = copy.deepcopy(state)
+                target = damaged["history"][0]
+                for key in path[:-1]:
+                    target = target[key]
+                target[path[-1]] = replacement
+                with self.assertRaises(CheckpointError):
+                    save_hybrid_training_checkpoint(self.path, model, damaged, **args)
+                self.assertEqual(self.path.read_bytes(), baseline)
+                payload = json.loads(baseline)
+                payload["training"] = damaged
+                self.path.write_text(json.dumps(payload), encoding="utf-8")
+                try:
+                    with self.assertRaises(CheckpointError):
+                        load_hybrid_training_checkpoint(self.path, **args)
+                finally:
+                    self.path.write_bytes(baseline)
+
+
 if __name__ == "__main__":
     unittest.main()
