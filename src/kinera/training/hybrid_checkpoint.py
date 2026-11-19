@@ -167,6 +167,10 @@ _MULTITASK_SCALARS = frozenset({
     "boundary_balanced_accuracy", "boundary_baseline_constant_0",
     "boundary_baseline_constant_1", "boundary_baseline_majority",
 })
+_MULTITASK_RATES = _MULTITASK_SCALARS - {
+    "char_loss", "syllable_loss", "boundary_loss", "total_loss",
+    "boundary_true_negative",
+}
 _NULLABLE_MULTITASK_SCALARS = frozenset({
     "boundary_specificity", "boundary_balanced_accuracy",
     "boundary_baseline_majority",
@@ -197,7 +201,9 @@ def _history_counts(
             raise CheckpointError(f"{name}.{key}: contagem inválida")
 
 
-def _validate_history_row(value: Any, mode: str, index: int) -> None:
+def _validate_history_row(
+    value: Any, mode: str, index: int, selected_examples: int
+) -> None:
     name = f"training.history[{index}]"
     if mode == "char":
         row = _required(value, {"loss", "accuracy"}, name)
@@ -220,7 +226,12 @@ def _validate_history_row(value: Any, mode: str, index: int) -> None:
         number = _number(item, f"{name}.{field}")
         if field.endswith("_loss") and number < 0:
             raise CheckpointError(f"{name}.{field} deve ser não negativa")
-    if type(row["boundary_true_negative"]) is not int or row["boundary_true_negative"] < 0:
+        if field in _MULTITASK_RATES and not 0 <= number <= 1:
+            raise CheckpointError(f"{name}.{field} fora de [0,1]")
+    if (
+        type(row["boundary_true_negative"]) is not int
+        or not 0 <= row["boundary_true_negative"] <= selected_examples
+    ):
         raise CheckpointError(f"{name}.boundary_true_negative inválido")
     if type(row["metrics_schema_version"]) is not int or row["metrics_schema_version"] != METRICS_SCHEMA_VERSION:
         raise CheckpointError(f"{name}.metrics_schema_version não suportada")
@@ -229,6 +240,11 @@ def _validate_history_row(value: Any, mode: str, index: int) -> None:
         row["boundary_confusion"], f"{name}.boundary_confusion",
         keys={"tp", "tn", "fp", "fn"},
     )
+    confusion = row["boundary_confusion"]
+    if sum(confusion.values()) != selected_examples:
+        raise CheckpointError(f"{name}.boundary_confusion: total incompatível")
+    if row["boundary_true_negative"] != confusion["tn"]:
+        raise CheckpointError(f"{name}.boundary_true_negative incompatível com confusão")
     for field in _MULTITASK_DISTRIBUTIONS:
         keys = None
         numeric_keys = True
@@ -241,6 +257,21 @@ def _validate_history_row(value: Any, mode: str, index: int) -> None:
             row[field], f"{name}.{field}",
             keys=keys, numeric_keys=numeric_keys,
         )
+        if sum(row[field].values()) != selected_examples:
+            raise CheckpointError(f"{name}.{field}: total incompatível com exemplos")
+
+    targets = row["boundary_target_distribution"]
+    predictions = row["boundary_prediction_distribution"]
+    if (targets["0"], targets["1"]) != (
+        confusion["tn"] + confusion["fp"],
+        confusion["tp"] + confusion["fn"],
+    ):
+        raise CheckpointError(f"{name}.boundary_target_distribution incompatível")
+    if (predictions["0"], predictions["1"]) != (
+        confusion["tn"] + confusion["fn"],
+        confusion["tp"] + confusion["fp"],
+    ):
+        raise CheckpointError(f"{name}.boundary_prediction_distribution incompatível")
 
     results = _required(
         row["metric_results"], set(_MULTITASK_SCALARS),
@@ -263,6 +294,18 @@ def _validate_history_row(value: Any, mode: str, index: int) -> None:
             )
         except (TypeError, ValueError, OverflowError) as error:
             raise CheckpointError(f"{location}: descritor inválido: {error}") from error
+        if entry["availability"] == "available":
+            number = _number(entry["value"], f"{location}.value")
+            if field in _MULTITASK_RATES and not 0 <= number <= 1:
+                raise CheckpointError(f"{location}.value fora de [0,1]")
+            if field.endswith("_loss") and number < 0:
+                raise CheckpointError(f"{location}.value deve ser não negativo")
+            if field == "boundary_true_negative" and (
+                type(entry["value"]) is not int or number > selected_examples
+            ):
+                raise CheckpointError(f"{location}.value: contagem inválida")
+        if any(count > selected_examples for count in entry["support"].values()):
+            raise CheckpointError(f"{location}.support excede exemplos")
 
 
 def _validate_training_state(value: Any) -> dict[str, Any]:
@@ -316,7 +359,7 @@ def _validate_training_state(value: Any) -> dict[str, Any]:
     if not isinstance(history, list) or len(history) != state["completed_epochs"]:
         raise CheckpointError("training.history incompatível com épocas completas")
     for index, row in enumerate(history):
-        _validate_history_row(row, state["mode"], index)
+        _validate_history_row(row, state["mode"], index, state["selected_examples"])
     _ensure_json_compatible(state)
     return state
 
