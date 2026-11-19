@@ -19,7 +19,7 @@ from kinera.backends.cpu.backend import CPUBackend  # noqa: E402
 
 
 RESULT_PATH = ROOT / "experiments/results/opencl-rx550-p3c-host-conversions.json"
-REPORT_PATH = ROOT / "docs/opencl-rx550-p3c-host-conversion-analysis.md"
+REPORT_PATH = ROOT / "docs/backends/opencl/opencl-rx550-p3c-host-conversion-analysis.md"
 
 # The JSON is the original P3c collection. The harness fingerprint is updated
 # after the fail-closed nested-span check was added; the measurements were not
@@ -37,11 +37,11 @@ EXPECTED_SHA256 = {
         "990b9422f425e0136a720bad880dbe5ebc045c275ac762751a0357c8ec9c2ffb",
     "src/kinera/nn/layers/linear.py":
         "41da794a9dd3a34d08b3548cef83da90e217c3a94edc3890e895c103e686ea81",
-    "docs/opencl-rx550-p3-benchmark.md":
+    "docs/backends/opencl/opencl-rx550-p3-benchmark.md":
         "e8deffe2a433f1d1e79d4f1d36283e01234ca5759c3c968c95e0fb89fa10705b",
-    "docs/opencl-rx550-p3-cost-analysis.md":
+    "docs/backends/opencl/opencl-rx550-p3-cost-analysis.md":
         "36b21a2576159344e6426781645f4e8a2a0f7399be71aed53e9c2e3c87dbef24",
-    "docs/opencl-rx550-p3b-cost-accounting-correction.md":
+    "docs/backends/opencl/opencl-rx550-p3b-cost-accounting-correction.md":
         "eb250d9d428aac67ec717fb7d761791ad3423d812725a7831795ead86c364b8c",
     "experiments/benchmark_opencl_linear.py":
         "abffdeb154743a03b4937b4b557e3d1ce05d1c38cc69c7882d6cbdfd6fc04cbc",

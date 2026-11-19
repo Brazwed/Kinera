@@ -105,7 +105,7 @@ e limites de workgroup, e exige buffers reais e execução de kernel. Se o drive
 não expuser o BDF via extensão, a saída informa essa limitação e faz a
 identificação pelo vendor, tipo GPU e nome do device. A comparação usa 16
 valores `float64` contra referência CPU com `atol=rtol=1e-12` e verifica
-`int32`, conforme a política congelada em [cuda-backend.md](cuda-backend.md).
+`int32`, conforme a política congelada em [cuda-backend.md](../cuda/cuda-backend.md).
 
 O resultado medido nesta máquina foi `GO_P0_SMOKE_PASS`. O gate P0 libera o
 scaffold P1. Cada nova operação ainda precisa passar equivalência contra CPU;
