@@ -1,5 +1,19 @@
 # Kinera — núcleo do neurônio
 
+## Comunicado de encerramento — 19 de novembro de 2026
+
+**Status: projeto encerrado.** Nesta data, encerro oficialmente o desenvolvimento ativo da Kinera.
+
+A Kinera começou como um projeto experimental para estudar e compreender, na prática, a construção de componentes de inteligência artificial. Ao longo de sua evolução, o trabalho se expandiu para diferentes frentes técnicas e alcançou uma complexidade muito maior do que o escopo que imaginei inicialmente. Cheguei a um ponto em que já não conseguia acompanhar, compreender e manter o conjunto com o controle e a clareza necessários.
+
+Por esse motivo, decidi não prosseguir com novas fases de desenvolvimento. **Não há roadmap ativo, manutenção regular, suporte ou compromisso com futuras versões.** Issues, pull requests e referências a etapas futuras devem ser interpretadas no contexto histórico em que foram criadas, e não como uma promessa de continuidade.
+
+Este encerramento é uma decisão sobre **escopo, sustentabilidade e capacidade de manutenção individual**. Não significa que todo o trabalho realizado seja inútil, nem constitui uma validação da qualidade científica ou da prontidão do projeto para produção.
+
+O código-fonte, os testes, os relatórios e a documentação são preservados neste repositório como registro histórico do aprendizado, das experiências, dos resultados e das limitações encontradas.
+
+---
+
 Este diretório contém o primeiro marco matemático do projeto Kinera.
 
 O objetivo desta etapa é implementar um neurônio treinável usando somente Python e a biblioteca padrão. Não há dependência de NumPy, PyTorch, TensorFlow, Keras, JAX, scikit-learn ou bibliotecas prontas de machine learning.
