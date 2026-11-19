@@ -6,7 +6,7 @@ Registro mestre dos Markdown de `docs/`. IDs identificam documentos, não caminh
 
 **Cobertura desta revisão:** 34 documentos: 32 existentes no baseline D0.1 e os dois índices. Os IDs 0001–0032 foram propostos no inventário D0.1 e foram preservados; os caminhos anteriores dos documentos movimentados nos Lotes 1–3 e C1 permanecem nos respectivos registros. README e catálogo usam os IDs 0033 e 0034.
 
-**Exceção de escopo D0.4/C3:** a Issue #88 originalmente definia zero alterações em testes. Foi autorizada uma exceção restrita para atualizar somente os caminhos dos relatórios P3 nos dois testes de integridade abaixo. Os valores SHA-256, assertions, critérios e cobertura foram preservados. A exceção foi formalmente reconciliada na [Issue #88](https://github.com/Brazwed/Kinera/issues/88) durante D0.5; os links canônicos para os novos caminhos em `main` permanecem pendentes do merge documental.
+**Exceções restritas de escopo nos testes:** a Issue #88 originalmente definia zero alterações em testes. D0.4/C3 autorizou somente atualizar caminhos/chaves dos relatórios P3 em `tests/test_opencl_host_conversion_analysis.py` e `tests/test_opencl_p3e_device_profiling.py`; D0.5/F1 autorizou adicionalmente resolver o caminho histórico do relatório da Fase 7 em `tests/equivalence/test_cpu_reference_equivalence.py`. As autorizações e limites estão formalmente registrados na [Issue #88](https://github.com/Brazwed/Kinera/issues/88). SHA-256 esperados, fingerprints, assertions, critérios, demais fixtures e cobertura permanecem preservados. O manifesto histórico permanece intacto. Os links canônicos para os novos caminhos em `main` continuam pendentes do merge documental.
 
 ## KIN-DOC-0001 — Arquitetura interna — Fase 8
 

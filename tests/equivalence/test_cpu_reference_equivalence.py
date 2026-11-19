@@ -9,6 +9,9 @@ from kinera.language.vocabulary import CharacterVocabulary
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+HISTORICAL_PATHS = {
+    "docs/phase7-invariants.md": "docs/architecture/phase7-invariants.md",
+}
 
 
 class CpuReferenceEquivalenceTests(unittest.TestCase):
@@ -20,6 +23,13 @@ class CpuReferenceEquivalenceTests(unittest.TestCase):
         )
         for fixture in baseline["cpu_oracle_fixtures"]:
             path = PROJECT_ROOT / fixture["path"]
+            if not path.is_file():
+                current_path = HISTORICAL_PATHS.get(fixture["path"])
+                self.assertIsNotNone(
+                    current_path,
+                    f"No current path is registered for historical fixture {fixture['path']}",
+                )
+                path = PROJECT_ROOT / current_path
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
             with self.subTest(path=fixture["path"]):
                 self.assertEqual(digest, fixture["sha256"])
