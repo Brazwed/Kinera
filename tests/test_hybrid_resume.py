@@ -277,5 +277,36 @@ class HybridResumeEpochTests(unittest.TestCase):
         self.assertEqual(restored.forward_heads(*self.inputs), model.forward_heads(*self.inputs))
 
 
+    def test_model_weights_must_match_saved_epoch_cursor(self) -> None:
+        model = self._model()
+        args = self._args(mode="char")
+        _, first_state = train_hybrid_epochs(model, epochs=1, **args)
+        save_hybrid_training_checkpoint(self.path, model, first_state, **args)
+        original = self.path.read_bytes()
+        # Advance the live model without updating the older epoch snapshot.
+        train_hybrid_epochs(model, epochs=1, previous_state=first_state, **args)
+        with self.assertRaisesRegex(CheckpointError, "parâmetros"):
+            save_hybrid_training_checkpoint(self.path, model, first_state, **args)
+        self.assertEqual(self.path.read_bytes(), original)
+        with self.assertRaisesRegex(CheckpointError, "parâmetros"):
+            train_hybrid_epochs(model, epochs=1, previous_state=first_state, **args)
+
+    def test_finite_weight_tampering_rejected_for_training_snapshots(self) -> None:
+        model = self._model()
+        args = self._args(mode="multitask")
+        _, state = train_hybrid_epochs(model, epochs=1, **args)
+        save_hybrid_training_checkpoint(self.path, model, state, **args)
+        payload = json.loads(self.path.read_text(encoding="utf-8"))
+        payload["model"]["parameters"]["heads"]["char"]["bias"][0] += 0.25
+        self.path.write_text(json.dumps(payload), encoding="utf-8")
+        altered = self.path.read_bytes()
+        with self.assertRaisesRegex(CheckpointError, "parâmetros"):
+            load_hybrid_training_checkpoint(self.path, **args)
+        self.assertEqual(self.path.read_bytes(), altered)
+        # This binding applies to the R2.4 training record only. The R2.2
+        # inference-only format still has no standalone weights checksum.
+
+
+
 if __name__ == "__main__":
     unittest.main()
