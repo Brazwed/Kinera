@@ -371,6 +371,7 @@ class HybridResumeEpochTests(unittest.TestCase):
             ("nested_char_accuracy_above_one", ("metric_results", "char_accuracy", "value"), 5.0),
             ("nested_boundary_f1_above_one", ("metric_results", "boundary_f1", "value"), 5.0),
             ("nested_true_negative_over_sample_count", ("metric_results", "boundary_true_negative", "value"), 99),
+            ("nested_examples_support_mismatch", ("metric_results", "char_loss", "support", "examples"), 0),
             ("true_negative_over_sample_count", ("boundary_true_negative",), 99),
             # Valid nonnegative integers can contradict the example count
             # and the binary confusion matrix.
@@ -399,6 +400,57 @@ class HybridResumeEpochTests(unittest.TestCase):
                         load_hybrid_training_checkpoint(self.path, **args)
                 finally:
                     self.path.write_bytes(baseline)
+
+
+    def test_history_rejects_binary_count_conflicts_with_valid_totals(self) -> None:
+        model = self._model()
+        args = self._args(mode="multitask")
+        _, state = train_hybrid_epochs(model, epochs=1, **args)
+        save_hybrid_training_checkpoint(self.path, model, state, **args)
+        original = self.path.read_bytes()
+        total = len(self.examples)
+
+        modified_target = copy.deepcopy(state)
+        target_dist = modified_target["history"][0]["boundary_target_distribution"]
+        target_dist["0"], target_dist["1"] = target_dist["1"], target_dist["0"]
+
+        modified_prediction = copy.deepcopy(state)
+        prediction_dist = modified_prediction["history"][0]["boundary_prediction_distribution"]
+        prediction_dist["0"] = (prediction_dist["0"] + 1) % (total + 1)
+        prediction_dist["1"] = total - prediction_dist["0"]
+
+        modified_confusion = copy.deepcopy(state)
+        matrix = modified_confusion["history"][0]["boundary_confusion"]
+        source = next(key for key in ("tp", "tn", "fp", "fn") if matrix[key] > 0)
+        destination = next(key for key in ("tp", "tn", "fp", "fn") if key != source)
+        matrix[source] -= 1
+        matrix[destination] += 1
+
+        modified_true_negative = copy.deepcopy(state)
+        row = modified_true_negative["history"][0]
+        row["boundary_true_negative"] = (
+            0 if row["boundary_confusion"]["tn"] == total
+            else row["boundary_confusion"]["tn"] + 1
+        )
+
+        for name, damaged in (
+            ("target_distribution", modified_target),
+            ("prediction_distribution", modified_prediction),
+            ("confusion_matrix", modified_confusion),
+            ("true_negative", modified_true_negative),
+        ):
+            with self.subTest(name=name):
+                with self.assertRaises(CheckpointError):
+                    save_hybrid_training_checkpoint(self.path, model, damaged, **args)
+                self.assertEqual(self.path.read_bytes(), original)
+                payload = json.loads(original)
+                payload["training"] = damaged
+                self.path.write_text(json.dumps(payload), encoding="utf-8")
+                try:
+                    with self.assertRaises(CheckpointError):
+                        load_hybrid_training_checkpoint(self.path, **args)
+                finally:
+                    self.path.write_bytes(original)
 
 
 if __name__ == "__main__":
