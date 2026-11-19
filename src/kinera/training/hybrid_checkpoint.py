@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from pathlib import Path
 from typing import Any
 
@@ -152,6 +153,62 @@ def _parameters(model: AutoregressiveModel, arch: dict[str, int]) -> dict[str, A
     return result
 
 
+def _validate_training_state(value: Any) -> dict[str, Any]:
+    """Validate the versioned epoch-boundary resume record without trusting metadata."""
+    try:
+        state = _required(value, {
+            "schema_version", "mode", "completed_epochs", "global_step",
+            "selected_examples", "examples_sha256", "model_parameters_sha256",
+            "configuration", "history",
+        }, "training")
+    except CheckpointError as error:
+        # Preserve the R2.3 diagnostic for unsupported/partial resume records.
+        raise CheckpointError(f"estado de treinamento R2.4 inválido: {error}") from error
+    if type(state["schema_version"]) is not int or state["schema_version"] != 1:
+        raise CheckpointError("versão do estado de treinamento não suportada")
+    if state["mode"] not in ("char", "multitask"):
+        raise CheckpointError("modo do treinamento inválido")
+    for key in ("completed_epochs", "global_step"):
+        if type(state[key]) is not int or state[key] < 0:
+            raise CheckpointError(f"training.{key} deve ser inteiro não negativo")
+    _dimension(state["selected_examples"], "training.selected_examples")
+    if state["global_step"] != state["completed_epochs"] * state["selected_examples"]:
+        raise CheckpointError("training.global_step incompatível com épocas completas")
+    for field in ("examples_sha256", "model_parameters_sha256"):
+        if (
+            type(state[field]) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", state[field]) is None
+        ):
+            raise CheckpointError(f"training.{field} inválido")
+    config = _required(state["configuration"], {
+        "learning_rate", "max_examples", "syllable_unknown_id", "loss_weights",
+    }, "training.configuration")
+    if _number(config["learning_rate"], "learning_rate") <= 0:
+        raise CheckpointError("learning_rate deve ser positivo")
+    max_examples = config["max_examples"]
+    if max_examples is not None:
+        _dimension(max_examples, "max_examples")
+    unknown = config["syllable_unknown_id"]
+    if type(unknown) is not int or unknown < 0:
+        raise CheckpointError("syllable_unknown_id deve ser inteiro não negativo")
+    weights = config["loss_weights"]
+    if state["mode"] == "char":
+        if weights is not None:
+            raise CheckpointError("loss_weights deve ser null em modo char")
+    else:
+        weights = _required(weights, {"char", "syllable", "boundary"}, "loss_weights")
+        normalized = [_number(value, f"loss_weights.{name}") for name, value in weights.items()]
+        if any(weight < 0 for weight in normalized) or not any(weight > 0 for weight in normalized):
+            raise CheckpointError("loss_weights inválidos")
+    history = state["history"]
+    if not isinstance(history, list) or len(history) != state["completed_epochs"]:
+        raise CheckpointError("training.history incompatível com épocas completas")
+    if any(not isinstance(row, dict) or not row for row in history):
+        raise CheckpointError("training.history deve conter métricas por época")
+    _ensure_json_compatible(state)
+    return state
+
+
 def save_autoregressive_checkpoint(
     path: str | Path,
     model: AutoregressiveModel,
@@ -159,8 +216,9 @@ def save_autoregressive_checkpoint(
     character_vocabulary: CharacterVocabulary,
     syllable_vocabulary: SyllableVocabulary,
     metadata: dict[str, Any] | None = None,
+    training_state: dict[str, Any] | None = None,
 ) -> Path:
-    """Atomically save all CPU model parameters for later inference."""
+    """Atomically persist CPU weights and optionally versioned epoch-boundary state."""
     if not isinstance(model, AutoregressiveModel):
         raise TypeError("model deve ser AutoregressiveModel")
     if not isinstance(model.backend, CPUBackend):
@@ -184,7 +242,7 @@ def save_autoregressive_checkpoint(
             "parameters": _parameters(model, arch),
         },
         "identity": _identity(character_vocabulary, syllable_vocabulary),
-        "training": None,
+        "training": None if training_state is None else _validate_training_state(training_state),
         "metadata": {} if metadata is None else metadata.copy(),
     }
     _ensure_json_compatible(payload)
@@ -223,7 +281,7 @@ def _read_hybrid(path: str | Path) -> dict[str, Any]:
     if type(payload["version"]) is not int or payload["version"] != HYBRID_CHECKPOINT_VERSION:
         raise CheckpointError("versão de checkpoint híbrido não suportada")
     if payload["training"] is not None:
-        raise CheckpointError("estado de retomada ainda não é suportado (R2.4)")
+        _validate_training_state(payload["training"])
     if not isinstance(payload["metadata"], dict):
         raise CheckpointError("metadata deve ser dicionário")
     _ensure_json_compatible(payload["metadata"])
@@ -239,7 +297,7 @@ def load_autoregressive_checkpoint(
     """Validate fully, then return a NEW CPU model with clean transient state.
 
     Both expected vocabularies are mandatory: equal sizes do not imply equal
-    token-ID mappings. Does not resume training.
+    token-ID mappings. Validated training metadata is returned, never executed.
     """
     payload = _read_hybrid(path)
     model_payload = _required(
@@ -322,7 +380,7 @@ def load_autoregressive_checkpoint(
         layer.weights = restored_heads[name]["weights"]
         layer.bias = restored_heads[name]["bias"]
 
-    return restored, {"training": None, "metadata": payload["metadata"].copy()}
+    return restored, {"training": payload["training"], "metadata": payload["metadata"].copy()}
 
 
 __all__ = [
