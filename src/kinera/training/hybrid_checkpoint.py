@@ -306,6 +306,11 @@ def _validate_history_row(
                 raise CheckpointError(f"{location}.value: contagem inválida")
         if any(count > selected_examples for count in entry["support"].values()):
             raise CheckpointError(f"{location}.support excede exemplos")
+        if (
+            "examples" in entry["support"]
+            and entry["support"]["examples"] != selected_examples
+        ):
+            raise CheckpointError(f"{location}.support.examples incompatível")
 
 
 def _validate_training_state(value: Any) -> dict[str, Any]:
