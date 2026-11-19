@@ -320,6 +320,8 @@ class HybridResumeEpochTests(unittest.TestCase):
             {"loss": [0.5], "accuracy": 0.5},
             {"loss": 0.5},
             {"loss": 0.5, "accuracy": 0.5, "unexpected": 0},
+            {"loss": float("nan"), "accuracy": 0.5},
+            {"loss": float("inf"), "accuracy": 0.5},
         ]
         for invalid in invalid_rows:
             with self.subTest(row=invalid):
@@ -343,6 +345,11 @@ class HybridResumeEpochTests(unittest.TestCase):
         _, state = train_hybrid_epochs(model, epochs=1, **args)
         save_hybrid_training_checkpoint(self.path, model, state, **args)
         baseline = self.path.read_bytes()
+        self.assertIsNone(state["history"][0]["boundary_baseline_majority"])
+        self.assertEqual(
+            state["history"][0]["metric_results"]["boundary_baseline_majority"]["availability"],
+            "unavailable",
+        )
         changes = [
             ("scalar_string", ("char_loss",), "inválida"),
             ("scalar_boolean", ("boundary_accuracy",), True),
@@ -350,6 +357,8 @@ class HybridResumeEpochTests(unittest.TestCase):
             ("confusion_boolean", ("boundary_confusion", "tp"), True),
             ("metric_result_value_string", ("metric_results", "char_loss", "value"), "bad"),
             ("metric_result_wrong_shape", ("metric_results", "char_loss"), []),
+            ("metric_result_bad_status", ("metric_results", "char_loss", "availability"), "broken"),
+            ("metric_result_bool_support", ("metric_results", "char_loss", "support", "examples"), True),
         ]
         for name, path, replacement in changes:
             with self.subTest(name=name):
