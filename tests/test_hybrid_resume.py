@@ -453,5 +453,63 @@ class HybridResumeEpochTests(unittest.TestCase):
                     self.path.write_bytes(original)
 
 
+    def test_history_cross_field_consistency_rejects_contradictory_values(self) -> None:
+        model = self._model()
+        args = self._args(mode="multitask")
+        _, state = train_hybrid_epochs(model, epochs=1, **args)
+        save_hybrid_training_checkpoint(self.path, model, state, **args)
+        original = self.path.read_bytes()
+        row = state["history"][0]
+
+        def alternate(value: float) -> float:
+            return 0.0 if value != 0.0 else 1.0
+
+        # Each replacement stays finite and within its permitted range.
+        # Save/load must not accept values that disagree with the same row.
+        cases = (
+            ("precision_vs_confusion", ("boundary_precision",),
+             alternate(row["boundary_precision"])),
+            ("recall_vs_confusion", ("boundary_recall",),
+             alternate(row["boundary_recall"])),
+            ("f1_vs_confusion", ("boundary_f1",),
+             alternate(row["boundary_f1"])),
+            ("accuracy_vs_confusion", ("boundary_accuracy",),
+             alternate(row["boundary_accuracy"])),
+            ("constant_baseline_vs_targets", ("boundary_baseline_constant_0",),
+             alternate(row["boundary_baseline_constant_0"])),
+            ("nested_char_accuracy_vs_scalar",
+             ("metric_results", "char_accuracy", "value"),
+             alternate(row["char_accuracy"])),
+            ("nested_char_loss_vs_scalar",
+             ("metric_results", "char_loss", "value"),
+             row["char_loss"] + 0.125),
+            ("nested_true_negative_vs_confusion",
+             ("metric_results", "boundary_true_negative", "value"),
+             row["boundary_true_negative"] + 1 if row["boundary_true_negative"] < len(self.examples)
+             else row["boundary_true_negative"] - 1),
+            ("nested_boundary_accuracy_vs_confusion",
+             ("metric_results", "boundary_accuracy", "value"),
+             alternate(row["boundary_accuracy"])),
+        )
+        for name, path, replacement in cases:
+            with self.subTest(name=name):
+                damaged = copy.deepcopy(state)
+                target = damaged["history"][0]
+                for key in path[:-1]:
+                    target = target[key]
+                target[path[-1]] = replacement
+                with self.assertRaises(CheckpointError):
+                    save_hybrid_training_checkpoint(self.path, model, damaged, **args)
+                self.assertEqual(self.path.read_bytes(), original)
+                payload = json.loads(original)
+                payload["training"] = damaged
+                self.path.write_text(json.dumps(payload), encoding="utf-8")
+                try:
+                    with self.assertRaises(CheckpointError):
+                        load_hybrid_training_checkpoint(self.path, **args)
+                finally:
+                    self.path.write_bytes(original)
+
+
 if __name__ == "__main__":
     unittest.main()
