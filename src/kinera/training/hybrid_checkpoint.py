@@ -17,6 +17,15 @@ from kinera.backends.cpu.backend import CPUBackend
 from kinera.experiments.fingerprint import canonical_sha256
 from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from kinera.nn.models.hybrid import AutoregressiveModel
+from kinera.monitor.metrics.confusion import (
+    BinaryConfusion,
+    balanced_accuracy,
+    f1_score,
+    precision,
+    recall,
+    specificity,
+)
+from kinera.monitor.metrics.schema import METRICS_SCHEMA_VERSION, metric_result
 from kinera.training.checkpoint import (
     CheckpointError,
     _ensure_json_compatible,
@@ -153,6 +162,237 @@ def _parameters(model: AutoregressiveModel, arch: dict[str, int]) -> dict[str, A
     return result
 
 
+
+# Epoch rows follow the two canonical trainers, not arbitrary JSON metadata.
+# The multitask evaluator emits numeric scalars plus structured metrics,
+# including legitimate null values for unavailable observations.
+_MULTITASK_SCALARS = frozenset({
+    "char_loss", "syllable_loss", "boundary_loss", "total_loss",
+    "char_accuracy", "syllable_accuracy", "boundary_accuracy",
+    "syllable_accuracy_all", "syllable_accuracy_known",
+    "boundary_precision", "boundary_recall", "boundary_f1",
+    "boundary_true_negative", "boundary_specificity",
+    "boundary_balanced_accuracy", "boundary_baseline_constant_0",
+    "boundary_baseline_constant_1", "boundary_baseline_majority",
+})
+_MULTITASK_RATES = _MULTITASK_SCALARS - {
+    "char_loss", "syllable_loss", "boundary_loss", "total_loss",
+    "boundary_true_negative",
+}
+_NULLABLE_MULTITASK_SCALARS = frozenset({
+    "boundary_specificity", "boundary_balanced_accuracy",
+    "boundary_baseline_majority",
+})
+_MULTITASK_DISTRIBUTIONS = frozenset({
+    "boundary_target_distribution", "boundary_prediction_distribution",
+    "char_target_distribution", "char_prediction_distribution",
+    "syllable_target_distribution", "syllable_prediction_distribution",
+    "syllable_target_status_distribution",
+})
+
+
+def _history_counts(
+    value: Any,
+    name: str,
+    *,
+    keys: set[str] | None = None,
+    numeric_keys: bool = False,
+) -> None:
+    if not isinstance(value, dict) or (keys is not None and set(value) != keys):
+        raise CheckpointError(f"{name}: distribuição inválida")
+    for key, count in value.items():
+        if type(key) is not str or not key:
+            raise CheckpointError(f"{name}: chave inválida")
+        if numeric_keys and re.fullmatch(r"(0|[1-9][0-9]*)", key) is None:
+            raise CheckpointError(f"{name}: ID de distribuição inválido")
+        if type(count) is not int or count < 0:
+            raise CheckpointError(f"{name}.{key}: contagem inválida")
+
+
+def _history_equal(value: Any, expected: int | float | None) -> bool:
+    """Compare stored observations, tolerating only float rounding differences."""
+    if expected is None or value is None:
+        return value is None and expected is None
+    if type(expected) is int:
+        return type(value) is int and value == expected
+    if type(value) not in (int, float):
+        return False
+    return math.isclose(float(value), float(expected), rel_tol=1e-12, abs_tol=1e-12)
+
+
+def _expected_boundary_metrics(
+    confusion_counts: dict[str, int], selected_examples: int
+) -> tuple[dict[str, int | float | None], dict[str, int | float | None]]:
+    """Match the evaluator's scalar zero fallback and descriptor null policy."""
+    confusion = BinaryConfusion(**confusion_counts)
+    descriptor_precision = precision(confusion)
+    descriptor_recall = recall(confusion)
+    scalar_precision = 0.0 if descriptor_precision is None else descriptor_precision
+    scalar_recall = 0.0 if descriptor_recall is None else descriptor_recall
+    scalar_f1 = (
+        0.0 if scalar_precision + scalar_recall == 0.0
+        else 2.0 * scalar_precision * scalar_recall / (scalar_precision + scalar_recall)
+    )
+    boundary_accuracy = (confusion.tp + confusion.tn) / selected_examples
+    baseline_0 = confusion.support_negative / selected_examples
+    baseline_1 = confusion.support_positive / selected_examples
+    scalar_expected: dict[str, int | float | None] = {
+        "boundary_accuracy": boundary_accuracy,
+        "boundary_precision": scalar_precision,
+        "boundary_recall": scalar_recall,
+        "boundary_f1": scalar_f1,
+        "boundary_specificity": specificity(confusion),
+        "boundary_balanced_accuracy": balanced_accuracy(confusion),
+        "boundary_true_negative": confusion.tn,
+        "boundary_baseline_constant_0": baseline_0,
+        "boundary_baseline_constant_1": baseline_1,
+    }
+    descriptor_expected = {
+        **scalar_expected,
+        # The evaluator reports 0.0 for undefined scalar rates,
+        # while its scientific metric descriptors preserve None.
+        "boundary_precision": descriptor_precision,
+        "boundary_recall": descriptor_recall,
+        "boundary_f1": f1_score(confusion),
+    }
+    return scalar_expected, descriptor_expected
+
+
+def _validate_history_row(
+    value: Any, mode: str, index: int, selected_examples: int
+) -> None:
+    name = f"training.history[{index}]"
+    if mode == "char":
+        row = _required(value, {"loss", "accuracy"}, name)
+        if _number(row["loss"], f"{name}.loss") < 0:
+            raise CheckpointError(f"{name}.loss deve ser não negativa")
+        accuracy = _number(row["accuracy"], f"{name}.accuracy")
+        if not 0 <= accuracy <= 1:
+            raise CheckpointError(f"{name}.accuracy fora de [0,1]")
+        return
+
+    expected = (
+        set(_MULTITASK_SCALARS) | set(_MULTITASK_DISTRIBUTIONS)
+        | {"boundary_confusion", "metrics_schema_version", "metric_results"}
+    )
+    row = _required(value, expected, name)
+    for field in _MULTITASK_SCALARS:
+        item = row[field]
+        if item is None and field in _NULLABLE_MULTITASK_SCALARS:
+            continue
+        number = _number(item, f"{name}.{field}")
+        if field.endswith("_loss") and number < 0:
+            raise CheckpointError(f"{name}.{field} deve ser não negativa")
+        if field in _MULTITASK_RATES and not 0 <= number <= 1:
+            raise CheckpointError(f"{name}.{field} fora de [0,1]")
+    if (
+        type(row["boundary_true_negative"]) is not int
+        or not 0 <= row["boundary_true_negative"] <= selected_examples
+    ):
+        raise CheckpointError(f"{name}.boundary_true_negative inválido")
+    if type(row["metrics_schema_version"]) is not int or row["metrics_schema_version"] != METRICS_SCHEMA_VERSION:
+        raise CheckpointError(f"{name}.metrics_schema_version não suportada")
+
+    _history_counts(
+        row["boundary_confusion"], f"{name}.boundary_confusion",
+        keys={"tp", "tn", "fp", "fn"},
+    )
+    confusion = row["boundary_confusion"]
+    if sum(confusion.values()) != selected_examples:
+        raise CheckpointError(f"{name}.boundary_confusion: total incompatível")
+    if row["boundary_true_negative"] != confusion["tn"]:
+        raise CheckpointError(f"{name}.boundary_true_negative incompatível com confusão")
+    for field in _MULTITASK_DISTRIBUTIONS:
+        keys = None
+        numeric_keys = True
+        if field in ("boundary_target_distribution", "boundary_prediction_distribution"):
+            keys = {"0", "1"}
+        elif field == "syllable_target_status_distribution":
+            keys = {"known", "unknown", "end"}
+            numeric_keys = False
+        _history_counts(
+            row[field], f"{name}.{field}",
+            keys=keys, numeric_keys=numeric_keys,
+        )
+        if sum(row[field].values()) != selected_examples:
+            raise CheckpointError(f"{name}.{field}: total incompatível com exemplos")
+
+    targets = row["boundary_target_distribution"]
+    predictions = row["boundary_prediction_distribution"]
+    if (targets["0"], targets["1"]) != (
+        confusion["tn"] + confusion["fp"],
+        confusion["tp"] + confusion["fn"],
+    ):
+        raise CheckpointError(f"{name}.boundary_target_distribution incompatível")
+    if (predictions["0"], predictions["1"]) != (
+        confusion["tn"] + confusion["fn"],
+        confusion["tp"] + confusion["fp"],
+    ):
+        raise CheckpointError(f"{name}.boundary_prediction_distribution incompatível")
+
+    expected_scalars, expected_descriptors = _expected_boundary_metrics(
+        confusion, selected_examples
+    )
+    for field, expected_value in expected_scalars.items():
+        if not _history_equal(row[field], expected_value):
+            raise CheckpointError(f"{name}.{field}: inconsistente com matriz de confusão")
+
+    results = _required(
+        row["metric_results"], set(_MULTITASK_SCALARS),
+        f"{name}.metric_results",
+    )
+    for field, descriptor in results.items():
+        location = f"{name}.metric_results.{field}"
+        entry = _required(
+            descriptor, {"value", "availability", "reason", "support"},
+            location,
+        )
+        if not isinstance(entry["support"], dict):
+            raise CheckpointError(f"{location}.support inválido")
+        try:
+            metric_result(
+                entry["value"],
+                availability=entry["availability"],
+                reason=entry["reason"],
+                support=entry["support"],
+            )
+        except (TypeError, ValueError, OverflowError) as error:
+            raise CheckpointError(f"{location}: descritor inválido: {error}") from error
+        if entry["availability"] == "available":
+            number = _number(entry["value"], f"{location}.value")
+            if field in _MULTITASK_RATES and not 0 <= number <= 1:
+                raise CheckpointError(f"{location}.value fora de [0,1]")
+            if field.endswith("_loss") and number < 0:
+                raise CheckpointError(f"{location}.value deve ser não negativo")
+            if field == "boundary_true_negative" and (
+                type(entry["value"]) is not int or number > selected_examples
+            ):
+                raise CheckpointError(f"{location}.value: contagem inválida")
+        if any(count > selected_examples for count in entry["support"].values()):
+            raise CheckpointError(f"{location}.support excede exemplos")
+        if (
+            "examples" in entry["support"]
+            and entry["support"]["examples"] != selected_examples
+        ):
+            raise CheckpointError(f"{location}.support.examples incompatível")
+        # All defined descriptors must match their scalar observations.
+        # The binary descriptors are checked against their canonical confusion
+        # formulas instead, because some intentionally use None where the
+        # historical scalar reports 0.0 for an undefined denominator.
+        if field in expected_descriptors:
+            expected_value = expected_descriptors[field]
+            expected_status = "available" if expected_value is not None else "not_applicable"
+            if entry["availability"] != expected_status:
+                raise CheckpointError(f"{location}.availability incompatível")
+            if not _history_equal(entry["value"], expected_value):
+                raise CheckpointError(f"{location}.value incompatível com confusão")
+        elif entry["availability"] == "available":
+            if not _history_equal(entry["value"], row[field]):
+                raise CheckpointError(f"{location}.value incompatível com valor escalar")
+        elif field not in {"syllable_accuracy_known", "boundary_baseline_majority"}:
+            raise CheckpointError(f"{location}: métrica escalar disponível sem descritor")
+
+
 def _validate_training_state(value: Any) -> dict[str, Any]:
     """Validate the versioned epoch-boundary resume record without trusting metadata."""
     try:
@@ -203,8 +443,8 @@ def _validate_training_state(value: Any) -> dict[str, Any]:
     history = state["history"]
     if not isinstance(history, list) or len(history) != state["completed_epochs"]:
         raise CheckpointError("training.history incompatível com épocas completas")
-    if any(not isinstance(row, dict) or not row for row in history):
-        raise CheckpointError("training.history deve conter métricas por época")
+    for index, row in enumerate(history):
+        _validate_history_row(row, state["mode"], index, state["selected_examples"])
     _ensure_json_compatible(state)
     return state
 

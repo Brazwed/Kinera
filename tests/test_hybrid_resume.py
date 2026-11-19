@@ -308,5 +308,239 @@ class HybridResumeEpochTests(unittest.TestCase):
 
 
 
+    def test_history_validation_rejects_invalid_char_rows_on_save_and_load(self) -> None:
+        model = self._model()
+        args = self._args(mode="char")
+        _, state = train_hybrid_epochs(model, epochs=1, **args)
+        save_hybrid_training_checkpoint(self.path, model, state, **args)
+        baseline = self.path.read_bytes()
+        invalid_rows = [
+            {"loss": "inválida", "accuracy": 0.5},
+            {"loss": 0.5, "accuracy": True},
+            {"loss": [0.5], "accuracy": 0.5},
+            {"loss": 0.5},
+            {"loss": 0.5, "accuracy": 0.5, "unexpected": 0},
+            {"loss": float("nan"), "accuracy": 0.5},
+            {"loss": float("inf"), "accuracy": 0.5},
+        ]
+        for invalid in invalid_rows:
+            with self.subTest(row=invalid):
+                damaged = copy.deepcopy(state)
+                damaged["history"][0] = invalid
+                with self.assertRaises(CheckpointError):
+                    save_hybrid_training_checkpoint(self.path, model, damaged, **args)
+                self.assertEqual(self.path.read_bytes(), baseline)
+                payload = json.loads(baseline)
+                payload["training"] = damaged
+                self.path.write_text(json.dumps(payload), encoding="utf-8")
+                try:
+                    with self.assertRaises(CheckpointError):
+                        load_hybrid_training_checkpoint(self.path, **args)
+                finally:
+                    self.path.write_bytes(baseline)
+
+    def test_history_validation_rejects_invalid_multitask_metrics(self) -> None:
+        model = self._model()
+        args = self._args(mode="multitask")
+        _, state = train_hybrid_epochs(model, epochs=1, **args)
+        save_hybrid_training_checkpoint(self.path, model, state, **args)
+        baseline = self.path.read_bytes()
+        self.assertIsNone(state["history"][0]["boundary_baseline_majority"])
+        self.assertEqual(
+            state["history"][0]["metric_results"]["boundary_baseline_majority"]["availability"],
+            "unavailable",
+        )
+        changes = [
+            ("scalar_string", ("char_loss",), "inválida"),
+            ("scalar_boolean", ("boundary_accuracy",), True),
+            ("distribution_string", ("char_target_distribution", "3"), "bad"),
+            ("confusion_boolean", ("boundary_confusion", "tp"), True),
+            ("metric_result_value_string", ("metric_results", "char_loss", "value"), "bad"),
+            ("metric_result_wrong_shape", ("metric_results", "char_loss"), []),
+            ("metric_result_bad_status", ("metric_results", "char_loss", "availability"), "broken"),
+            ("metric_result_bool_support", ("metric_results", "char_loss", "support", "examples"), True),
+
+            # Valid numeric types can still carry impossible rates and counts.
+            ("char_accuracy_above_one", ("char_accuracy",), 5.0),
+            ("boundary_accuracy_negative", ("boundary_accuracy",), -0.1),
+            ("boundary_precision_above_one", ("boundary_precision",), 1.1),
+            ("boundary_recall_negative", ("boundary_recall",), -0.2),
+            ("boundary_f1_above_one", ("boundary_f1",), 2.0),
+            ("boundary_specificity_above_one", ("boundary_specificity",), 1.1),
+            ("boundary_baseline_negative", ("boundary_baseline_constant_0",), -0.1),
+            ("nested_char_accuracy_above_one", ("metric_results", "char_accuracy", "value"), 5.0),
+            ("nested_boundary_f1_above_one", ("metric_results", "boundary_f1", "value"), 5.0),
+            ("nested_true_negative_over_sample_count", ("metric_results", "boundary_true_negative", "value"), 99),
+            ("nested_examples_support_mismatch", ("metric_results", "char_loss", "support", "examples"), 0),
+            ("true_negative_over_sample_count", ("boundary_true_negative",), 99),
+            # Valid nonnegative integers can contradict the example count
+            # and the binary confusion matrix.
+            ("char_target_sum_mismatch", ("char_target_distribution", "3"), 99),
+            ("syllable_target_sum_mismatch", ("syllable_target_distribution", "0"), 99),
+            ("boundary_target_count_mismatch", ("boundary_target_distribution", "1"), 99),
+            ("boundary_prediction_count_mismatch", ("boundary_prediction_distribution", "0"), 99),
+            ("target_status_sum_mismatch", ("syllable_target_status_distribution", "known"), 99),
+            ("confusion_total_mismatch", ("boundary_confusion", "tp"), 99),
+        ]
+        for name, path, replacement in changes:
+            with self.subTest(name=name):
+                damaged = copy.deepcopy(state)
+                target = damaged["history"][0]
+                for key in path[:-1]:
+                    target = target[key]
+                target[path[-1]] = replacement
+                with self.assertRaises(CheckpointError):
+                    save_hybrid_training_checkpoint(self.path, model, damaged, **args)
+                self.assertEqual(self.path.read_bytes(), baseline)
+                payload = json.loads(baseline)
+                payload["training"] = damaged
+                self.path.write_text(json.dumps(payload), encoding="utf-8")
+                try:
+                    with self.assertRaises(CheckpointError):
+                        load_hybrid_training_checkpoint(self.path, **args)
+                finally:
+                    self.path.write_bytes(baseline)
+
+
+    def test_history_rejects_binary_count_conflicts_with_valid_totals(self) -> None:
+        model = self._model()
+        args = self._args(mode="multitask")
+        _, state = train_hybrid_epochs(model, epochs=1, **args)
+        save_hybrid_training_checkpoint(self.path, model, state, **args)
+        original = self.path.read_bytes()
+        total = len(self.examples)
+
+        modified_target = copy.deepcopy(state)
+        target_dist = modified_target["history"][0]["boundary_target_distribution"]
+        target_dist["0"], target_dist["1"] = target_dist["1"], target_dist["0"]
+
+        modified_prediction = copy.deepcopy(state)
+        prediction_dist = modified_prediction["history"][0]["boundary_prediction_distribution"]
+        prediction_dist["0"] = (prediction_dist["0"] + 1) % (total + 1)
+        prediction_dist["1"] = total - prediction_dist["0"]
+
+        modified_confusion = copy.deepcopy(state)
+        matrix = modified_confusion["history"][0]["boundary_confusion"]
+        source = next(key for key in ("tp", "tn", "fp", "fn") if matrix[key] > 0)
+        destination = next(key for key in ("tp", "tn", "fp", "fn") if key != source)
+        matrix[source] -= 1
+        matrix[destination] += 1
+
+        modified_true_negative = copy.deepcopy(state)
+        row = modified_true_negative["history"][0]
+        row["boundary_true_negative"] = (
+            0 if row["boundary_confusion"]["tn"] == total
+            else row["boundary_confusion"]["tn"] + 1
+        )
+
+        for name, damaged in (
+            ("target_distribution", modified_target),
+            ("prediction_distribution", modified_prediction),
+            ("confusion_matrix", modified_confusion),
+            ("true_negative", modified_true_negative),
+        ):
+            with self.subTest(name=name):
+                with self.assertRaises(CheckpointError):
+                    save_hybrid_training_checkpoint(self.path, model, damaged, **args)
+                self.assertEqual(self.path.read_bytes(), original)
+                payload = json.loads(original)
+                payload["training"] = damaged
+                self.path.write_text(json.dumps(payload), encoding="utf-8")
+                try:
+                    with self.assertRaises(CheckpointError):
+                        load_hybrid_training_checkpoint(self.path, **args)
+                finally:
+                    self.path.write_bytes(original)
+
+
+    def test_history_cross_field_consistency_rejects_contradictory_values(self) -> None:
+        model = self._model()
+        args = self._args(mode="multitask")
+        _, state = train_hybrid_epochs(model, epochs=1, **args)
+        save_hybrid_training_checkpoint(self.path, model, state, **args)
+        original = self.path.read_bytes()
+        row = state["history"][0]
+
+        def alternate(value: float) -> float:
+            return 0.0 if value != 0.0 else 1.0
+
+        # Each replacement stays finite and within its permitted range.
+        # Save/load must not accept values that disagree with the same row.
+        cases = (
+            ("precision_vs_confusion", ("boundary_precision",),
+             alternate(row["boundary_precision"])),
+            ("recall_vs_confusion", ("boundary_recall",),
+             alternate(row["boundary_recall"])),
+            ("f1_vs_confusion", ("boundary_f1",),
+             alternate(row["boundary_f1"])),
+            ("accuracy_vs_confusion", ("boundary_accuracy",),
+             alternate(row["boundary_accuracy"])),
+            ("constant_baseline_vs_targets", ("boundary_baseline_constant_0",),
+             alternate(row["boundary_baseline_constant_0"])),
+            ("nested_char_accuracy_vs_scalar",
+             ("metric_results", "char_accuracy", "value"),
+             alternate(row["char_accuracy"])),
+            ("nested_char_loss_vs_scalar",
+             ("metric_results", "char_loss", "value"),
+             row["char_loss"] + 0.125),
+            ("nested_true_negative_vs_confusion",
+             ("metric_results", "boundary_true_negative", "value"),
+             row["boundary_true_negative"] + 1 if row["boundary_true_negative"] < len(self.examples)
+             else row["boundary_true_negative"] - 1),
+            ("nested_boundary_accuracy_vs_confusion",
+             ("metric_results", "boundary_accuracy", "value"),
+             alternate(row["boundary_accuracy"])),
+        )
+        for name, path, replacement in cases:
+            with self.subTest(name=name):
+                damaged = copy.deepcopy(state)
+                target = damaged["history"][0]
+                for key in path[:-1]:
+                    target = target[key]
+                target[path[-1]] = replacement
+                with self.assertRaises(CheckpointError):
+                    save_hybrid_training_checkpoint(self.path, model, damaged, **args)
+                self.assertEqual(self.path.read_bytes(), original)
+                payload = json.loads(original)
+                payload["training"] = damaged
+                self.path.write_text(json.dumps(payload), encoding="utf-8")
+                try:
+                    with self.assertRaises(CheckpointError):
+                        load_hybrid_training_checkpoint(self.path, **args)
+                finally:
+                    self.path.write_bytes(original)
+
+
+    def test_history_cross_consistency_preserves_undefined_binary_descriptors(self) -> None:
+        model = self._model()
+        boundary = model.heads.boundary
+        boundary.weights = [[0.0] * boundary.input_size]
+        boundary.bias = [-50.0]
+        # No positive targets and no predicted positives: scalars keep the
+        # historical zero fallback, while scientific descriptors use None.
+        examples = copy.deepcopy(self.examples)
+        for example in examples:
+            example["target_is_syllable_end"] = 0
+        args = self._args(mode="multitask", examples=examples)
+        _, state = train_hybrid_epochs(model, epochs=1, **args)
+        row = state["history"][0]
+        self.assertEqual(row["boundary_confusion"], {
+            "tp": 0, "tn": len(examples), "fp": 0, "fn": 0
+        })
+        for field in ("boundary_precision", "boundary_recall", "boundary_f1"):
+            with self.subTest(field=field):
+                self.assertEqual(row[field], 0.0)
+                self.assertIsNone(row["metric_results"][field]["value"])
+                self.assertEqual(
+                    row["metric_results"][field]["availability"], "not_applicable"
+                )
+        self.assertIsNone(row["boundary_balanced_accuracy"])
+        self.assertIsNone(row["metric_results"]["boundary_balanced_accuracy"]["value"])
+        save_hybrid_training_checkpoint(self.path, model, state, **args)
+        restored, saved_state, _ = load_hybrid_training_checkpoint(self.path, **args)
+        self.assertEqual(saved_state, state)
+        self.assertEqual(self._weights(restored), self._weights(model))
+
+
 if __name__ == "__main__":
     unittest.main()
