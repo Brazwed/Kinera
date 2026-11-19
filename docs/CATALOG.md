@@ -4,7 +4,7 @@ Registro mestre dos Markdown de `docs/`. IDs identificam documentos, não caminh
 
 **Como ler:** `Tipo` descreve a natureza; `Situação documental` descreve o ciclo de vida do arquivo; `Resultado/parecer` registra a conclusão técnica da fonte, quando houver. Para documentos existentes, situação formal ausente fica como `não identificado (legado)`. Ausência de parecer não significa resultado inconclusivo.
 
-**Cobertura desta revisão:** 34 documentos: 32 existentes no baseline D0.1 e os dois índices. Os IDs 0001–0032 foram propostos no inventário D0.1 e foram preservados; os caminhos anteriores dos documentos movimentados nos Lotes 1–3 e C1 permanecem nos respectivos registros. README e catálogo usam os IDs 0033 e 0034.
+**Cobertura do inventário D0:** 34 documentos: 32 existentes no baseline D0.1 e os dois índices. Os IDs 0001–0032 foram propostos no inventário D0.1 e foram preservados; os caminhos anteriores dos documentos movimentados nos Lotes 1–3 e C1 permanecem nos respectivos registros. README e catálogo usam os IDs 0033 e 0034. **Atualização R2.5 (Issue #92):** acrescentado KIN-DOC-0035, totalizando **35 documentos catalogados**, sem renumerar ou alterar os registros históricos.
 
 **Exceções restritas de escopo nos testes:** a Issue #88 originalmente definia zero alterações em testes. D0.4/C3 autorizou somente atualizar caminhos/chaves dos relatórios P3 em `tests/test_opencl_host_conversion_analysis.py` e `tests/test_opencl_p3e_device_profiling.py`; D0.5/F1 autorizou adicionalmente resolver o caminho histórico do relatório da Fase 7 em `tests/equivalence/test_cpu_reference_equivalence.py`. As autorizações e limites estão formalmente registrados na [Issue #88](https://github.com/Brazwed/Kinera/issues/88). SHA-256 esperados, fingerprints, assertions, critérios, demais fixtures e cobertura permanecem preservados. O manifesto histórico permanece intacto. Os links canônicos para os novos caminhos em `main` continuam pendentes do merge documental.
 
@@ -354,7 +354,19 @@ Registro mestre dos Markdown de `docs/`. IDs identificam documentos, não caminh
 - **Tipo:** `REFERENCE` / registro mestre.
 - **Situação documental:** `ACTIVE`.
 - **Resultado/parecer:** não aplicável.
-- **Relações:** contém registros KIN-DOC-0001–0034 e remete a [README.md](README.md) para navegação/convenções.
+- **Relações:** contém registros KIN-DOC-0001–0035 e remete a [README.md](README.md) para navegação/convenções.
 - **Proveniência:** criado nesta etapa sobre baseline `734d202ce8e1bbcdc01ffcea20ec841e23c1945c`; os dados legados derivam do inventário D0.1.
 - **Caminhos anteriores:** nenhum.
 - **Limites:** IDs 0001–0032 são propostas D0.1 agora fixadas; metadados não encontrados permanecem explicitamente não identificados.
+
+
+## KIN-DOC-0035 — Gate R2 — checkpoint híbrido CPU e retomada por época
+
+- **Caminho:** [r2-hybrid-checkpoint-and-resume.md](recovery/r2-hybrid-checkpoint-and-resume.md)
+- **Tipo:** `SPEC` / `GUIDE` / `AUDIT`.
+- **Situação documental:** `ACTIVE`; contrato de persistência e guia de reprodução do Gate R2.
+- **Resultado/parecer:** `PASS` técnico do checkpoint e da retomada determinística na **CPU**, restritos a fronteira de época e aos dois treinadores híbridos canônicos; decisão administrativa da R2.5 registrada na Issue #92 após integração documental.
+- **Relações:** [Issue #92](https://github.com/Brazwed/Kinera/issues/92); PRs [#93](https://github.com/Brazwed/Kinera/pull/93), [#94](https://github.com/Brazwed/Kinera/pull/94) e [#95](https://github.com/Brazwed/Kinera/pull/95); [R0](recovery/r0-cpu-core-audit.md) / Issue #86 e R1 / Issue #90.
+- **Proveniência:** base R2.5 `d400f8b2b15d0c5bf1b69c699cb1c69a38cadf14` (merge da PR #95); [CI pós-merge #44538301297](https://github.com/Brazwed/Kinera/actions/runs/44538301297), Python 3.10/3.14 `822 passed, 62 skipped, 5 deselected, 1159 subtests passed` em cada ambiente. Evidências intermediárias no próprio relatório e na Issue.
+- **Caminhos anteriores:** nenhum; documento novo em `docs/recovery/`.
+- **Limites:** sem checkpoint GPU, meio-época, CLI automática, integração com replay ou validação de hardware; `sha256` não garante autenticidade; registro histórico R0 `PARTIAL` preservado.
