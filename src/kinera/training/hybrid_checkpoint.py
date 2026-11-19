@@ -195,19 +195,31 @@ def _parse_constant(value: str) -> Any:
     raise CheckpointError(f"constante JSON inválida: {value}")
 
 
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject ambiguous keys at every JSON object nesting level."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise CheckpointError(f"chave JSON duplicada: {key}")
+        result[key] = value
+    return result
+
+
 def _read_hybrid(path: str | Path) -> dict[str, Any]:
     try:
         payload = json.loads(
             Path(path).read_text(encoding="utf-8"),
             parse_constant=_parse_constant,
+            object_pairs_hook=_reject_duplicate_keys,
         )
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise CheckpointError(f"não foi possível ler checkpoint híbrido: {exc}") from exc
+    # Distinguish legacy/wrong formats before checking fields unique to R2.
+    if isinstance(payload, dict) and payload.get("format") != HYBRID_CHECKPOINT_FORMAT:
+        raise CheckpointError("formato de checkpoint híbrido inválido")
     _required(payload, {
         "format", "version", "model", "identity", "training", "metadata",
     }, "checkpoint")
-    if payload["format"] != HYBRID_CHECKPOINT_FORMAT:
-        raise CheckpointError("formato de checkpoint híbrido inválido")
     if type(payload["version"]) is not int or payload["version"] != HYBRID_CHECKPOINT_VERSION:
         raise CheckpointError("versão de checkpoint híbrido não suportada")
     if payload["training"] is not None:
