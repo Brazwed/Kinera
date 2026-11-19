@@ -155,10 +155,14 @@ def _parameters(model: AutoregressiveModel, arch: dict[str, int]) -> dict[str, A
 
 def _validate_training_state(value: Any) -> dict[str, Any]:
     """Validate the versioned epoch-boundary resume record without trusting metadata."""
-    state = _required(value, {
-        "schema_version", "mode", "completed_epochs", "global_step",
-        "selected_examples", "examples_sha256", "configuration", "history",
-    }, "training")
+    try:
+        state = _required(value, {
+            "schema_version", "mode", "completed_epochs", "global_step",
+            "selected_examples", "examples_sha256", "configuration", "history",
+        }, "training")
+    except CheckpointError as error:
+        # Preserve the R2.3 diagnostic for unsupported/partial resume records.
+        raise CheckpointError(f"estado de treinamento R2.4 inválido: {error}") from error
     if type(state["schema_version"]) is not int or state["schema_version"] != 1:
         raise CheckpointError("versão do estado de treinamento não suportada")
     if state["mode"] not in ("char", "multitask"):
