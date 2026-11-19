@@ -359,6 +359,27 @@ class HybridResumeEpochTests(unittest.TestCase):
             ("metric_result_wrong_shape", ("metric_results", "char_loss"), []),
             ("metric_result_bad_status", ("metric_results", "char_loss", "availability"), "broken"),
             ("metric_result_bool_support", ("metric_results", "char_loss", "support", "examples"), True),
+
+            # Valid numeric types can still carry impossible rates and counts.
+            ("char_accuracy_above_one", ("char_accuracy",), 5.0),
+            ("boundary_accuracy_negative", ("boundary_accuracy",), -0.1),
+            ("boundary_precision_above_one", ("boundary_precision",), 1.1),
+            ("boundary_recall_negative", ("boundary_recall",), -0.2),
+            ("boundary_f1_above_one", ("boundary_f1",), 2.0),
+            ("boundary_specificity_above_one", ("boundary_specificity",), 1.1),
+            ("boundary_baseline_negative", ("boundary_baseline_constant_0",), -0.1),
+            ("nested_char_accuracy_above_one", ("metric_results", "char_accuracy", "value"), 5.0),
+            ("nested_boundary_f1_above_one", ("metric_results", "boundary_f1", "value"), 5.0),
+            ("nested_true_negative_over_sample_count", ("metric_results", "boundary_true_negative", "value"), 99),
+            ("true_negative_over_sample_count", ("boundary_true_negative",), 99),
+            # Valid nonnegative integers can contradict the example count
+            # and the binary confusion matrix.
+            ("char_target_sum_mismatch", ("char_target_distribution", "3"), 99),
+            ("syllable_target_sum_mismatch", ("syllable_target_distribution", "0"), 99),
+            ("boundary_target_count_mismatch", ("boundary_target_distribution", "1"), 99),
+            ("boundary_prediction_count_mismatch", ("boundary_prediction_distribution", "0"), 99),
+            ("target_status_sum_mismatch", ("syllable_target_status_distribution", "known"), 99),
+            ("confusion_total_mismatch", ("boundary_confusion", "tp"), 99),
         ]
         for name, path, replacement in changes:
             with self.subTest(name=name):
