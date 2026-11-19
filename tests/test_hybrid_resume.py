@@ -511,5 +511,36 @@ class HybridResumeEpochTests(unittest.TestCase):
                     self.path.write_bytes(original)
 
 
+    def test_history_cross_consistency_preserves_undefined_binary_descriptors(self) -> None:
+        model = self._model()
+        boundary = model.heads.boundary
+        boundary.weights = [[0.0] * boundary.input_size]
+        boundary.bias = [-50.0]
+        # No positive targets and no predicted positives: scalars keep the
+        # historical zero fallback, while scientific descriptors use None.
+        examples = copy.deepcopy(self.examples)
+        for example in examples:
+            example["target_is_syllable_end"] = 0
+        args = self._args(mode="multitask", examples=examples)
+        _, state = train_hybrid_epochs(model, epochs=1, **args)
+        row = state["history"][0]
+        self.assertEqual(row["boundary_confusion"], {
+            "tp": 0, "tn": len(examples), "fp": 0, "fn": 0
+        })
+        for field in ("boundary_precision", "boundary_recall", "boundary_f1"):
+            with self.subTest(field=field):
+                self.assertEqual(row[field], 0.0)
+                self.assertIsNone(row["metric_results"][field]["value"])
+                self.assertEqual(
+                    row["metric_results"][field]["availability"], "not_applicable"
+                )
+        self.assertIsNone(row["boundary_balanced_accuracy"])
+        self.assertIsNone(row["metric_results"]["boundary_balanced_accuracy"]["value"])
+        save_hybrid_training_checkpoint(self.path, model, state, **args)
+        restored, saved_state, _ = load_hybrid_training_checkpoint(self.path, **args)
+        self.assertEqual(saved_state, state)
+        self.assertEqual(self._weights(restored), self._weights(model))
+
+
 if __name__ == "__main__":
     unittest.main()
