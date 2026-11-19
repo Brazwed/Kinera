@@ -17,6 +17,8 @@ from kinera.nn.losses import MultiTaskLoss
 from kinera.nn.models.hybrid import AutoregressiveModel
 from kinera.training.checkpoint import CheckpointError
 from kinera.training.hybrid_checkpoint import (
+    _architecture,
+    _parameters,
     _validate_training_state,
     load_autoregressive_checkpoint,
     save_autoregressive_checkpoint,
@@ -102,14 +104,22 @@ def _context(
     }, selected, loss)
 
 
+def _parameters_digest(model: AutoregressiveModel) -> str:
+    """Bind a resume cursor to the exact eight live CPU parameter arrays."""
+    return canonical_sha256(_parameters(model, _architecture(model)))
+
+
 def _verify_state(
     state: dict[str, Any],
     context: dict[str, Any],
+    model: AutoregressiveModel,
 ) -> dict[str, Any]:
     _validate_training_state(state)
     for key in ("schema_version", "mode", "selected_examples", "examples_sha256", "configuration"):
         if state[key] != context[key]:
             raise CheckpointError(f"retomada incompatível: {key}")
+    if state["model_parameters_sha256"] != _parameters_digest(model):
+        raise CheckpointError("retomada incompatível: parâmetros não correspondem ao estado")
     return state
 
 
@@ -145,10 +155,11 @@ def train_hybrid_epochs(
             **context,
             "completed_epochs": 0,
             "global_step": 0,
+            "model_parameters_sha256": _parameters_digest(model),
             "history": [],
         }
     else:
-        state = deepcopy(_verify_state(previous_state, context))
+        state = deepcopy(_verify_state(previous_state, context, model))
 
     for _ in range(epochs):
         if mode == "char":
@@ -167,7 +178,8 @@ def train_hybrid_epochs(
         state["history"].extend(report["history"])
         state["completed_epochs"] += 1
         state["global_step"] += context["selected_examples"]
-    _verify_state(state, context)
+        state["model_parameters_sha256"] = _parameters_digest(model)
+    _verify_state(state, context, model)
     result = {
         "epochs": state["completed_epochs"],
         "examples": context["selected_examples"],
@@ -198,7 +210,7 @@ def save_hybrid_training_checkpoint(
         mode=mode, learning_rate=learning_rate, max_examples=max_examples,
         syllable_unknown_id=syllable_unknown_id, loss_function=loss_function,
     )
-    validated = _verify_state(state, context)
+    validated = _verify_state(state, context, model)
     if validated["completed_epochs"] < 1:
         raise CheckpointError("não é possível salvar estado antes da primeira época")
     return save_autoregressive_checkpoint(
@@ -236,7 +248,7 @@ def load_hybrid_training_checkpoint(
         mode=mode, learning_rate=learning_rate, max_examples=max_examples,
         syllable_unknown_id=syllable_unknown_id, loss_function=loss_function,
     )
-    _verify_state(state, context)
+    _verify_state(state, context, model)
     return model, deepcopy(state), info["metadata"]
 
 
