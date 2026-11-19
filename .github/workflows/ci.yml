@@ -38,3 +38,68 @@ jobs:
             --deselect=tests/test_expanded_replay_pilot.py::ExpandedPilotExecutionTests::test_incremental_checkpoint_and_resume_after_failure_and_seed_expansion \
             --deselect=tests/test_expanded_replay_pilot.py::ExpandedPilotExecutionTests::test_cpu_vs_cuda_microbenchmark_separates_init_and_verifies_parity \
             --deselect=tests/test_expanded_replay_pilot.py::ExpandedPilotExecutionTests::test_cli_runner_seeds_resume_and_verification
+
+      # R1: isolate the canonical CPU reference suite from optional device gates.
+      - name: R1 CPU-only reference regression
+        run: |
+          python -m pytest -q tests \
+            --ignore-glob='tests/test_cuda_*.py' \
+            --ignore-glob='tests/test_opencl_*.py' \
+            --ignore=tests/test_expanded_replay_pilot.py
+
+      # This fixture is temporary and does not write historical artifacts.
+      - name: R1 deterministic CLI smoke (two fresh processes)
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          import sys
+          import tempfile
+          from pathlib import Path
+
+          vocabulary = {
+              "version": 1,
+              "tokens": ["<START>", "<END>", "<UNK>", "a", "b", "c"],
+          }
+          examples = [
+              {"context_ids": [0, 0], "target_char_id": 3},
+              {"context_ids": [0, 3], "target_char_id": 4},
+              {"context_ids": [3, 4], "target_char_id": 5},
+              {"context_ids": [4, 5], "target_char_id": 1},
+          ]
+          with tempfile.TemporaryDirectory(prefix="kinera-r1-cli-") as temp_dir:
+              root = Path(temp_dir)
+              vocab_path = root / "vocab.json"
+              data_path = root / "train.jsonl"
+              vocab_path.write_text(
+                  json.dumps(vocabulary, ensure_ascii=False), encoding="utf-8"
+              )
+              data_path.write_text(
+                  "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in examples),
+                  encoding="utf-8",
+              )
+              command = [
+                  sys.executable,
+                  "scripts/train.py",
+                  "--vocabulary", str(vocab_path),
+                  "--train", str(data_path),
+                  "--epochs", "3",
+                  "--learning-rate", "0.1",
+                  "--max-examples", "4",
+                  "--context-size", "2",
+                  "--max-tokens", "5",
+                  "--seed", "7",
+              ]
+              outputs = [
+                  subprocess.run(
+                      command, check=True, capture_output=True, text=True
+                  ).stdout
+                  for _ in range(2)
+              ]
+              report = json.loads(outputs[0])
+              assert outputs[0] == outputs[1], "same-seed CLI output differed"
+              assert report["epochs"] == 3
+              assert len(report["history"]) == 3
+              assert isinstance(report["generated_text"], str)
+              print("R1 CLI reproducibility PASS: 2 independent processes, seed=7")
+          PY
