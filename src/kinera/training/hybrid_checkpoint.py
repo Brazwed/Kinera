@@ -158,7 +158,8 @@ def _validate_training_state(value: Any) -> dict[str, Any]:
     try:
         state = _required(value, {
             "schema_version", "mode", "completed_epochs", "global_step",
-            "selected_examples", "examples_sha256", "configuration", "history",
+            "selected_examples", "examples_sha256", "model_parameters_sha256",
+            "configuration", "history",
         }, "training")
     except CheckpointError as error:
         # Preserve the R2.3 diagnostic for unsupported/partial resume records.
@@ -173,11 +174,12 @@ def _validate_training_state(value: Any) -> dict[str, Any]:
     _dimension(state["selected_examples"], "training.selected_examples")
     if state["global_step"] != state["completed_epochs"] * state["selected_examples"]:
         raise CheckpointError("training.global_step incompatível com épocas completas")
-    if (
-        type(state["examples_sha256"]) is not str
-        or re.fullmatch(r"[0-9a-f]{64}", state["examples_sha256"]) is None
-    ):
-        raise CheckpointError("training.examples_sha256 inválido")
+    for field in ("examples_sha256", "model_parameters_sha256"):
+        if (
+            type(state[field]) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", state[field]) is None
+        ):
+            raise CheckpointError(f"training.{field} inválido")
     config = _required(state["configuration"], {
         "learning_rate", "max_examples", "syllable_unknown_id", "loss_weights",
     }, "training.configuration")
