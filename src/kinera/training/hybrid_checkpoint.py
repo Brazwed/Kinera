@@ -17,6 +17,14 @@ from kinera.backends.cpu.backend import CPUBackend
 from kinera.experiments.fingerprint import canonical_sha256
 from kinera.language.vocabulary import CharacterVocabulary, SyllableVocabulary
 from kinera.nn.models.hybrid import AutoregressiveModel
+from kinera.monitor.metrics.confusion import (
+    BinaryConfusion,
+    balanced_accuracy,
+    f1_score,
+    precision,
+    recall,
+    specificity,
+)
 from kinera.monitor.metrics.schema import METRICS_SCHEMA_VERSION, metric_result
 from kinera.training.checkpoint import (
     CheckpointError,
@@ -201,6 +209,55 @@ def _history_counts(
             raise CheckpointError(f"{name}.{key}: contagem inválida")
 
 
+def _history_equal(value: Any, expected: int | float | None) -> bool:
+    """Compare stored observations, tolerating only float rounding differences."""
+    if expected is None or value is None:
+        return value is None and expected is None
+    if type(expected) is int:
+        return type(value) is int and value == expected
+    if type(value) not in (int, float):
+        return False
+    return math.isclose(float(value), float(expected), rel_tol=1e-12, abs_tol=1e-12)
+
+
+def _expected_boundary_metrics(
+    confusion_counts: dict[str, int], selected_examples: int
+) -> tuple[dict[str, int | float | None], dict[str, int | float | None]]:
+    """Match the evaluator's scalar zero fallback and descriptor null policy."""
+    confusion = BinaryConfusion(**confusion_counts)
+    descriptor_precision = precision(confusion)
+    descriptor_recall = recall(confusion)
+    scalar_precision = 0.0 if descriptor_precision is None else descriptor_precision
+    scalar_recall = 0.0 if descriptor_recall is None else descriptor_recall
+    scalar_f1 = (
+        0.0 if scalar_precision + scalar_recall == 0.0
+        else 2.0 * scalar_precision * scalar_recall / (scalar_precision + scalar_recall)
+    )
+    boundary_accuracy = (confusion.tp + confusion.tn) / selected_examples
+    baseline_0 = confusion.support_negative / selected_examples
+    baseline_1 = confusion.support_positive / selected_examples
+    scalar_expected: dict[str, int | float | None] = {
+        "boundary_accuracy": boundary_accuracy,
+        "boundary_precision": scalar_precision,
+        "boundary_recall": scalar_recall,
+        "boundary_f1": scalar_f1,
+        "boundary_specificity": specificity(confusion),
+        "boundary_balanced_accuracy": balanced_accuracy(confusion),
+        "boundary_true_negative": confusion.tn,
+        "boundary_baseline_constant_0": baseline_0,
+        "boundary_baseline_constant_1": baseline_1,
+    }
+    descriptor_expected = {
+        **scalar_expected,
+        # The evaluator reports 0.0 for undefined scalar rates,
+        # while its scientific metric descriptors preserve None.
+        "boundary_precision": descriptor_precision,
+        "boundary_recall": descriptor_recall,
+        "boundary_f1": f1_score(confusion),
+    }
+    return scalar_expected, descriptor_expected
+
+
 def _validate_history_row(
     value: Any, mode: str, index: int, selected_examples: int
 ) -> None:
@@ -273,6 +330,13 @@ def _validate_history_row(
     ):
         raise CheckpointError(f"{name}.boundary_prediction_distribution incompatível")
 
+    expected_scalars, expected_descriptors = _expected_boundary_metrics(
+        confusion, selected_examples
+    )
+    for field, expected_value in expected_scalars.items():
+        if not _history_equal(row[field], expected_value):
+            raise CheckpointError(f"{name}.{field}: inconsistente com matriz de confusão")
+
     results = _required(
         row["metric_results"], set(_MULTITASK_SCALARS),
         f"{name}.metric_results",
@@ -311,6 +375,22 @@ def _validate_history_row(
             and entry["support"]["examples"] != selected_examples
         ):
             raise CheckpointError(f"{location}.support.examples incompatível")
+        # All defined descriptors must match their scalar observations.
+        # The binary descriptors are checked against their canonical confusion
+        # formulas instead, because some intentionally use None where the
+        # historical scalar reports 0.0 for an undefined denominator.
+        if field in expected_descriptors:
+            expected_value = expected_descriptors[field]
+            expected_status = "available" if expected_value is not None else "not_applicable"
+            if entry["availability"] != expected_status:
+                raise CheckpointError(f"{location}.availability incompatível")
+            if not _history_equal(entry["value"], expected_value):
+                raise CheckpointError(f"{location}.value incompatível com confusão")
+        elif entry["availability"] == "available":
+            if not _history_equal(entry["value"], row[field]):
+                raise CheckpointError(f"{location}.value incompatível com valor escalar")
+        elif field not in {"syllable_accuracy_known", "boundary_baseline_majority"}:
+            raise CheckpointError(f"{location}: métrica escalar disponível sem descritor")
 
 
 def _validate_training_state(value: Any) -> dict[str, Any]:
